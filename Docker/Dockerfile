@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS builder
+FROM python:3.14.6-slim AS builder
 
 WORKDIR /app
 
@@ -10,11 +10,11 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 COPY BillServer/ .
 RUN python -m compileall -q . 2>/dev/null || true
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app /app
 
