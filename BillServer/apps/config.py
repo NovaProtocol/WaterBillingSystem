@@ -30,6 +30,7 @@ class Config(object):
 
     REQUIRED_ENV_VARS: ClassVar[list[str]] = [
         "SECRET_KEY",
+        "NFC_PWD_SECRET",
         "DB_ENGINE",
         "DB_USERNAME",
         "DB_PASS",
