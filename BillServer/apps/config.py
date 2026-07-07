@@ -15,7 +15,7 @@ class Config(object):
 
     SQLALCHEMY_TRACK_MODIFICATIONS: ClassVar[bool] = False
 
-    DB_ENGINE: ClassVar[str] = os.environ.get("DB_ENGINE")
+    DB_ENGINE: ClassVar[str] = os.environ.get("DB_ENGINE", "mysql+pymysql")
     DB_USERNAME: ClassVar[str] = os.environ.get("DB_USERNAME")
     DB_PASS: ClassVar[str] = os.environ.get("DB_PASS")
     DB_HOST: ClassVar[str] = os.environ.get("DB_HOST")
@@ -31,7 +31,6 @@ class Config(object):
     REQUIRED_ENV_VARS: ClassVar[list[str]] = [
         "SECRET_KEY",
         "NFC_PWD_SECRET",
-        "DB_ENGINE",
         "DB_USERNAME",
         "DB_PASS",
         "DB_HOST",
