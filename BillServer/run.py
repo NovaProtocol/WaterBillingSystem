@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask.cli import with_appcontext
 
-load_dotenv()
+dotenv_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path)
 from flask_migrate import Migrate
 from flask_migrate.cli import db as db_group
 from sqlalchemy import inspect as sa_inspect
