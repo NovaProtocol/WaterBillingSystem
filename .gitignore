@@ -5,6 +5,7 @@
 !.github/
 !.gitignore
 !.gitmodules
+!.env.example
 
 # === byte-compiled / optimized / DLL files ===
 __pycache__/
