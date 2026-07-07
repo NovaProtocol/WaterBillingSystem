@@ -25,12 +25,20 @@ parser = argparse.ArgumentParser(description="BillServer")
 parser.add_argument(
     "--deployment_type",
     choices=["DEBUG", "PRODUCTION"],
-    default=os.getenv("DEPLOYMENT_TYPE", "DEBUG"),
-    help="Run mode (default from $DEPLOYMENT_TYPE env var or DEBUG)",
+    default=os.environ.get("DEPLOYMENT_TYPE"),
+    help="Run mode ($DEPLOYMENT_TYPE env var, required)",
 )
 parser.add_argument("--ssl-cert", default=None, help="Path to SSL certificate (PEM)")
 parser.add_argument("--ssl-key", default=None, help="Path to SSL private key (PEM)")
 args, _ = parser.parse_known_args()
+
+if not args.deployment_type:
+    print(
+        "FATAL: DEPLOYMENT_TYPE is not set. Must be DEBUG or PRODUCTION.\n"
+        "Set it in your .env file or as an environment variable.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 DEBUG = args.deployment_type == "DEBUG"
 
@@ -40,6 +48,8 @@ try:
     app_config = config_dict[get_config_mode.capitalize()]
 except KeyError:
     exit("Error: Invalid <config_mode>. Expected values [Debug, Production] ")
+
+app_config.validate()
 
 app = create_app(app_config)
 
