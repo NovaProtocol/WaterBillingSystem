@@ -12,7 +12,7 @@ from flask.cli import with_appcontext
 
 dotenv_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path)
-from flask_migrate import Migrate
+from flask_migrate import Migrate, upgrade
 from flask_migrate.cli import db as db_group
 from sqlalchemy import inspect as sa_inspect
 
@@ -115,6 +115,10 @@ def _preflight_db(app: Flask) -> None:
             sys.exit(1)
 
         logger.info("Database connection OK")
+
+        logger.info("Running database migrations...")
+        upgrade()
+        logger.info("Migrations complete")
 
         superuser = Staff.query.filter_by(username="superuser").first()
         if not superuser:
