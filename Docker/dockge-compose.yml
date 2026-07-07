@@ -6,7 +6,6 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASS}
       MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USERNAME}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -23,7 +22,7 @@ services:
       - "7000:5005"
     environment:
       DEPLOYMENT_TYPE: PRODUCTION
-      DB_ENGINE: ${DB_ENGINE:-mysql+pymysql}
+      DB_ENGINE: ${DB_ENGINE}
       DB_HOST: db
       DB_PORT: 3306
       CACHE_TYPE: SimpleCache
