@@ -26,7 +26,7 @@ services:
       - DB_PORT=3306
       - CACHE_TYPE=SimpleCache
     env_file:
-      - ../.env
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -41,23 +41,6 @@ services:
       PMA_HOST: db
     depends_on:
       - db
-
-  docs:
-    image: python:3.14-slim
-    container_name: ws_docs
-    restart: unless-stopped
-    working_dir: /app
-    command: >
-      sh -c "
-        pip install -r requirements.txt --quiet &&
-        echo '==> Starting docs...' &&
-        exec mkdocs serve --dev-addr 0.0.0.0:8000
-      "
-    ports:
-      - "7001:8000"
-    volumes:
-      - ../documentations:/app
-    depends_on: []
 
 volumes:
   mysql_data:
