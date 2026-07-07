@@ -23,12 +23,15 @@ services:
     ports:
       - "7000:5005"
     environment:
-      - DEPLOYMENT_TYPE=PRODUCTION
-      - DB_HOST=db
-      - DB_PORT=3306
-      - CACHE_TYPE=SimpleCache
-    env_file:
-      - .env
+      DEPLOYMENT_TYPE: PRODUCTION
+      DB_HOST: db
+      DB_PORT: 3306
+      CACHE_TYPE: SimpleCache
+      DB_NAME: BillServerDB
+      DB_USERNAME: root
+      DB_PASS: ${DB_PASS}
+      SECRET_KEY: ${SECRET_KEY}
+      NFC_PWD_SECRET: ${NFC_PWD_SECRET}
     depends_on:
       db:
         condition: service_healthy
