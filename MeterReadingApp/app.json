@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "MeterReadingApp",
+    "slug": "MeterReadingApp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.projectnova.MeterReadingApp"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
+          "barcodeScannerEnabled": true,
+          "microphonePermission": false
+        }
+      ],
+      "react-native-nfc-manager",
+      "./plugins/withNetworkSecurity"
+    ],
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.projectnova.MeterReadingApp",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.NFC",
+        "android.permission.INTERNET"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "531a1259-cd2f-48c0-87fa-34d50bf07eee"
+      }
+    }
+  }
+}

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Cotta Realty — Customer Billing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/font-awesome/6.5.0/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/leaflet/1.9.4/leaflet.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta.css') }}">
+    <style>
+        .container { max-width: 1320px; }
+        .stat-value { font-size: 2.2rem; font-weight: 800; }
+        .history-table { font-size: 0.875rem; }
+        .history-table th { border-top: none; color: #6c757d; }
+        .badge-balance { font-size: 1rem; padding: 0.5rem 1.5rem; border-radius: 50px; font-weight: 600; }
+        .footer { background: #1a1a2e; padding: 1.5rem 0; color: rgba(255,255,255,0.6); font-size: 0.85rem; text-align: center; }
+        .collapse-trigger { cursor: pointer; }
+        .collapse-trigger:hover { opacity: 0.8; }
+        .map-cover { position: relative; height: 450px; z-index: 1; overflow: hidden; }
+        .map-cover #billing-map { height: 100%; width: 100%; }
+        .map-cover-fade { position: absolute; inset: 0; pointer-events: none; z-index: 999; background: linear-gradient(to bottom, rgba(26,26,46,0.4) 0%, transparent 15%, transparent 45%, rgba(248,249,250,0.8) 80%, #f8f9fa 100%); }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta-mobile.css') }}" media="(max-width: 768px)">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark navbar-cotta">
+    <div class="container">
+        <a class="navbar-brand" href="/">COTTA <span>REALTY</span></a>
+        <div class="ml-auto">
+            <a href="{{ url_for('landing_blueprint.index') }}" class="btn btn-outline-bill btn-sm">
+                <i class="fas fa-arrow-left mr-2"></i>Back
+            </a>
+        </div>
+    </div>
+</nav>
+
+<div class="map-cover">
+    <div id="billing-map"></div>
+    <div class="map-cover-fade"></div>
+</div>
+
+<div class="container py-4" style="margin-top: -140px; position: relative; z-index: 2;">
+    <div class="row">
+        <div class="col-lg-8 col-xl-9">
+            <div class="card card-cotta mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    Customer Information
+                    <a href="{{ url_for('landing_blueprint.index') }}" class="btn btn-outline-bill btn-sm">
+                        <i class="fas fa-search mr-2"></i>New Search
+                    </a>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr><th style="width: 140px; color: #6c757d; white-space: nowrap;">Customer #</th><td style="font-weight: 600;">{{ customer.customer_number }}</td></tr>
+                        <tr><th style="color: #6c757d; white-space: nowrap;">Name</th><td>{{ customer.name }}</td></tr>
+                        <tr><th style="color: #6c757d; white-space: nowrap;">Address</th><td>{{ customer.address }}</td></tr>
+                        <tr><th style="color: #6c757d; white-space: nowrap;">Contact</th><td>{{ customer.contact_number }}</td></tr>
+                        <tr><th style="color: #6c757d; white-space: nowrap;">Email</th><td>{{ customer.email }}</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card card-cotta h-100">
+                        <div class="card-header">Current Reading</div>
+                        <div class="card-body text-center">
+                            {% if latest_reading %}
+                            <div class="stat-value text-dark">{{ latest_reading.reading_value }}</div>
+                            <p class="text-muted mb-1">Recorded by: {{ latest_reading.token.staff.name if latest_reading.token and latest_reading.token.staff else 'Unknown' }}</p>
+                            <small class="text-muted">{{ latest_reading.timestamp | timestamp_to_date }}</small>
+                            {% else %}
+                            <p class="text-muted mb-0">No readings available</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <div class="card card-cotta h-100">
+                        <div class="card-header">Previous Reading</div>
+                        <div class="card-body text-center">
+                            {% if last_reading %}
+                            <div class="stat-value text-dark">{{ last_reading.reading_value }}</div>
+                            <p class="text-muted mb-1">Recorded by: {{ last_reading.token.staff.name if last_reading.token and last_reading.token.staff else 'Unknown' }}</p>
+                            <small class="text-muted">{{ last_reading.timestamp | timestamp_to_date }}</small>
+                            {% else %}
+                            <p class="text-muted mb-0">No previous reading</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-cotta mb-4">
+                <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#pricingCollapse">
+                    <div class="d-flex justify-content-between align-items-center">
+                        How We Calculate Your Bill
+                        <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: #6c757d;"></i>
+                    </div>
+                </div>
+                <div class="collapse" id="pricingCollapse">
+                <div class="card-body p-0">
+                    {% if latest_reading and last_reading %}
+                    <div class="px-3 pt-3 pb-2 text-muted" style="font-size: 0.9rem;">
+                        <strong>{{ "%.2f" | format(consumption) }} m&sup3;</strong> consumed this period
+                    </div>
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr><th>Tier</th><th>Usage</th><th>Rate</th><th class="text-right">Charge</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for item in bill_breakdown %}
+                            <tr style="font-size: 0.85rem;{{ ' color: #6c757d;' if item['units'] == 0 else '' }}">
+                                <td>{{ item['label'] }}</td>
+                                <td>{{ "%.2f" | format(item['units']) }} m&sup3;</td>
+                                <td>{% if PRICING_TIERS[loop.index0]['unit'] == 'flat' %}&#x20B1;{{ "%.2f" | format(PRICING_TIERS[loop.index0]['rate']) }} flat{% else %}&#x20B1;{{ "%.2f" | format(PRICING_TIERS[loop.index0]['rate']) }}/m&sup3;{% endif %}</td>
+                                <td class="text-right font-weight-bold">&#x20B1;{{ "%.2f" | format(item['charge']) }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="font-weight-bold" style="border-top: 2px solid #1a1a2e;">
+                                <td colspan="3">Total Water Bill</td>
+                                <td class="text-right">&#x20B1;{{ "%.2f" | format(original_water_bill) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="card-body">
+                        <p class="text-muted mb-0">Insufficient data to calculate consumption</p>
+                    </div>
+                    {% endif %}
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-xl-3">
+            <div class="card card-cotta mb-4">
+                <div class="card-header">
+                    Bill Summary
+                </div>
+                <div class="card-body">
+                    {% if unpaid_bills %}
+                    {% for bill in unpaid_bills %}
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">{{ bill.month }}</span>
+                        <span class="font-weight-bold">&#x20B1;{{ "%.2f" | format(bill.amount) }}</span>
+                    </div>
+                    {% if bill.penalty > 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted" style="font-size: 0.85rem; padding-left: 1.2rem;">+ Late Penalty</span>
+                        <span class="font-weight-bold" style="font-size: 0.85rem; color: #dc3545;">+ &#x20B1;{{ "%.2f" | format(bill.penalty) }}</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% elif original_water_bill and original_water_bill > 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Current Bill</span>
+                        <span class="font-weight-bold">&#x20B1;{{ "%.2f" | format(original_water_bill) }}</span>
+                    </div>
+                    <div class="text-right mb-2" style="font-size: 0.8rem; color: #28a745;">
+                        <i class="fas fa-check-circle"></i> Paid
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0" style="font-size: 0.9rem;">No bills due</p>
+                    {% endif %}
+                    {% if balance != 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted" style="font-size: 0.85rem;">Carryover from last bill</span>
+                        {% if balance > 0 %}
+                        <span class="font-weight-bold" style="font-size: 0.85rem; color: #28a745;">&minus; &#x20B1;{{ "%.2f" | format(carryover) }}</span>
+                        {% else %}
+                        <span class="font-weight-bold" style="font-size: 0.85rem; color: #dc3545;">+ &#x20B1;{{ "%.2f" | format(carryover) }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between" style="font-size: 1.2rem;">
+                        <span class="font-weight-bold">Total Due</span>
+                        <span class="font-weight-bold" style="color: #e94560;">&#x20B1;{{ "%.2f" | format(total_due) }}</span>
+                    </div>
+                    {% if due_date %}
+                    <div class="text-right mt-2" style="font-size: 0.8rem; color: #6c757d;">
+                        Due in {{ days_remaining }} day{{ '' if days_remaining == 1 else 's' }} ({{ due_date }})
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card card-cotta mb-4">
+                <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#paymentCollapse">
+                    <div class="d-flex justify-content-between align-items-center">
+                        Payment History
+                        <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: #6c757d;"></i>
+                    </div>
+                </div>
+                <div class="collapse" id="paymentCollapse">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm history-table mb-0" id="payment-history-table">
+                                <thead><tr><th>Receipt</th><th>Amount</th><th>Date</th></tr></thead>
+                                <tbody>
+                                    {% for p in recent_payments %}
+                                    <tr><td>{{ p.receipt_number }}</td><td>{{ "%.2f" | format(p.paid_amount) }}</td><td>{{ p.timestamp | timestamp_to_date }}</td></tr>
+                                    {% else %}
+                                    <tr><td colspan="3" class="text-muted text-center">No payments</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center py-2">
+                            <ul class="pagination justify-content-center mb-0 pagination-cotta" id="payment-pagination"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-cotta mb-4">
+                <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#readingCollapse">
+                    <div class="d-flex justify-content-between align-items-center">
+                        Meter Reading History
+                        <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: #6c757d;"></i>
+                    </div>
+                </div>
+                <div class="collapse" id="readingCollapse">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm history-table mb-0" id="reading-history-table">
+                                <thead><tr><th>Reading</th><th>Reader</th><th>Date</th></tr></thead>
+                                <tbody>
+                                    {% for r in recent_readings %}
+                                    <tr><td>{{ r.reading_value }}</td><td>{{ r.token.staff.name if r.token and r.token.staff else 'Unknown' }}</td><td>{{ r.timestamp | timestamp_to_date }}</td></tr>
+                                    {% else %}
+                                    <tr><td colspan="3" class="text-muted text-center">No readings</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center py-2">
+                            <ul class="pagination justify-content-center mb-0 pagination-cotta" id="reading-pagination"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-cotta mb-4">
+        <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#billingHistoryCollapse">
+            <div class="d-flex justify-content-between align-items-center">
+                Billing History
+                <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: #6c757d;"></i>
+            </div>
+        </div>
+        <div class="collapse" id="billingHistoryCollapse">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                        <table class="table table-sm history-table mb-0" id="billing-history-table">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Usage</th>
+                                <th>Billed Amount</th>
+                                <th>Penalty</th>
+                                <th>Paid</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="text-center py-2">
+                    <ul class="pagination justify-content-center mb-0 pagination-cotta" id="billing-history-pagination"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    <div class="container">
+        &copy; 2026 Cotta Realty and Development Corporation. All rights reserved.
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='assets/vendor/jquery/3.5.1/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/vendor/leaflet/1.9.4/leaflet.js') }}"></script>
+<script>
+  var CUST_LAT = {{ customer.x_coordinate | tojson if customer.x_coordinate else 'null' }};
+  var CUST_LNG = {{ customer.y_coordinate | tojson if customer.y_coordinate else 'null' }};
+  var CUST_NUM = '{{ customer.customer_number }}';
+</script>
+<script src="{{ url_for('static', filename='assets/js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/billing.js') }}"></script>
+</body>
+</html>

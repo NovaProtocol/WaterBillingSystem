@@ -1,0 +1,50 @@
+{
+  "name": "meterreadingapp",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@op-engineering/op-sqlite": "^17.0.0",
+    "@react-navigation/native": "^7.3.4",
+    "@react-navigation/native-stack": "^7.17.6",
+    "expo": "~56.0.14",
+    "expo-camera": "~56.0.8",
+    "expo-dev-client": "~56.0.22",
+    "expo-status-bar": "~56.0.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.85.3",
+    "react-native-nfc-manager": "^3.17.2",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "4.25.2",
+    "react-native-web": "^0.21.2",
+    "react-native-webview": "13.16.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "@typescript-eslint/eslint-plugin": "^8.62.0",
+    "@typescript-eslint/parser": "^8.62.0",
+    "eslint": "^10.5.0",
+    "eslint-plugin-import-x": "^4.17.0",
+    "playwright": "^1.61.0",
+    "prettier": "^3.8.4",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "lint": "eslint src/",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\""
+  },
+  "private": true,
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-nfc-manager"
+        ]
+      }
+    }
+  }
+}

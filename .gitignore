@@ -1,0 +1,102 @@
+# === catch-all: ignore all dotfiles everywhere ===
+# Explicit patterns below are redundant but kept for clarity.
+.*
+# === exceptions: dotfiles that SHOULD be tracked ===
+!.github/
+!.gitignore
+!.gitmodules
+
+# === byte-compiled / optimized / DLL files ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# === virtual environments ===
+.venv/
+env/
+venv/
+
+# === environment files ===
+.env
+.env.sample
+.flaskenv
+.env*.local
+
+# === package manager / dependencies ===
+node_modules/
+package-lock.json
+yarn.lock
+
+# === Python build ===
+*.egg-info/
+dist/
+build/
+
+# === database & logs ===
+*.db
+*.sqlite3
+*.log
+
+# === tests and coverage ===
+.pytest_cache/
+.coverage
+htmlcov/
+
+# === AI agent / IDE ===
+.claude/
+.continue/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === personal notes ===
+suggestions.md
+
+# === Expo ===
+.expo/
+web-build/
+expo-env.d.ts
+
+# === Metro ===
+.metro-health-check*
+
+# === Native (Android / iOS) ===
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# === TypeScript ===
+*.tsbuildinfo
+
+# === BillServer-specific (non-dot) ===
+BillServer/instance/
+BillServer/migrations/versions/*.pyc
+BillServer/static/assets/css/*.css
+BillServer/static/assets/js/*.min.js
+BillServer/apps/static/assets/node_modules
+BillServer/apps/static/assets/yarn.lock
+BillServer/apps/static/assets/.temp
+BillServer/README_bk.md
+BillServer/db_backups/
+BillServer/certificates/
+
+# === MeterReadingApp-specific ===
+MeterReadingApp/android/
+MeterReadingApp/ios/
+
+# === documentations-specific ===
+documentations/site/
+
+# === Windows alternate data streams ===
+*:Zone.Identifier
+*:Zone.Identifier:*

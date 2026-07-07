@@ -1,0 +1,6 @@
+[submodule "BillServer"]
+	path = BillServer
+	url = ./BillServer
+[submodule "MeterReadingApp"]
+	path = MeterReadingApp
+	url = ./MeterReadingApp

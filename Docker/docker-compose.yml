@@ -1,0 +1,60 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: BillServerDB
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: BillServerDB
+      MYSQL_DATABASE: BillServerDB
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  billserver:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+    container_name: billserver_app
+    restart: always
+    ports:
+      - "7000:5005"
+    volumes:
+      - ../BillServer:/app
+      - billserver_cache:/app/.cache
+    environment:
+      - DEPLOYMENT_TYPE=PRODUCTION
+      - DB_HOST=db
+      - DB_PORT=3306
+    env_file:
+      - ../BillServer/.env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin_billserver
+    restart: always
+    ports:
+      - "7002:80"
+    environment:
+      PMA_HOST: db
+
+  docs:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile.docs
+    container_name: billserver_docs
+    restart: always
+    ports:
+      - "7001:8000"
+    volumes:
+      - ../documentations:/app
+
+volumes:
+  mysql_data:
+  billserver_cache:

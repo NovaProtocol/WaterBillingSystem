@@ -1,0 +1,26 @@
+{% extends "landing/base.html" %}
+
+{% block content %}
+
+<section style="padding: 8rem 0 3rem; background: #1a1a2e; text-align: center;">
+    <div class="container">
+        <h1 style="color: #fff; font-weight: 800; font-size: 2.5rem; margin-bottom: 0.75rem;">Our House Models</h1>
+        <p style="color: rgba(255,255,255,0.55); max-width: 600px; margin: 0 auto; font-size: 1rem;">
+            Quality house-and-lot packages designed for Filipino families.
+        </p>
+    </div>
+</section>
+
+{% include "landing/_homes.html" %}
+
+<section class="bill-cta">
+    <div class="container">
+        <h2>Interested?</h2>
+        <p>Contact us to learn more about our house models and financing options.</p>
+        <a href="{{ url_for('landing_blueprint.index') }}#contact" class="btn btn-bill btn-lg">
+            <i class="fas fa-phone mr-2"></i>Get in Touch
+        </a>
+    </div>
+</section>
+
+{% endblock %}
