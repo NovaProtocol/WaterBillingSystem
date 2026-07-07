@@ -56,6 +56,11 @@ app = create_app(app_config)
 
 Migrate(app, db)
 
+with app.app_context():
+    logger.info("Ensuring database tables exist...")
+    db.create_all()
+    logger.info("Tables verified")
+
 
 # Custom CLI commands attached to `flask db` group
 @db_group.command("wipe")
