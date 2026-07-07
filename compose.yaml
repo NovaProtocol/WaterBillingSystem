@@ -1,0 +1,63 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: BillServerDB
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  billserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ws_app
+    restart: unless-stopped
+    ports:
+      - "7000:5005"
+    environment:
+      - DEPLOYMENT_TYPE=PRODUCTION
+      - DB_HOST=db
+      - DB_PORT=3306
+      - CACHE_TYPE=SimpleCache
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: ws_pma
+    restart: unless-stopped
+    ports:
+      - "7002:80"
+    environment:
+      PMA_HOST: db
+    depends_on:
+      - db
+
+  docs:
+    image: python:3.14-slim
+    container_name: ws_docs
+    restart: unless-stopped
+    working_dir: /app
+    command: >
+      sh -c "
+        pip install -r requirements.txt --quiet &&
+        exec mkdocs serve --dev-addr 0.0.0.0:8000
+      "
+    ports:
+      - "7001:8000"
+    volumes:
+      - ./documentations:/app
+
+volumes:
+  mysql_data:
