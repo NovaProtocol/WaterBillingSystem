@@ -6,6 +6,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASS}
       MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USERNAME}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -24,11 +25,12 @@ services:
       - "7000:5005"
     environment:
       DEPLOYMENT_TYPE: PRODUCTION
+      DB_ENGINE: ${DB_ENGINE:-mysql+pymysql}
       DB_HOST: db
       DB_PORT: 3306
       CACHE_TYPE: SimpleCache
-      DB_NAME: BillServerDB
-      DB_USERNAME: root
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
       DB_PASS: ${DB_PASS}
       SECRET_KEY: ${SECRET_KEY}
       NFC_PWD_SECRET: ${NFC_PWD_SECRET}
