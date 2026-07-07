@@ -1,0 +1,22 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: BillServerDB
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: BillServerDB
+      MYSQL_DATABASE: BillServerDB
+    ports:
+      - 3306:3306
+    volumes:
+      - mysql_data:/var/lib/mysql
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin_billserver
+    restart: always
+    ports:
+      - 5002:80
+    environment:
+      PMA_HOST: db
+volumes:
+  mysql_data: null
