@@ -57,9 +57,16 @@ app = create_app(app_config)
 Migrate(app, db)
 
 with app.app_context():
-    logger.info("Ensuring database tables exist...")
-    db.create_all()
-    logger.info("Tables verified")
+    logger.info("=== PREFLIGHT (module) ===")
+    logger.info("Checking if database tables exist...")
+    try:
+        db.create_all()
+    except Exception as e:
+        logger.error("FATAL: db.create_all() failed: %s", e)
+        sys.exit(1)
+    for table_name in sorted(db.metadata.tables.keys()):
+        logger.info("  [OK] table: %s", table_name)
+    logger.info("=== PREFLIGHT (module) DONE ===")
 
 
 # Custom CLI commands attached to `flask db` group
@@ -121,9 +128,20 @@ def _preflight_db(app: Flask) -> None:
 
         logger.info("Database connection OK")
 
-        logger.info("Ensuring database tables exist...")
+        logger.info("=== Checking individual tables ===")
         db.create_all()
-        logger.info("Tables verified")
+        inspector = sa_inspect(db.engine)
+        existing_tables = set(inspector.get_table_names())
+        expected_tables = set(db.metadata.tables.keys())
+        for table_name in sorted(expected_tables):
+            status = "[EXISTS]" if table_name in existing_tables else "[CREATED]"
+            logger.info("  %s table: %s", status, table_name)
+
+        missing_tables = expected_tables - existing_tables
+        if missing_tables:
+            logger.warning("Tables still missing after create_all: %s", ", ".join(sorted(missing_tables)))
+        else:
+            logger.info("All %d tables present", len(expected_tables))
 
         superuser = Staff.query.filter_by(username="superuser").first()
         if not superuser:
@@ -146,19 +164,6 @@ def _preflight_db(app: Flask) -> None:
             )
         else:
             logger.info("Superuser account verified")
-
-        inspector = sa_inspect(db.engine)
-        existing_tables = set(inspector.get_table_names())
-        expected_tables = set(db.metadata.tables.keys())
-
-        missing_tables = expected_tables - existing_tables
-        if missing_tables:
-            logger.warning(
-                "Missing tables (run flask db upgrade): %s",
-                ", ".join(sorted(missing_tables)),
-            )
-        else:
-            logger.info("All tables present: %s", ", ".join(sorted(expected_tables)))
 
         for table_name in sorted(expected_tables):
             existing_columns = {
