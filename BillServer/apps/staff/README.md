@@ -13,6 +13,16 @@ Authenticated admin interface at `/staff`.
 | `/staff/bills` | Billing management |
 | `/staff/staff` | Staff list, create, edit |
 | `/staff/api` | API key generation/revocation |
+| `/staff/debug/*` | Debug tools (backup, restore, seed, clear, monthly actions) — superuser only, `DEBUG=true` |
+
+## Background Worker
+
+Debug actions run in a **dedicated subprocess** (`debug_worker.py`, launched from `run.py`) to keep the page responsive. Tasks are processed sequentially through a file-based queue:
+
+- `db_backups/to_bg.json` — queue of pending job orders (written by Flask routes, popped by worker)
+- `db_backups/from_bg.json` — current job state + completed history (written by worker, read by routes)
+
+All file access uses `fcntl.flock` for cross-process safety across Gunicorn workers. On server restart, both files are cleared.
 
 ## Permissions
 

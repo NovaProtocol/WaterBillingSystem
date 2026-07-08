@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import signal
+import subprocess
 import sys
 from pathlib import Path
 
@@ -21,6 +23,8 @@ from apps.config import config_dict
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
+_debug_worker_proc: subprocess.Popen | None = None
 
 parser = argparse.ArgumentParser(description="BillServer")
 parser.add_argument(
@@ -183,55 +187,92 @@ def _preflight_db(app: Flask) -> None:
         logger.info("All table columns verified")
 
 
+def _start_debug_worker() -> subprocess.Popen | None:
+    global _debug_worker_proc
+    worker_script = Path(__file__).resolve().parent / "apps" / "staff" / "debug_worker.py"
+    if not worker_script.exists():
+        logger.warning("Debug worker script not found: %s", worker_script)
+        return None
+    proc = subprocess.Popen(
+        [sys.executable, str(worker_script)],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+    _debug_worker_proc = proc
+    logger.info("Debug worker started (PID %d)", proc.pid)
+    return proc
+
+
+def _stop_debug_worker() -> None:
+    global _debug_worker_proc
+    if _debug_worker_proc is None:
+        return
+    try:
+        pgid = os.getpgid(_debug_worker_proc.pid)
+        os.killpg(pgid, signal.SIGTERM)
+        _debug_worker_proc.wait(timeout=5)
+    except Exception:
+        try:
+            _debug_worker_proc.kill()
+            _debug_worker_proc.wait(timeout=3)
+        except Exception:
+            pass
+    _debug_worker_proc = None
+
+
 if __name__ == "__main__":
     _compile_scss(app)
     _preflight_db(app)
+    _start_debug_worker()
 
-    if DEBUG:
-        ssl_cert = args.ssl_cert
-        ssl_key = args.ssl_key
-        if ssl_cert is None and Path("certificates/dev-cert.pem").exists():
-            ssl_cert = "certificates/dev-cert.pem"
-        if ssl_key is None and Path("certificates/dev-key.pem").exists():
-            ssl_key = "certificates/dev-key.pem"
-        if ssl_cert and ssl_key:
-            logger.info("HTTPS enabled (cert: %s)", ssl_cert)
-            app.run(host="0.0.0.0", port=5005, debug=DEBUG, ssl_context=(ssl_cert, ssl_key))
+    try:
+        if DEBUG:
+            ssl_cert = args.ssl_cert
+            ssl_key = args.ssl_key
+            if ssl_cert is None and Path("certificates/dev-cert.pem").exists():
+                ssl_cert = "certificates/dev-cert.pem"
+            if ssl_key is None and Path("certificates/dev-key.pem").exists():
+                ssl_key = "certificates/dev-key.pem"
+            if ssl_cert and ssl_key:
+                logger.info("HTTPS enabled (cert: %s)", ssl_cert)
+                app.run(host="0.0.0.0", port=5005, debug=DEBUG, ssl_context=(ssl_cert, ssl_key))
+            else:
+                app.run(host="0.0.0.0", port=5005, debug=DEBUG)
         else:
-            app.run(host="0.0.0.0", port=5005, debug=DEBUG)
-    else:
-        try:
-            from gunicorn.app.base import BaseApplication
-        except ImportError:
-            logger.error("gunicorn is not installed. Run: pip install gunicorn")
-            sys.exit(1)
+            try:
+                from gunicorn.app.base import BaseApplication
+            except ImportError:
+                logger.error("gunicorn is not installed. Run: pip install gunicorn")
+                sys.exit(1)
 
-        class StandaloneApplication(BaseApplication):
-            def __init__(self, app, options=None):
-                self.options = options or {}
-                self.application = app
-                super().__init__()
+            class StandaloneApplication(BaseApplication):
+                def __init__(self, app, options=None):
+                    self.options = options or {}
+                    self.application = app
+                    super().__init__()
 
-            def load_config(self):
-                for key, value in self.options.items():
-                    self.cfg.set(key, value)
+                def load_config(self):
+                    for key, value in self.options.items():
+                        self.cfg.set(key, value)
 
-            def load(self):
-                return self.application
+                def load(self):
+                    return self.application
 
-        gunicorn_opts = {
-            "bind": "0.0.0.0:5005",
-            "workers": 3,
-            "accesslog": "-",
-            "loglevel": "info",
-            "capture_output": True,
-            "enable_stdio_inheritance": True,
-        }
-        ssl_certfile = os.environ.get("SSL_CERTFILE")
-        ssl_keyfile = os.environ.get("SSL_KEYFILE")
-        if ssl_certfile:
-            gunicorn_opts["certfile"] = ssl_certfile
-            if ssl_keyfile:
-                gunicorn_opts["keyfile"] = ssl_keyfile
-            logger.info("HTTPS enabled (certfile: %s)", ssl_certfile)
-        StandaloneApplication(app, gunicorn_opts).run()
+            gunicorn_opts = {
+                "bind": "0.0.0.0:5005",
+                "workers": 3,
+                "accesslog": "-",
+                "loglevel": "info",
+                "capture_output": True,
+                "enable_stdio_inheritance": True,
+            }
+            ssl_certfile = os.environ.get("SSL_CERTFILE")
+            ssl_keyfile = os.environ.get("SSL_KEYFILE")
+            if ssl_certfile:
+                gunicorn_opts["certfile"] = ssl_certfile
+                if ssl_keyfile:
+                    gunicorn_opts["keyfile"] = ssl_keyfile
+                logger.info("HTTPS enabled (certfile: %s)", ssl_certfile)
+            StandaloneApplication(app, gunicorn_opts).run()
+    finally:
+        _stop_debug_worker()

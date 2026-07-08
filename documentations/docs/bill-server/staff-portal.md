@@ -164,13 +164,87 @@ Staff account fields:
 
 ## DEBUG Dashboard
 
-When `DEBUG=true` is set in `.env` and the logged-in user is "superuser", a **DEBUG** section appears in the sidebar with development tools:
+When `DEBUG=true` is set in `.env` and the logged-in user is "superuser", a **DEBUG** section appears in the sidebar with development tools.
 
-| Tool | Description |
-|---|---|
-| **Backup Database** | Exports all tables to a JSON file in the `db_backups` Docker volume |
-| **Restore from Backup** | Select a backup file and restore the database to that state |
-| **Seed Test Data** | Generate realistic test customers, readings, and billing records |
-| **Clear Database** | Truncates all tables — removes all data permanently |
+### Available Actions
 
-All destructive actions (restore, seed, clear) require typing a randomly generated 8-digit confirmation code before execution.
+| Tool | Description | Endpoint |
+|---|---|---|
+| **Backup Database** | Exports all tables to a JSON file in the `db_backups` volume | `POST /staff/debug/backup` |
+| **Restore from Backup** | Select a backup file and restore the database to that state | `POST /staff/debug/restore` |
+| **Seed Test Data** | Generate realistic test customers, readings, and billing records | `POST /staff/debug/seed` |
+| **Clear Database** | Truncates all tables — removes all data permanently | `POST /staff/debug/clear` |
+| **Read This Month** | Create readings + unpaid bills for all customers without one | `POST /staff/debug/read-this-month` |
+| **Unread This Month** | Remove this month's readings (unpaid only) | `POST /staff/debug/unread-this-month` |
+| **Pay This Month** | Mark all unpaid this-month bills as paid | `POST /staff/debug/pay-this-month` |
+| **Remove Payment This Month** | Revert all paid this-month bills to unpaid | `POST /staff/debug/remove-payment-this-month` |
+
+All destructive actions (restore, seed, clear, and monthly mutations) require typing a randomly generated 8-digit confirmation code before execution.
+
+### Task Queue System
+
+Actions run in a **background worker process** (not in the HTTP request), so the page remains responsive. The system uses two files for cross-process communication:
+
+| File | Purpose | Written by | Read by |
+|------|---------|-----------|---------|
+| `db_backups/to_bg.json` | Queue of pending job orders | Flask routes | Background worker |
+| `db_backups/from_bg.json` | Current job state + completed history | Background worker | Flask routes |
+
+All file access is protected by `fcntl.flock` to prevent corruption when multiple Gunicorn workers access the files concurrently.
+
+#### How it works
+
+1. **Submit**: Clicking an action generates an 8-digit confirmation code. After confirmation, the route writes a job order to `to_bg.json` (the queue).
+2. **Process**: A dedicated subprocess (`debug_worker.py`, launched from `run.py`) polls `to_bg.json` every 0.5s. It pops the oldest order and executes it — tasks run **sequentially** (one at a time).
+3. **Progress**: The worker writes status updates (progress percentage, messages) to `from_bg.json` at least 2 times per second.
+4. **Poll**: The frontend JavaScript polls `GET /staff/debug/tasks` every 2 seconds and renders the current job and completed history.
+
+#### Queue behaviour
+
+- Tasks run in order — a backup finishes before a seed starts.
+- On server restart, both `to_bg.json` and `from_bg.json` are cleared. Any queued or running jobs are discarded.
+- The worker runs independently of Gunicorn workers — if one worker crashes, the background worker continues unaffected.
+
+#### Status display
+
+The Task Queue card shows:
+- **Current job** (if any): Progress bar, status badge, latest message, expandable message log
+- **History**: Compeleted/interrupted/errored jobs with expandable logs
+- **Queue depth badge**: Number of pending orders awaiting execution
+
+### Task polling API
+
+**`GET /staff/debug/tasks`** — Returns the full task queue status:
+
+```json
+{
+  "current": {
+    "id": "order_5",
+    "title": "Seed: 5000c × 120m",
+    "status": "running",
+    "progress": 42.5,
+    "started_at": 1783518484.42,
+    "messages": [
+      "Order Received: Seed 5000c × 120m",
+      "Clearing existing data...",
+      "Seeding customer 10/5000..."
+    ]
+  },
+  "queue_depth": 2,
+  "history": [
+    {
+      "id": "order_4",
+      "title": "Clear Database",
+      "status": "completed",
+      "progress": 100,
+      "started_at": 1783518459.51,
+      "ended_at": 1783518460.21,
+      "messages": ["Clearing tables...", "All tables cleared. Superuser preserved."]
+    }
+  ]
+}
+```
+
+When idle: `current` is `null`. The history array holds up to 20 recent completed jobs.
+
+**`GET /staff/debug/tasks/<order_id>`** — Returns a single task (current or in history).
