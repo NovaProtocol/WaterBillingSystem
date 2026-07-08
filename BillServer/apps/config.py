@@ -26,8 +26,6 @@ class Config(object):
         DB_ENGINE, DB_USERNAME, DB_PASS, DB_HOST, DB_PORT, DB_NAME
     )
 
-    REVERSE_PROXY_PREFIX: ClassVar[str] = os.environ.get("REVERSE_PROXY_PREFIX", "")
-
     REQUIRED_ENV_VARS: ClassVar[list[str]] = [
         "SECRET_KEY",
         "NFC_PWD_SECRET",
@@ -37,10 +35,6 @@ class Config(object):
         "DB_HOST",
         "DB_PORT",
         "DB_NAME",
-    ]
-
-    ENV_VARS_ALLOW_EMPTY: ClassVar[list[str]] = [
-        "REVERSE_PROXY_PREFIX",
     ]
 
     @classmethod
