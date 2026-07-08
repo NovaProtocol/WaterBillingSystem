@@ -785,10 +785,13 @@ def _generate_consumption(months: int, rng: random.Random) -> list[float]:
 
 
 def _seed_data(n_customers: int, n_months: int, _reporter: ProgressReporter | None = None) -> None:
+    _report = _reporter.progress if _reporter else lambda p, m: None
+
     import binascii
     import hashlib
     import secrets as _secrets
 
+    _report(2, "Clearing existing staff...")
     Staff.query.filter(Staff.username != "superuser").delete(
         synchronize_session="fetch"
     )
@@ -852,6 +855,7 @@ def _seed_data(n_customers: int, n_months: int, _reporter: ProgressReporter | No
         staff_ids[s["username"]] = staff.id
 
     cashier_id = staff_ids.get("cashier1", next(iter(staff_ids.values())))
+    _report(4, f"Created {len(staff_users)} staff accounts")
 
     api_key_map: dict[int, int] = {}
     for sid_name, sid in staff_ids.items():
@@ -976,12 +980,10 @@ def _seed_data(n_customers: int, n_months: int, _reporter: ProgressReporter | No
 
         cust.cumulative_balance = round(cum_balance, 2)
 
-        if (ci + 1) % 50 == 0:
+        if (ci + 1) % 10 == 0:
             db.session.commit()
-            if _reporter:
-                pct = 2 + round(93 * (ci + 1) / n_customers, 1)
-                _reporter.progress(pct, f"Seeding customer {ci + 1}/{n_customers}...")
+            _report(4 + round(93 * (ci + 1) / n_customers, 1),
+                    f"Seeding customer {ci + 1}/{n_customers}...")
 
     db.session.commit()
-    if _reporter:
-        _reporter.progress(95, "Finalizing...")
+    _report(97, "Finalizing...")
