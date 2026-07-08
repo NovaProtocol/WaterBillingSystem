@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import threading
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -232,16 +233,25 @@ def seed_data() -> Response:
     if n_months < 1 or n_months > 240:
         return jsonify({"error": "Months must be between 1 and 240"}), 400
 
-    try:
-        _clear_all_tables()
-        _seed_data(n_customers, n_months)
-        _ensure_superuser()
-        db.session.commit()
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return jsonify({"error": f"Seed failed: {e}"}), 500
+    from flask import current_app as app
 
-    return jsonify({"message": f"Seeded {n_customers} customers × {n_months} months"})
+    def _run_seed() -> None:
+        with app.app_context():
+            try:
+                _clear_all_tables()
+                _seed_data(n_customers, n_months)
+                _ensure_superuser()
+                db.session.commit()
+            except SQLAlchemyError:
+                db.session.rollback()
+
+    t = threading.Thread(target=_run_seed, daemon=True)
+    t.start()
+
+    return jsonify({
+        "message": f"Seeding {n_customers} customers × {n_months} months in the background. "
+                   "This may take a while — do not interrupt the server."
+    })
 
 
 def _ensure_superuser() -> None:
@@ -555,5 +565,8 @@ def _seed_data(n_customers: int, n_months: int) -> None:
             db.session.add(bill)
 
         cust.cumulative_balance = round(cum_balance, 2)
+
+        if (ci + 1) % 50 == 0:
+            db.session.commit()
 
     db.session.commit()
