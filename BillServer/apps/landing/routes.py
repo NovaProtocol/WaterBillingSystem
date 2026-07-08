@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Response, abort, render_template, request
+from flask import Response, abort, current_app, render_template, request
 from sqlalchemy import desc
 
 from apps.landing import blueprint
@@ -126,12 +126,13 @@ def index() -> Response | str:
             .order_by(desc(Billing.payment_timestamp))
             .first()
         )
-        if last_billing and last_billing.receipt_number != last_receipt:
-            return render_template(
-                "landing/index.html",
-                models=MODELS,
-                modal_error="Receipt number does not match our records.",
-            )
+        if not current_app.config.get("DEBUG_ENABLED"):
+            if last_billing and last_billing.receipt_number != last_receipt:
+                return render_template(
+                    "landing/index.html",
+                    models=MODELS,
+                    modal_error="Receipt number does not match our records.",
+                )
         return render_template(
             "landing/index.html", models=MODELS, modal_success=True, customer=customer
         )

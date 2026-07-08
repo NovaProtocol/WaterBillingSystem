@@ -35,7 +35,7 @@ ALL_TABLES = [
 ]
 
 TABLE_NAMES = [
-    "staff", "customers", "meter_readings",
+    "customers", "meter_readings",
     "billings", "api_keys", "nfc_tags", "management_logs", "app_config",
 ]
 
@@ -206,12 +206,13 @@ def clear_database() -> Response:
 
     try:
         _clear_all_tables()
+        _ensure_superuser()
         db.session.commit()
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"error": f"Clear failed: {e}"}), 500
 
-    return jsonify({"message": "All tables cleared"})
+    return jsonify({"message": "All tables cleared. Superuser preserved."})
 
 
 @blueprint.route("/debug/seed", methods=["POST"])
@@ -232,7 +233,10 @@ def seed_data() -> Response:
         return jsonify({"error": "Months must be between 1 and 240"}), 400
 
     try:
+        _clear_all_tables()
         _seed_data(n_customers, n_months)
+        _ensure_superuser()
+        db.session.commit()
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"error": f"Seed failed: {e}"}), 500
@@ -240,10 +244,34 @@ def seed_data() -> Response:
     return jsonify({"message": f"Seeded {n_customers} customers × {n_months} months"})
 
 
+def _ensure_superuser() -> None:
+    import binascii
+    import hashlib
+    existing = Staff.query.filter_by(username="superuser").first()
+    if existing:
+        return
+    salt = hashlib.sha256(os.urandom(60)).hexdigest().encode("ascii")
+    pwdhash = hashlib.pbkdf2_hmac("sha512", b"superuser", salt, 100000)
+    supper = Staff(
+        username="superuser",
+        name="Superuser",
+        password=salt + binascii.hexlify(pwdhash),
+        can_read_meters=True, can_accept_payment=True,
+        can_enroll_customer=True, can_drop_reading=True,
+        can_drop_payment=True, can_enroll_staff=True,
+        can_manage_billing=True,
+        is_active=True,
+    )
+    db.session.add(supper)
+
+
 def _clear_all_tables() -> None:
     db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 0"))
     for table_name in reversed(TABLE_NAMES):
         db.session.execute(db.text(f"TRUNCATE TABLE {table_name}"))
+    Staff.query.filter(Staff.username != "superuser").delete(
+        synchronize_session=False
+    )
     db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 1"))
     db.session.commit()
 
