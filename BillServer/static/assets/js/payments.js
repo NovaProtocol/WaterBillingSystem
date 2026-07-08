@@ -36,7 +36,7 @@ $(function() {
     });
 
     function loadCustomer(custNum) {
-        var url = '/api/customer/' + encodeURIComponent(custNum);
+        var url = API_CUSTOMER_URL.replace('0', encodeURIComponent(custNum));
         $.ajax(url, {
             dataType: 'text',
             success: function(text) {

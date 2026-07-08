@@ -9,7 +9,7 @@ $(function() {
   }
 
   function loadPayments(page) {
-    $.getJSON('/billing/api/' + CUST_NUM + '/payments?page=' + page + '&per_page=10', function (data) {
+    $.getJSON(BILLING_API_PAYMENTS_URL.replace('0', CUST_NUM) + '?page=' + page + '&per_page=10', function (data) {
       var tbody = $('#payment-history-table tbody');
       tbody.empty();
       if (data.items.length === 0) {
@@ -25,7 +25,7 @@ $(function() {
   }
 
   function loadReadings(page) {
-    $.getJSON('/billing/api/' + CUST_NUM + '/readings?page=' + page + '&per_page=10', function (data) {
+    $.getJSON(BILLING_API_READINGS_URL.replace('0', CUST_NUM) + '?page=' + page + '&per_page=10', function (data) {
       var tbody = $('#reading-history-table tbody');
       tbody.empty();
       if (data.items.length === 0) {
@@ -45,7 +45,7 @@ $(function() {
   loadBillingHistory(1);
 
   function loadBillingHistory(page) {
-    $.getJSON('/billing/api/' + CUST_NUM + '/history?page=' + page + '&per_page=12', function (data) {
+    $.getJSON(BILLING_API_HISTORY_URL.replace('0', CUST_NUM) + '?page=' + page + '&per_page=12', function (data) {
       var tbody = $('#billing-history-table tbody');
       tbody.empty();
       if (data.items.length === 0) {

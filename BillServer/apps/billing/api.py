@@ -4,7 +4,7 @@ import secrets
 import time
 from datetime import datetime
 
-from flask import Response, current_app, jsonify, make_response, request
+from flask import Response, current_app, jsonify, make_response, request, url_for
 from itsdangerous import URLSafeTimedSerializer
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
@@ -126,7 +126,7 @@ def confirm_customer() -> Response:
     resp = make_response(
         jsonify(
             {
-                "redirect": f"/billing/{customer_number}",
+                "redirect": url_for("billing_blueprint.billing_page", customer_number=customer_number),
                 "receipt_number": receipt_number,
                 "customer_number": customer_number,
             }

@@ -71,7 +71,7 @@
         if (!num) { alert('Please enter a customer number.'); return; }
         if (!receipt) { alert('Please enter your last receipt number for verification.'); return; }
         $.ajax({
-            url: '/billing/api/lookup',
+            url: '{{ url_for("billing_blueprint.lookup_customer") }}',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({ customer_number: num, last_receipt: receipt }),
@@ -114,7 +114,7 @@
     $('#confirm-btn').on('click', function() {
         if (!customerData) return;
         $.ajax({
-            url: '/billing/api/confirm',
+            url: '{{ url_for("billing_blueprint.confirm_customer") }}',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({ customer_number: customerData.customer_number }),

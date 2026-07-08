@@ -27,7 +27,7 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark navbar-cotta">
     <div class="container">
-        <a class="navbar-brand" href="/">COTTA <span>REALTY</span></a>
+        <a class="navbar-brand" href="{{ url_for('landing_blueprint.index') }}">COTTA <span>REALTY</span></a>
         <div class="ml-auto">
             <a href="{{ url_for('landing_blueprint.index') }}" class="btn btn-outline-bill btn-sm">
                 <i class="fas fa-arrow-left mr-2"></i>Back
@@ -290,6 +290,9 @@
   var CUST_LAT = {{ customer.x_coordinate | tojson if customer.x_coordinate else 'null' }};
   var CUST_LNG = {{ customer.y_coordinate | tojson if customer.y_coordinate else 'null' }};
   var CUST_NUM = '{{ customer.customer_number }}';
+  var BILLING_API_READINGS_URL = '{{ url_for("billing_blueprint.paginated_readings", customer_number=0) }}';
+  var BILLING_API_PAYMENTS_URL = '{{ url_for("billing_blueprint.paginated_payments", customer_number=0) }}';
+  var BILLING_API_HISTORY_URL = '{{ url_for("billing_blueprint.billing_history", customer_number=0) }}';
 </script>
 <script src="{{ url_for('static', filename='assets/js/common.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/js/billing.js') }}"></script>
