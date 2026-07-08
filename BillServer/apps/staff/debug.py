@@ -687,7 +687,7 @@ def _clear_all_tables() -> None:
         for table_name in reversed(TABLE_NAMES):
             db.session.execute(db.text(f"TRUNCATE TABLE {table_name}"))
         Staff.query.filter(Staff.username != "superuser").delete(
-            synchronize_session=False
+            synchronize_session="fetch"
         )
         db.session.commit()
     except Exception:
@@ -789,7 +789,9 @@ def _seed_data(n_customers: int, n_months: int, _reporter: ProgressReporter | No
     import hashlib
     import secrets as _secrets
 
-    Staff.query.delete(synchronize_session=False)
+    Staff.query.filter(Staff.username != "superuser").delete(
+        synchronize_session="fetch"
+    )
     db.session.flush()
 
     rng = random.Random(42)
