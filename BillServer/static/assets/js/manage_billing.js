@@ -108,11 +108,7 @@ $(function() {
       var actions = '';
       if (status === 'Paid') {
         statusBadge = '<span class="badge badge-success">Paid</span>';
-        if (item.is_latest_paid) {
-          actions = '<button class="btn btn-outline-sm undo-payment" data-id="' + item.billing_id + '" data-amount="' + paid + '" data-receipt="' + (item.receipt_number || '') + '" title="Undo payment"><i class="fas fa-undo"></i></button>';
-        } else {
-          actions = '<button class="btn btn-outline-sm" disabled style="opacity:0.35" title="Undo newer payments first"><i class="fas fa-undo"></i></button>';
-        }
+        actions = '<button class="btn btn-outline-sm undo-payment" data-id="' + item.billing_id + '" data-amount="' + paid + '" data-receipt="' + (item.receipt_number || '') + '" title="Undo payment"><i class="fas fa-undo"></i></button>';
       } else if (status === 'Unpaid') {
         statusBadge = '<span class="badge badge-warning">Unpaid</span>';
       } else {
