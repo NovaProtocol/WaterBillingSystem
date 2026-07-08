@@ -70,10 +70,10 @@ class ProductionConfig(Config):
 
     # Security
     SESSION_COOKIE_HTTPONLY: ClassVar[bool] = True
-    SESSION_COOKIE_SECURE: ClassVar[bool] = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() == "true"
+    SESSION_COOKIE_SECURE: ClassVar[bool] = True
     SESSION_COOKIE_SAMESITE: ClassVar[str] = "Lax"
     REMEMBER_COOKIE_HTTPONLY: ClassVar[bool] = True
-    REMEMBER_COOKIE_SECURE: ClassVar[bool] = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() == "true"
+    REMEMBER_COOKIE_SECURE: ClassVar[bool] = True
     REMEMBER_COOKIE_SAMESITE: ClassVar[str] = "Lax"
     REMEMBER_COOKIE_DURATION: ClassVar[int] = 3600
 
