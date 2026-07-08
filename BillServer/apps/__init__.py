@@ -83,6 +83,8 @@ def create_app(config: Any) -> Flask:
     register_extensions(app)
     register_blueprints(app)
 
+    app.config["DEBUG_ENABLED"] = os.environ.get("DEBUG", "").lower() in ("true", "1", "yes")
+
     api_bp = app.blueprints.get("api_blueprint")
     if api_bp is not None:
         csrf.exempt(api_bp)

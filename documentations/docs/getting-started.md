@@ -72,6 +72,7 @@ cp .env.example .env
 | `SESSION_COOKIE_SECURE` | `true` | Restrict session cookies to HTTPS only |
 | `SSL_CERTFILE` | — | Path to SSL cert PEM for dev HTTPS |
 | `SSL_KEYFILE` | — | Path to SSL key PEM for dev HTTPS |
+| `DEBUG` | `false` | Enable superuser DEBUG dashboard in staff portal |
 
 ---
 
