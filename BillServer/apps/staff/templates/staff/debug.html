@@ -305,18 +305,15 @@ function toggleTaskLog(e, taskId) {
 
 function pollTasks() {
   fetch('{{ url_for("staff_blueprint.list_tasks") }}')
-    .then(r => r.json())
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(resp => {
       var container = document.getElementById('task-list');
-      var empty = document.getElementById('task-empty');
       var count = document.getElementById('task-count');
       var tasks = resp.tasks || [];
       count.textContent = tasks.length;
 
-      if (tasks.length === 0) {
-        container.innerHTML = '<p class="text-muted text-center my-3" id="task-empty">No tasks yet.</p>';
-        return;
-      }
+      if (tasks.length === 0) return;
+      container._hasTasks = true;
 
       var html = '<div style="padding:0;">';
       tasks.slice().reverse().forEach(function(t) {
@@ -324,6 +321,12 @@ function pollTasks() {
       });
       html += '</div>';
       container.innerHTML = html;
+    })
+    .catch(function() {
+      var container = document.getElementById('task-list');
+      if (!container._hasTasks) {
+        container.innerHTML = '<p class="text-muted text-center my-3">No tasks yet.</p>';
+      }
     });
 }
 
