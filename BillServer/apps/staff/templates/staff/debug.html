@@ -84,6 +84,39 @@
     </div>
   </div>
 
+  <div class="col-12 mb-4">
+    <div class="card card-cotta">
+      <div class="card-header">
+        <i class="fas fa-calendar-alt mr-1"></i>Monthly Actions — Current Month
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Batch operations for all customers this month. All actions run in background.</p>
+        <div class="row">
+          <div class="col-md-3 mb-2">
+            <button class="btn btn-outline-primary btn-block" onclick="confirmAndExec('read-this-month', {}, 'Creates readings + unpaid bills for all customers that lack a reading this month.')">
+              <i class="fas fa-book-open mr-1"></i>Read This Month
+            </button>
+          </div>
+          <div class="col-md-3 mb-2">
+            <button class="btn btn-outline-warning btn-block" onclick="confirmAndExec('unread-this-month', {}, 'Removes this month\'s reading and billing for all customers — only if the bill is unpaid.')">
+              <i class="fas fa-undo mr-1"></i>Unread This Month
+            </button>
+          </div>
+          <div class="col-md-3 mb-2">
+            <button class="btn btn-outline-success btn-block" onclick="confirmAndExec('pay-this-month', {}, 'Marks all unpaid this-month bills as paid.')">
+              <i class="fas fa-credit-card mr-1"></i>Pay This Month
+            </button>
+          </div>
+          <div class="col-md-3 mb-2">
+            <button class="btn btn-outline-danger btn-block" onclick="confirmAndExec('remove-payment-this-month', {}, 'Removes payment for all paid this-month bills. Reverts to unpaid.')">
+              <i class="fas fa-credit-card mr-1"></i>Remove Payment This Month
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <div class="modal fade" id="confirm-modal" tabindex="-1" role="dialog">
@@ -174,6 +207,10 @@ document.getElementById('confirm-execute').addEventListener('click', function() 
     restore: '{{ url_for("staff_blueprint.restore_backup") }}',
     clear: '{{ url_for("staff_blueprint.clear_database") }}',
     seed: '{{ url_for("staff_blueprint.seed_data") }}',
+    'read-this-month': '{{ url_for("staff_blueprint.route_read_this_month") }}',
+    'unread-this-month': '{{ url_for("staff_blueprint.route_unread_this_month") }}',
+    'pay-this-month': '{{ url_for("staff_blueprint.route_pay_this_month") }}',
+    'remove-payment-this-month': '{{ url_for("staff_blueprint.route_remove_payment_this_month") }}',
   };
 
   $('#confirm-modal').modal('hide');

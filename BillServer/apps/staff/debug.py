@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import random
 import threading
@@ -263,6 +264,217 @@ def seed_data() -> Response:
     })
 
 
+def _run_background(app: Any, target: Callable[..., None], *args: Any) -> None:
+    def _wrapper() -> None:
+        with app.app_context():
+            try:
+                target(*args)
+            except SQLAlchemyError:
+                db.session.rollback()
+    t = threading.Thread(target=_wrapper, daemon=True)
+    t.start()
+
+
+def _get_customers_without_reading_this_month(now: datetime) -> list[str]:
+    first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    subq = (
+        db.session.query(MeterReading.customer_number)
+        .filter(MeterReading.timestamp >= first_of_month)
+        .subquery()
+    )
+    customers = (
+        Customer.query
+        .filter(Customer.is_active.is_(True))
+        .filter(~Customer.customer_number.in_(subq))
+        .all()
+    )
+    return [c.customer_number for c in customers]
+
+
+def _read_current_month() -> dict[str, Any]:
+    now = datetime.utcnow()
+    customers = _get_customers_without_reading_this_month(now)
+    rng = random.Random(now.year * 12 + now.month)
+    skipped = 0
+    created = 0
+    for cnum in customers:
+        prev = (
+            MeterReading.query
+            .filter_by(customer_number=cnum)
+            .order_by(MeterReading.timestamp.desc())
+            .first()
+        )
+        if not prev:
+            skipped += 1
+            continue
+        consumption = max(5.0, round(
+            abs(rng.gauss(20, 10)) * (1.1 if now.month in (3, 4, 5) else
+                                       0.95 if now.month in (6, 7, 8, 9, 10) else 0.90)
+            * rng.uniform(0.92, 1.08), 1
+        ))
+        new_value = round(float(prev.reading_value) + consumption, 1)
+        reading_dt = now.replace(hour=rng.randint(8, 17), minute=rng.randint(0, 59))
+        mr = MeterReading(
+            customer_number=cnum,
+            reading_value=new_value,
+            token_id=1,
+            timestamp=reading_dt,
+            date_created=now,
+            date_modified=now,
+        )
+        db.session.add(mr)
+        db.session.flush()
+        water_bill, _ = compute_water_bill(consumption)
+        bill = Billing(
+            customer_number=cnum,
+            reading_id=mr.id,
+            previous_reading_value=float(prev.reading_value),
+            current_reading_value=new_value,
+            consumption=consumption,
+            billed_amount=water_bill,
+            is_paid=False,
+            date_created=now,
+            date_modified=now,
+        )
+        db.session.add(bill)
+        created += 1
+        if created % 50 == 0:
+            db.session.commit()
+    db.session.commit()
+    return {"created": created, "skipped": skipped}
+
+
+@blueprint.route("/debug/read-this-month", methods=["POST"])
+@superuser_required
+def route_read_this_month() -> Response:
+    if not _confirm_check():
+        return jsonify({"error": "Invalid or missing confirmation code"}), 400
+    from flask import current_app as app
+    _run_background(app, _read_current_month)
+    return jsonify({"message": "Reading current month in the background."})
+
+
+def _unread_current_month() -> dict[str, Any]:
+    now = datetime.utcnow()
+    first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    readings = (
+        MeterReading.query
+        .filter(MeterReading.timestamp >= first_of_month)
+        .all()
+    )
+    removed = 0
+    skipped_paid = 0
+    for r in readings:
+        bill = Billing.query.filter_by(reading_id=r.id).first()
+        if bill and bill.is_paid:
+            skipped_paid += 1
+            continue
+        if bill:
+            db.session.delete(bill)
+        db.session.delete(r)
+        removed += 1
+        if removed % 100 == 0:
+            db.session.commit()
+    db.session.commit()
+    return {"removed": removed, "skipped_paid": skipped_paid}
+
+
+@blueprint.route("/debug/unread-this-month", methods=["POST"])
+@superuser_required
+def route_unread_this_month() -> Response:
+    if not _confirm_check():
+        return jsonify({"error": "Invalid or missing confirmation code"}), 400
+    from flask import current_app as app
+    _run_background(app, _unread_current_month)
+    return jsonify({"message": "Removing current month readings in the background."})
+
+
+def _pay_current_month() -> dict[str, Any]:
+    import secrets
+    now = datetime.utcnow()
+    first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    unpaid_bills = (
+        Billing.query
+        .outerjoin(MeterReading, Billing.reading_id == MeterReading.id)
+        .filter(MeterReading.timestamp >= first_of_month)
+        .filter(Billing.is_paid.is_(False))
+        .all()
+    )
+    paid = 0
+    for bill in unpaid_bills:
+        bill.is_paid = True
+        bill.paid_amount = round(float(bill.billed_amount) + float(bill.penalty), 2)
+        bill.receipt_number = "MONTHLY-" + secrets.token_hex(4).upper()
+        bill.cashier_id = 1
+        bill.payment_timestamp = now
+        bill.date_paid = now
+        paid += 1
+        if paid % 100 == 0:
+            db.session.commit()
+    db.session.commit()
+    return {"paid": paid}
+
+
+@blueprint.route("/debug/pay-this-month", methods=["POST"])
+@superuser_required
+def route_pay_this_month() -> Response:
+    if not _confirm_check():
+        return jsonify({"error": "Invalid or missing confirmation code"}), 400
+    from flask import current_app as app
+    _run_background(app, _pay_current_month)
+    return jsonify({"message": "Paying current month in the background."})
+
+
+def _unpay_current_month() -> dict[str, Any]:
+    now = datetime.utcnow()
+    first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    paid_bills = (
+        Billing.query
+        .outerjoin(MeterReading, Billing.reading_id == MeterReading.id)
+        .filter(MeterReading.timestamp >= first_of_month)
+        .filter(Billing.is_paid.is_(True))
+        .all()
+    )
+    undone = 0
+    for bill in paid_bills:
+        bill.is_paid = False
+        bill.paid_amount = 0
+        bill.receipt_number = None
+        bill.cashier_id = None
+        bill.payment_timestamp = None
+        bill.date_paid = None
+        bill.carryover_offset = 0
+        undone += 1
+        if undone % 100 == 0:
+            db.session.commit()
+    db.session.commit()
+    for bill in paid_bills:
+        recalc_cumulative_balance(bill.customer_number)
+    return {"undone": undone}
+
+
+def recalc_cumulative_balance(customer_number: str) -> None:
+    total = (
+        db.session.query(db.func.sum(Billing.carryover_offset))
+        .filter_by(customer_number=customer_number)
+        .scalar()
+        or 0
+    )
+    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    if customer:
+        customer.cumulative_balance = round(float(total), 2)
+
+
+@blueprint.route("/debug/remove-payment-this-month", methods=["POST"])
+@superuser_required
+def route_remove_payment_this_month() -> Response:
+    if not _confirm_check():
+        return jsonify({"error": "Invalid or missing confirmation code"}), 400
+    from flask import current_app as app
+    _run_background(app, _unpay_current_month)
+    return jsonify({"message": "Removing current month payments in the background."})
+
+
 def _deserialize_row(row_data: dict[str, Any], model_cls: type[db.Model]) -> dict[str, Any]:
     cleaned: dict[str, Any] = {}
     for k, v in row_data.items():
@@ -369,7 +581,6 @@ BASE_LON = 121.6314674
 
 
 def _coord_offset(rng: random.Random) -> tuple[float, float]:
-    import math
     r = rng.random() * 1500
     theta = rng.random() * 2 * math.pi
     dlat = r / 111320
@@ -405,7 +616,6 @@ def _generate_consumption(months: int, rng: random.Random) -> list[float]:
 def _seed_data(n_customers: int, n_months: int) -> None:
     import binascii
     import hashlib
-    import math
     import secrets as _secrets
 
     rng = random.Random(42)
@@ -416,11 +626,8 @@ def _seed_data(n_customers: int, n_months: int) -> None:
         pwdhash = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), salt, 100000)
         return salt + binascii.hexlify(pwdhash)
 
-    latest_month = now.month - 1
+    latest_month = now.month
     latest_year = now.year
-    if latest_month < 1:
-        latest_month += 12
-        latest_year -= 1
     ref_dt = datetime(latest_year, latest_month, min(now.day, 28))
     date_slots: list[datetime] = []
     for i in range(n_months - 1, -1, -1):
