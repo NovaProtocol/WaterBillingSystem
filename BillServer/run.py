@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -193,10 +192,7 @@ def _start_debug_worker() -> subprocess.Popen | None:
     if not worker_script.exists():
         logger.warning("Debug worker script not found: %s", worker_script)
         return None
-    proc = subprocess.Popen(
-        [sys.executable, str(worker_script)],
-        start_new_session=True,
-    )
+    proc = subprocess.Popen([sys.executable, str(worker_script)])
     _debug_worker_proc = proc
     logger.info("Debug worker started (PID %d)", proc.pid)
     return proc
@@ -207,8 +203,7 @@ def _stop_debug_worker() -> None:
     if _debug_worker_proc is None:
         return
     try:
-        pgid = os.getpgid(_debug_worker_proc.pid)
-        os.killpg(pgid, signal.SIGTERM)
+        _debug_worker_proc.terminate()
         _debug_worker_proc.wait(timeout=5)
     except Exception:
         try:
@@ -222,7 +217,12 @@ def _stop_debug_worker() -> None:
 if __name__ == "__main__":
     _compile_scss(app)
     _preflight_db(app)
-    _start_debug_worker()
+
+    # Only start the debug worker in the actual Flask server process,
+    # not in Flask's debug reloader (which re-executes this script).
+    # The reloader sets WERKZEUG_RUN_MAIN=true for the real server process.
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not DEBUG:
+        _start_debug_worker()
 
     try:
         if DEBUG:
