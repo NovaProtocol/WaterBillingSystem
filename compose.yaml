@@ -22,6 +22,9 @@ services:
     restart: unless-stopped
     ports:
       - "7000:5005"
+    networks:
+      - default
+      - proxy
     environment:
       DEPLOYMENT_TYPE: PRODUCTION
       DB_ENGINE: ${DB_ENGINE}
@@ -62,8 +65,17 @@ services:
       "
     ports:
       - "7001:8000"
+    networks:
+      - default
+      - proxy
     volumes:
       - ./documentations:/app
 
 volumes:
   mysql_data:
+
+networks:
+  default:
+  proxy:
+    external: true
+    name: reverse-proxy_proxy
