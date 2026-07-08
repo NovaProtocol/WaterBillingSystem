@@ -44,6 +44,7 @@ ALL_TABLES = [
 TABLE_NAMES = [
     "customers", "meter_readings",
     "billings", "api_keys", "nfc_tags", "management_logs", "app_config",
+    "staff",
 ]
 
 
@@ -203,9 +204,6 @@ def _clear_all_tables() -> None:
         db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 0"))
         for table_name in reversed(TABLE_NAMES):
             db.session.execute(db.text(f"TRUNCATE TABLE {table_name}"))
-        Staff.query.filter(Staff.username != "superuser").delete(
-            synchronize_session="fetch"
-        )
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -812,11 +810,7 @@ def _seed_data(
     import hashlib
     import secrets as _secrets
 
-    _report_fn(2, "Clearing existing staff...")
-    Staff.query.filter(Staff.username != "superuser").delete(
-        synchronize_session="fetch"
-    )
-    db.session.flush()
+    _report_fn(2, "Creating staff accounts...")
 
     rng = random.Random(42)
     now = datetime.utcnow()
