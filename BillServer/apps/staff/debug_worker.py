@@ -201,9 +201,18 @@ def main() -> None:
     with app.app_context():
         db.create_all()
 
-    # Clear queue and status on fresh start
+    # Clear pending queue (orders don't survive restart)
     _write_json(TO_BG, [])
-    _write_idle()
+    # Preserve completed history — only reset current job
+    existing = _read_json(FROM_BG)
+    history = existing.get("history", []) if isinstance(existing, dict) else []
+    _write_json(FROM_BG, {
+        "current": None,
+        "queue_depth": 0,
+        "history": history[:MAX_HISTORY],
+        "worker_alive": True,
+        "last_poll": time.time(),
+    })
 
     print("[debug_worker] Worker ready. Polling for orders...", flush=True)
 
