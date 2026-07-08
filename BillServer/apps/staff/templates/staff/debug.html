@@ -312,19 +312,38 @@ function pollTasks() {
       var tasks = resp.tasks || [];
       count.textContent = tasks.length;
 
-      if (tasks.length === 0) return;
-      container._hasTasks = true;
+      if (tasks.length === 0) {
+        if (!container.querySelector('.task-item')) {
+          container.innerHTML = '<p class="text-muted text-center my-3">No tasks yet.</p>';
+        }
+        return;
+      }
 
-      var html = '<div style="padding:0;">';
-      tasks.slice().reverse().forEach(function(t) {
-        html += renderTask(t);
+      var existing = {};
+      container.querySelectorAll('.task-item').forEach(function(el) {
+        existing[el.getAttribute('data-task-id')] = el;
       });
-      html += '</div>';
-      container.innerHTML = html;
+
+      tasks.slice().reverse().forEach(function(t) {
+        var old = existing[t.id];
+        var html = renderTask(t);
+        if (old) {
+          if (old.outerHTML !== html) {
+            old.outerHTML = html;
+          }
+          delete existing[t.id];
+        } else {
+          container.insertAdjacentHTML('beforeend', html);
+        }
+      });
+
+      for (var id in existing) {
+        if (existing[id]) existing[id].remove();
+      }
     })
     .catch(function() {
       var container = document.getElementById('task-list');
-      if (!container._hasTasks) {
+      if (!container.querySelector('.task-item')) {
         container.innerHTML = '<p class="text-muted text-center my-3">No tasks yet.</p>';
       }
     });
