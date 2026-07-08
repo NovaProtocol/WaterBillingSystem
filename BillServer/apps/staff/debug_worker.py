@@ -24,13 +24,14 @@ sys.path.insert(0, str(_PROJECT_ROOT))
 
 from dotenv import load_dotenv
 
-load_dotenv(_PROJECT_ROOT / ".env")
+load_dotenv(_PROJECT_ROOT.parent / ".env")
 
 import fcntl
 
 from apps import create_app, db
+from apps.config import config_dict
 
-BACKUP_DIR = _PROJECT_ROOT / "BillServer" / "db_backups"
+BACKUP_DIR = _PROJECT_ROOT / "db_backups"
 TO_BG = BACKUP_DIR / "to_bg.json"
 FROM_BG = BACKUP_DIR / "from_bg.json"
 POLL_INTERVAL = 0.5
@@ -184,10 +185,10 @@ def execute_order(app: Any, order: dict[str, Any]) -> None:
 def main() -> None:
     print("[debug_worker] Starting background worker...", flush=True)
 
-    # Load environment
     os.environ.setdefault("DEPLOYMENT_TYPE", "DEBUG")
-
-    app = create_app()
+    get_config_mode = "Debug" if os.environ.get("DEPLOYMENT_TYPE") == "DEBUG" else "Production"
+    app_config = config_dict[get_config_mode.capitalize()]
+    app = create_app(app_config)
 
     with app.app_context():
         db.create_all()
