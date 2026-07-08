@@ -29,5 +29,9 @@ if [ ! -f .venv/.requirements_installed ]; then
     echo "==> Dependencies installed."
 fi
 
+if [ "$DEPLOYMENT_TYPE" == "PRODUCTION" ]; then
+    export REVERSE_PROXY_PREFIX="${REVERSE_PROXY_PREFIX:-/bill-server}"
+fi
+
 echo "==> Starting BillServer..."
 python run.py --deployment_type "$DEPLOYMENT_TYPE"
