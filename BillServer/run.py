@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import atexit
 import logging
 import os
 import subprocess
@@ -219,7 +218,6 @@ def _stop_debug_worker() -> None:
 # and debug mode (Flask server process, not reloader).
 if not DEBUG or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
     _start_debug_worker()
-atexit.register(_stop_debug_worker)
 
 if __name__ == "__main__":
     _compile_scss(app)

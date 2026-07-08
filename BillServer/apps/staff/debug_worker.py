@@ -85,7 +85,13 @@ def _queue_depth() -> int:
 # ── Status file management ─────────────────────────────────────────────
 
 def _write_idle() -> None:
-    _write_json(FROM_BG, {"current": None, "queue_depth": _queue_depth(), "history": []})
+    _write_json(FROM_BG, {
+        "current": None,
+        "queue_depth": _queue_depth(),
+        "history": [],
+        "worker_alive": True,
+        "last_poll": time.time(),
+    })
 
 
 def _write_running(reporter: ProgressReporter) -> None:
