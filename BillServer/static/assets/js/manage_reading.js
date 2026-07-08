@@ -21,11 +21,14 @@ $(function() {
       var d = new Date(item.timestamp * 1000);
       var dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
       var locked = (d.getFullYear() < currentYear) || (d.getFullYear() === currentYear && d.getMonth() < currentMonth);
+      var paid = item.status === 'Paid';
+      var dropDisabled = locked || paid;
       var editBtn = locked
         ? '<button class="btn btn-outline-sm mr-1" disabled style="opacity:0.35"><i class="fas fa-edit"></i></button>'
         : '<button class="btn btn-outline-sm edit-reading mr-1" data-id="'+item.id+'" data-value="'+item.reading_value+'"><i class="fas fa-edit"></i></button>';
-      var dropBtn = locked
-        ? '<button class="btn btn-outline-sm" disabled style="opacity:0.35;border-color:#dc3545;color:#dc3545;"><i class="fas fa-trash"></i></button>'
+      var dropTitle = paid ? 'Bill already paid — undo payment first' : (locked ? 'Previous billing cycle' : '');
+      var dropBtn = dropDisabled
+        ? '<button class="btn btn-outline-sm" disabled style="opacity:0.35;border-color:#dc3545;color:#dc3545;" title="'+dropTitle+'"><i class="fas fa-trash"></i></button>'
         : '<button class="btn btn-outline-sm drop-reading" data-id="'+item.id+'" style="border-color:#dc3545;color:#dc3545;"><i class="fas fa-trash"></i></button>';
       tbody.append(
         '<tr>' +

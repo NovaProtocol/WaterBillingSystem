@@ -67,7 +67,10 @@ def drop_reading(reading_id: int) -> Response:
 
     data = request.get_json()
     reason = data.get("reason", "").strip()
-    service_drop_reading(reading_id, current_user.id, reason)
+    try:
+        service_drop_reading(reading_id, current_user.id, reason)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 409
 
     return jsonify({"message": "Reading dropped"})
 

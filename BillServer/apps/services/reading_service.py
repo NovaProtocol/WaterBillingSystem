@@ -191,6 +191,23 @@ def upload_reading(
 
 def drop_reading(reading_id: int, staff_id: int, reason: str) -> MeterReading | None:
     reading = MeterReading.query.get_or_404(reading_id)
+
+    billing = Billing.query.filter_by(reading_id=reading_id).first()
+    if billing and billing.is_paid:
+        raise ValueError(
+            f"Cannot drop reading #{reading_id}: the associated bill "
+            f"has already been paid. Undo the payment first."
+        )
+
+    now = datetime.utcnow()
+    if reading.timestamp.year < now.year or (
+        reading.timestamp.year == now.year and reading.timestamp.month < now.month
+    ):
+        raise ValueError(
+            f"Cannot drop reading #{reading_id}: it belongs to a previous "
+            f"billing cycle. Only current-month readings can be dropped."
+        )
+
     log_action(
         staff_id=staff_id,
         action_type="drop",
@@ -199,7 +216,6 @@ def drop_reading(reading_id: int, staff_id: int, reason: str) -> MeterReading | 
         customer_number=reading.customer_number,
         details=f"Dropped reading #{reading_id} for {reading.customer_number}. Reason: {reason}",
     )
-    # Also remove any associated billing record
     Billing.query.filter_by(reading_id=reading_id).delete()
     db.session.delete(reading)
     db.session.commit()

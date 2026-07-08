@@ -109,19 +109,29 @@ def create_backup() -> Response:
     if not _confirm_check():
         return jsonify({"error": "Invalid or missing confirmation code"}), 400
 
-    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-    path = BACKUP_DIR / f"backup_{datetime.utcnow():%Y%m%d_%H%M%S}.json"
+    from flask import current_app as app
 
-    data: dict[str, list[dict[str, Any]]] = {}
-    for table_name in TABLE_NAMES:
-        model_cls = next(m for m in ALL_TABLES if m.__tablename__ == table_name)
-        rows: list[db.Model] = model_cls.query.order_by(model_cls.id).all()
-        data[table_name] = [_serialize_row(r) for r in rows]
+    def _run_backup() -> None:
+        with app.app_context():
+            try:
+                BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+                path = BACKUP_DIR / f"backup_{datetime.utcnow():%Y%m%d_%H%M%S}.json"
+                data: dict[str, list[dict[str, Any]]] = {}
+                for table_name in TABLE_NAMES:
+                    model_cls = next(m for m in ALL_TABLES if m.__tablename__ == table_name)
+                    rows: list[db.Model] = model_cls.query.order_by(model_cls.id).all()
+                    data[table_name] = [_serialize_row(r) for r in rows]
+                with open(path, "w") as f:
+                    json.dump(data, f, indent=2, default=str)
+            except SQLAlchemyError:
+                db.session.rollback()
 
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2, default=str)
+    t = threading.Thread(target=_run_backup, daemon=True)
+    t.start()
 
-    return jsonify({"message": f"Backup saved: {path.name}", "file": path.name})
+    return jsonify({
+        "message": "Backup started in the background. It will appear in the restore list once complete."
+    })
 
 
 @blueprint.route("/debug/backups")
@@ -156,47 +166,46 @@ def restore_backup() -> Response:
     if not path.exists() or not path.name.startswith("backup_") or not path.name.endswith(".json"):
         return jsonify({"error": "Backup file not found"}), 404
 
-    with open(path) as f:
-        data: dict[str, list[dict[str, Any]]] = json.load(f)
+    from flask import current_app as app
 
-    try:
-        _clear_all_tables()
+    def _run_restore() -> None:
+        with app.app_context():
+            try:
+                with open(path) as f:
+                    data: dict[str, list[dict[str, Any]]] = json.load(f)
 
-        insert_order = [
-            ("staff", Staff), ("customers", Customer), ("nfc_tags", NfcTag),
-            ("meter_readings", MeterReading), ("billings", Billing),
-            ("api_keys", ApiKey), ("management_logs", ManagementLog),
-            ("app_config", Config),
-        ]
-        for table_name, model_cls in insert_order:
-            rows = data.get(table_name, [])
-            if not rows:
-                continue
-            for row_data in rows:
-                cleaned = {}
-                for k, v in row_data.items():
-                    if k in ("date_created", "date_modified", "last_modified"):
-                        if v:
-                            cleaned[k] = datetime.fromisoformat(v)
+                _clear_all_tables()
+                _ensure_superuser()
+                db.session.commit()
+
+                insert_order = [
+                    ("customers", Customer), ("nfc_tags", NfcTag),
+                    ("meter_readings", MeterReading), ("billings", Billing),
+                    ("api_keys", ApiKey), ("management_logs", ManagementLog),
+                    ("app_config", Config),
+                ]
+                total = 0
+                for table_name, model_cls in insert_order:
+                    rows = data.get(table_name, [])
+                    if not rows:
                         continue
-                    col = getattr(model_cls, k, None)
-                    if col is None:
-                        continue
-                    col_type = str(col.type)
-                    if "BLOB" in col_type.upper() or "binary" in col_type.lower() or "LargeBinary" in col_type:
-                        cleaned[k] = bytes.fromhex(v) if isinstance(v, str) else v
-                    elif "DateTime" in col_type or "TIMESTAMP" in col_type.upper():
-                        if v:
-                            cleaned[k] = datetime.fromisoformat(v)
-                    else:
-                        cleaned[k] = v
-                db.session.add(model_cls(**cleaned))
-        db.session.commit()
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return jsonify({"error": f"Restore failed: {e}"}), 500
+                    for row_data in rows:
+                        cleaned = _deserialize_row(row_data, model_cls)
+                        db.session.add(model_cls(**cleaned))
+                        total += 1
+                        if total % 500 == 0:
+                            db.session.commit()
+                db.session.commit()
+            except SQLAlchemyError:
+                db.session.rollback()
 
-    return jsonify({"message": f"Restored from {filename}"})
+    t = threading.Thread(target=_run_restore, daemon=True)
+    t.start()
+
+    return jsonify({
+        "message": f"Restoring from {filename} in the background. "
+                   "This may take a while for large backups."
+    })
 
 
 @blueprint.route("/debug/clear", methods=["POST"])
@@ -252,6 +261,25 @@ def seed_data() -> Response:
         "message": f"Seeding {n_customers} customers × {n_months} months in the background. "
                    "This may take a while — do not interrupt the server."
     })
+
+
+def _deserialize_row(row_data: dict[str, Any], model_cls: type[db.Model]) -> dict[str, Any]:
+    cleaned: dict[str, Any] = {}
+    for k, v in row_data.items():
+        if k in ("id",):
+            cleaned[k] = v
+            continue
+        col = getattr(model_cls, k, None)
+        if col is None:
+            continue
+        col_type = str(col.type)
+        if "BLOB" in col_type.upper() or "binary" in col_type.lower() or "LargeBinary" in col_type:
+            cleaned[k] = bytes.fromhex(v) if isinstance(v, str) else v
+        elif "DateTime" in col_type or "TIMESTAMP" in col_type.upper():
+            cleaned[k] = datetime.fromisoformat(v) if v else None
+        else:
+            cleaned[k] = v
+    return cleaned
 
 
 def _ensure_superuser() -> None:
