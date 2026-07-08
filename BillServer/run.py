@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import logging
 import os
 import subprocess
@@ -214,15 +215,15 @@ def _stop_debug_worker() -> None:
     _debug_worker_proc = None
 
 
+# Start debug worker for both production (Gunicorn via wsgi:app)
+# and debug mode (Flask server process, not reloader).
+if not DEBUG or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    _start_debug_worker()
+atexit.register(_stop_debug_worker)
+
 if __name__ == "__main__":
     _compile_scss(app)
     _preflight_db(app)
-
-    # Only start the debug worker in the actual Flask server process,
-    # not in Flask's debug reloader (which re-executes this script).
-    # The reloader sets WERKZEUG_RUN_MAIN=true for the real server process.
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not DEBUG:
-        _start_debug_worker()
 
     try:
         if DEBUG:
