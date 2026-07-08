@@ -70,8 +70,14 @@ class TaskManager:
                 if isinstance(data, list):
                     for t in data:
                         tid = t.get("id", f"log_{len(self._tasks)}")
+                        if t.get("status") == "running":
+                            t["status"] = "interrupted"
+                            t["ended_at"] = time.time()
+                            msg = "ERROR: Server restarted while task was running"
+                            t.setdefault("messages", []).append(msg)
                         self._tasks[tid] = t
                     self._counter = len(self._tasks)
+                self._flush_log()
             except (json.JSONDecodeError, OSError):
                 pass
 
