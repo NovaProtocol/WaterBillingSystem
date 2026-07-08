@@ -39,8 +39,20 @@ class Config(object):
         "DB_NAME",
     ]
 
+    ENV_VARS_ALLOW_EMPTY: ClassVar[list[str]] = [
+        "REVERSE_PROXY_PREFIX",
+    ]
+
     @classmethod
     def validate(cls) -> None:
+        missing = []
+        for var in cls.REQUIRED_ENV_VARS:
+            val = os.environ.get(var)
+            if val is None or val.strip() == "":
+                missing.append(var)
+        for var in cls.ENV_VARS_ALLOW_EMPTY:
+            if os.environ.get(var) is None:
+                missing.append(var)
         missing = []
         for var in cls.REQUIRED_ENV_VARS:
             val = os.environ.get(var)
