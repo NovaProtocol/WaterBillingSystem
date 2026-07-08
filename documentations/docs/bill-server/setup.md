@@ -51,6 +51,7 @@ Configuration is loaded from `.env` at the **project root** (parent of `BillServ
 | `SESSION_COOKIE_SECURE` | `true` | `true` / `false` | Whether to mark session cookies as Secure (HTTPS only). Set to `false` for local HTTP-only deployments |
 | `SSL_CERTFILE` | (none) | Path to PEM file | SSL certificate path for development HTTPS |
 | `SSL_KEYFILE` | (none) | Path to PEM file | SSL private key path for development HTTPS |
+| `DEBUG` | `false` | `true` / `false` | Enable superuser-only DEBUG dashboard in the staff portal sidebar |
 
 Also `RUN_SELENIUM_TESTS` — set to run Selenium browser tests (skipped by default).
 
@@ -146,3 +147,24 @@ python seed_test_data.py --customers 20 --months 24
 ```
 
 Generates realistic data: 20 customers with coordinates, phases/blocks/streets, 24 months of readings, and randomized payment patterns. Requires a running MySQL instance.
+
+---
+
+## Development
+
+### DEBUG Menu
+
+When `DEBUG=true` is set in `.env` and the logged-in user is `superuser`, a **DEBUG** section appears in the staff portal sidebar with the following tools:
+
+| Tool | Description |
+|---|---|
+| **Backup Database** | Exports all tables to a JSON file stored in the `db_backups` Docker volume |
+| **Restore from Backup** | Lists available backups and restores from one (destructive — replaces all data) |
+| **Seed Test Data** | Generates realistic test data with configurable customer count (1–10000) and months (1–240). Clears existing data first. |
+| **Clear Database** | Truncates all tables (irreversible) |
+
+All destructive actions (restore, seed, clear) require a confirmation flow: a random 8-digit number is displayed and must be typed exactly before execution.
+
+The `db_backups` volume is declared in `compose.yaml` and mounted at `/app/db_backups` in the BillServer container.
+
+The `DEBUG` variable is read via `os.environ.get("DEBUG")` in `apps/__init__.py` and exposed to templates as `config.DEBUG_ENABLED`.

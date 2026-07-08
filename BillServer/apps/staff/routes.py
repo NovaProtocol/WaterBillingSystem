@@ -20,6 +20,9 @@ from apps.staff import (
     readings,  # noqa: F401
     staff_mgmt,  # noqa: F401
 )
+from apps.staff import (
+    debug as staff_debug,  # noqa: F401
+)
 
 
 def rate_limit(

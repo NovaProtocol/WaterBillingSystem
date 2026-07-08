@@ -37,6 +37,8 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       NFC_PWD_SECRET: ${NFC_PWD_SECRET}
       REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+    volumes:
+      - db_backups:/app/db_backups
     depends_on:
       db:
         condition: service_healthy
@@ -73,6 +75,7 @@ services:
 
 volumes:
   mysql_data:
+  db_backups:
 
 networks:
   default:

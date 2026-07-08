@@ -1,0 +1,216 @@
+{% extends "staff/base.html" %}
+{% block title %}DEBUG{% endblock %}
+{% block content %}
+
+<div class="page-title">DEBUG <span class="badge badge-danger" style="font-size:0.6rem;vertical-align:middle;">SUPERUSER ONLY</span></div>
+
+<div class="row" id="debug-panel">
+
+  <div class="col-md-6 mb-4">
+    <div class="card card-cotta h-100">
+      <div class="card-header">
+        <i class="fas fa-database mr-1"></i>Backup Database
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Dump all tables to a JSON file. Stored in the <code>db_backups</code> volume.</p>
+        <button class="btn btn-outline-danger" onclick="confirmAndExec('backup', {}, 'This will create a full database backup.')">
+          <i class="fas fa-download mr-1"></i>Create Backup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 mb-4">
+    <div class="card card-cotta h-100">
+      <div class="card-header">
+        <i class="fas fa-undo mr-1"></i>Restore from Backup
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Restore the database from a previous backup file.</p>
+        <div class="form-group">
+          <label>Backup file</label>
+          <select class="form-control" id="restore-file">
+            <option value="">-- Select backup --</option>
+            {% for f in backup_files %}
+            <option value="{{ f }}">{{ f }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn btn-outline-danger" onclick="confirmAndExec('restore', {filename: document.getElementById('restore-file').value}, 'This will DELETE all current data and restore from the selected backup.')">
+          <i class="fas fa-undo mr-1"></i>Restore
+        </button>
+        <button class="btn btn-outline-secondary btn-sm mt-2" onclick="refreshBackups()">
+          <i class="fas fa-sync mr-1"></i>Refresh list
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 mb-4">
+    <div class="card card-cotta h-100">
+      <div class="card-header">
+        <i class="fas fa-seedling mr-1"></i>Seed Test Data
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Generate realistic test customers, readings, and billing records.</p>
+        <div class="form-row">
+          <div class="form-group col-md-6">
+            <label>Customers</label>
+            <input type="number" class="form-control" id="seed-customers" value="50" min="1" max="10000">
+          </div>
+          <div class="form-group col-md-6">
+            <label>Months</label>
+            <input type="number" class="form-control" id="seed-months" value="12" min="1" max="240">
+          </div>
+        </div>
+        <button class="btn btn-outline-warning" onclick="confirmAndExec('seed', {customers: document.getElementById('seed-customers').value, months: document.getElementById('seed-months').value}, 'This will CLEAR all existing data and seed new test data.')">
+          <i class="fas fa-seedling mr-1"></i>Seed Data
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 mb-4">
+    <div class="card card-cotta h-100">
+      <div class="card-header">
+        <i class="fas fa-trash mr-1"></i>Clear Database
+      </div>
+      <div class="card-body">
+        <p class="text-danger font-weight-bold">This will delete ALL data including staff, customers, readings, and billing records.</p>
+        <button class="btn btn-danger" onclick="confirmAndExec('clear', {}, 'This will DELETE ALL DATA in all tables. This action CANNOT be undone.')">
+          <i class="fas fa-trash mr-1"></i>Clear All Tables
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal fade" id="confirm-modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-1"></i>Confirm Action</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger" id="confirm-description">
+          Description of what will happen.
+        </div>
+        <p>To confirm, type the following 8-digit code in the box below:</p>
+        <div class="text-center mb-3">
+          <span id="confirm-code" class="badge badge-dark" style="font-size:2rem;letter-spacing:6px;font-family:monospace;">--------</span>
+        </div>
+        <input type="text" class="form-control form-control-lg text-center" id="confirm-input"
+               maxlength="8" placeholder="Enter 8-digit code" inputmode="numeric" pattern="[0-9]*"
+               autocomplete="off">
+        <small class="form-text text-muted text-center">The code is random and changes each time.</small>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button class="btn btn-danger" id="confirm-execute" disabled>
+          <i class="fas fa-play mr-1"></i>Execute
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="result-modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header" id="result-header">
+        <h5 class="modal-title">Result</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="result-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-dismiss="modal">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+<script>
+let pendingAction = null;
+let pendingData = null;
+
+function confirmAndExec(action, data, description) {
+  pendingAction = action;
+  pendingData = data;
+  document.getElementById('confirm-description').textContent = description;
+  document.getElementById('confirm-input').value = '';
+  document.getElementById('confirm-execute').disabled = true;
+  document.getElementById('confirm-code').textContent = '--------';
+
+  fetch('{{ url_for("staff_blueprint.confirm") }}', { method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token() }}'} })
+    .then(r => r.json())
+    .then(resp => {
+      document.getElementById('confirm-code').textContent = resp.code;
+      $('#confirm-modal').modal('show');
+    });
+}
+
+document.getElementById('confirm-input').addEventListener('input', function() {
+  const code = document.getElementById('confirm-code').textContent;
+  document.getElementById('confirm-execute').disabled = this.value !== code;
+});
+
+document.getElementById('confirm-execute').addEventListener('click', function() {
+  const newCode = document.getElementById('confirm-input').value;
+  const action = pendingAction;
+  const data = pendingData || {};
+
+  const formData = new FormData();
+  formData.append('confirm_code', newCode);
+  Object.entries(data).forEach(([k, v]) => formData.append(k, v));
+
+  let url = '{{ url_for("staff_blueprint.debug") }}';
+  const actionMap = {
+    backup: '{{ url_for("staff_blueprint.create_backup") }}',
+    restore: '{{ url_for("staff_blueprint.restore_backup") }}',
+    clear: '{{ url_for("staff_blueprint.clear_database") }}',
+    seed: '{{ url_for("staff_blueprint.seed_data") }}',
+  };
+
+  $('#confirm-modal').modal('hide');
+  fetch(actionMap[action] || url, {
+    method: 'POST',
+    headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+    body: formData,
+  })
+    .then(r => r.json().catch(() => ({error: 'Request failed'})))
+    .then(resp => {
+      const hdr = document.getElementById('result-header');
+      const body = document.getElementById('result-body');
+      if (resp.error) {
+        hdr.className = 'modal-header bg-danger text-white';
+        body.innerHTML = '<div class="alert alert-danger mb-0">' + resp.error + '</div>';
+      } else {
+        hdr.className = 'modal-header bg-success text-white';
+        body.innerHTML = '<div class="alert alert-success mb-0">' + (resp.message || 'Done') + '</div>';
+      }
+      $('#result-modal').modal('show');
+      if (action === 'backup') refreshBackups();
+    });
+});
+
+function refreshBackups() {
+  fetch('{{ url_for("staff_blueprint.list_backups") }}')
+    .then(r => r.json())
+    .then(resp => {
+      const sel = document.getElementById('restore-file');
+      sel.innerHTML = '<option value="">-- Select backup --</option>';
+      (resp.backups || []).forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.name;
+        opt.textContent = b.name;
+        sel.appendChild(opt);
+      });
+    });
+}
+</script>
+{% endblock %}

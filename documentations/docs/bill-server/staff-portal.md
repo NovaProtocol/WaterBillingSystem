@@ -159,3 +159,18 @@ Staff account fields:
 | `can_drop_payment` | Delete payments | ✓ |
 | `can_enroll_staff` | Staff account CRUD | ✓ |
 | `can_manage_billing` | Billing management, edit payments | ✓ |
+
+---
+
+## DEBUG Dashboard
+
+When `DEBUG=true` is set in `.env` and the logged-in user is "superuser", a **DEBUG** section appears in the sidebar with development tools:
+
+| Tool | Description |
+|---|---|
+| **Backup Database** | Exports all tables to a JSON file in the `db_backups` Docker volume |
+| **Restore from Backup** | Select a backup file and restore the database to that state |
+| **Seed Test Data** | Generate realistic test customers, readings, and billing records |
+| **Clear Database** | Truncates all tables — removes all data permanently |
+
+All destructive actions (restore, seed, clear) require typing a randomly generated 8-digit confirmation code before execution.
