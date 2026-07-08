@@ -85,10 +85,12 @@ def _queue_depth() -> int:
 # ── Status file management ─────────────────────────────────────────────
 
 def _write_idle() -> None:
+    existing = _read_json(FROM_BG)
+    history = existing.get("history", []) if isinstance(existing, dict) else []
     _write_json(FROM_BG, {
         "current": None,
         "queue_depth": _queue_depth(),
-        "history": [],
+        "history": history[:MAX_HISTORY],
         "worker_alive": True,
         "last_poll": time.time(),
     })
