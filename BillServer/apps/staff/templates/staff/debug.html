@@ -270,8 +270,8 @@ function refreshBackups() {
 }
 
 function renderTask(task) {
-  var statusColor = {queued: '#6c757d', running: '#007bff', completed: '#28a745', error: '#dc3545'};
-  var iconMap = {queued: 'fa-clock', running: 'fa-spinner fa-pulse', completed: 'fa-check-circle', error: 'fa-times-circle'};
+  var statusColor = {queued: '#6c757d', running: '#007bff', completed: '#28a745', error: '#dc3545', interrupted: '#fd7e14'};
+  var iconMap = {queued: 'fa-clock', running: 'fa-spinner fa-pulse', completed: 'fa-check-circle', error: 'fa-times-circle', interrupted: 'fa-exclamation-triangle'};
   var color = statusColor[task.status] || '#6c757d';
   var icon = iconMap[task.status] || 'fa-circle';
   return '<div class="task-item p-2 border-bottom" style="font-size:0.85rem;" data-task-id="'+task.id+'">' +
