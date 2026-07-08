@@ -36,7 +36,6 @@ services:
       DB_PASS: ${DB_PASS}
       SECRET_KEY: ${SECRET_KEY}
       NFC_PWD_SECRET: ${NFC_PWD_SECRET}
-      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
     depends_on:
       db:
         condition: service_healthy
