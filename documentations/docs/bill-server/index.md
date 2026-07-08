@@ -23,30 +23,35 @@ BillServer is the central web application for water billing management. It serve
 
 ```
 BillServer/
-├── run.py                         # Entry point + pre-flight checks + superuser seed
-├── launch.sh                      # Kill port + migrate + start
+├── run.py                         # Entry point + pre-flight checks + SCSS compiler + superuser seed
+├── wsgi.py                        # Gunicorn WSGI entry point (production) — compiles SCSS, runs preflight
+├── launch.sh                      # Dev launch script (kills port, creates venv, installs deps, starts)
 ├── requirements.txt               # Python dependencies
-├── Dockerfile                     # Python 3.10 + Gunicorn container
-├── docker-compose.yml             # App + Nginx (MySQL is external)
-├── gunicorn-cfg.py                # Gunicorn config (workers = CPU*2+1)
-├── .env                           # Environment configuration
+├── pyproject.toml                 # Project metadata, ruff config, mypy config
+├── pytest.ini                     # Pytest configuration
+├── gunicorn-cfg.py                # Gunicorn config file (bind, workers, logs)
+├── seed_test_data.py              # Test data seeder
+├── estimate_sync_size.py          # Data size estimation script
+├── run_tests.sh                   # Test runner (lint, server, browser)
 ├── apps/
-│   ├── __init__.py                # App factory: create_app(config)
-│   ├── config.py                  # DebugConfig / ProductionConfig
-│   ├── models.py                  # All 6 SQLAlchemy models
+│   ├── __init__.py                # App factory: create_app(config) + PrefixMiddleware for reverse proxy
+│   ├── config.py                  # Config classes (ProductionConfig / DebugConfig)
+│   ├── models.py                  # SQLAlchemy models (Customer, Staff, Reading, Payment, etc.)
 │   ├── pricing.py                 # PRICING_TIERS, compute_water_bill, compute_penalty
-│   ├── api/                       # REST API blueprint (/api)
-│   ├── authentication/            # Login/logout redirects
-│   ├── billing/                   # Customer billing blueprint (/billing)
-│   ├── landing/                   # Public landing blueprint (/)
-│   ├── staff/                     # Staff portal blueprint (/staff)
-│   ├── services/                  # Business logic layer
-│   └── template_do_not_edit/      # AppSeed Black Dashboard boilerplate
+│   ├── api/                       # REST API blueprint (/api/*)
+│   ├── authentication/            # Login/logout manager routes
+│   ├── billing/                   # Customer billing portal blueprint (/billing/*)
+│   ├── landing/                   # Public landing page blueprint (/*)
+│   ├── staff/                     # Staff portal blueprint (/staff/*)
+│   └── services/                  # Business logic layer
 ├── migrations/versions/           # Alembic migration history
 ├── tests/
-│   ├── conftest.py                # SQLite :memory: fixtures
-│   ├── test_server.py             # 1210-line test suite
+│   ├── conftest.py                # SQLite in-memory fixtures
+│   ├── test_server.py             # ~170 server tests
 │   └── test_selenium.py           # Playwright browser tests
-├── static/assets/                 # Compiled CSS, JS, vendor libraries
-└── nginx/                         # Nginx reverse proxy config
+├── static/assets/                 # Compiled CSS, JS, vendor libs (Font Awesome, Bootstrap, Leaflet, jQuery)
+├── deploy/                        # Nginx config template for reverse proxy
+├── certificates/                  # Development SSL certificates (optional)
+├── docs/                          # Internal documentation stubs
+└── .cache/                        # Cache directory (auto-created by production config)
 ```

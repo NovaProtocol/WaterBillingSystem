@@ -2,48 +2,73 @@
 
 ## Quick Start
 
+1. Start MySQL: `cd /path/to/Docker && docker compose -f MySQL-compose.yml up -d`
+2. Create `.env` at the project root directory (one level above `BillServer/`) with required variables.
+3. Set up the Python environment:
+
 ```bash
 cd BillServer
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-flask db upgrade
-python run.py
+```
+
+4. Start the server:
+
+```bash
+# Debug mode (Flask dev server)
+python run.py --deployment_type DEBUG
+
+# Production mode (embedded gunicorn)
+python run.py --deployment_type PRODUCTION
 ```
 
 The server starts on **`http://localhost:5005`**.
 
 ## Environment Variables
 
-Configuration is loaded from `.env` (in the project root) and `apps/config.py`:
+Configuration is loaded from `.env` at the **project root** (parent of `BillServer/`) and read by `python-dotenv` in `run.py:13-14`. All variables are consumed by `apps/config.py`.
 
-| Variable | Default | Description |
-|---|---|---|
-| `DEBUG` | `True` | Enable Flask debug mode |
-| `FLASK_APP` | `run.py` | Flask entry point |
-| `FLASK_DEBUG` | `1` | Debug mode flag |
-| `DB_ENGINE` | `mysql+pymysql` | Database driver |
-| `DB_NAME` | `BillServerDB` | Database name |
-| `DB_HOST` | `localhost` | Database hostname |
-| `DB_PORT` | `3306` | Database port |
-| `DB_USERNAME` | `root` | Database user |
-| `DB_PASS` | `BillServerDB` | Database password |
-| `SECRET_KEY` | (random) | Flask session signing key |
-| `NFC_PWD_SECRET` | (random) | Secret for deriving NFC tag passwords |
+### Required (no defaults — must be set)
+
+| Variable | Description |
+|---|---|
+| `SECRET_KEY` | Flask session signing key. Generate with: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `NFC_PWD_SECRET` | Secret for deriving NFC tag passwords. Generate with: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `DB_ENGINE` | Database driver. Typically `mysql+pymysql` |
+| `DB_NAME` | Database name (e.g., `BillServerDB`) |
+| `DB_HOST` | Database hostname (Docker: `db`, local: `localhost`) |
+| `DB_PORT` | Database port (default `3306`) |
+| `DB_USERNAME` | Database user (e.g., `root`) |
+| `DB_PASS` | Database password |
+
+### Optional
+
+| Variable | Default | Options | Description |
+|---|---|---|---|
+| `DEPLOYMENT_TYPE` | `PRODUCTION` | `DEBUG` / `PRODUCTION` | Run mode. `DEBUG` enables Flask debug mode and dev server; `PRODUCTION` uses embedded gunicorn with `ProductionConfig` |
+| `REVERSE_PROXY_PREFIX` | `""` (root) | Any path like `/water-billing-system`, or `True` | URL prefix when behind a reverse proxy. Path mode: app auto-prefixes all URLs. Boolean mode (`True`): requires nginx to send `X-Forwarded-Prefix` header |
+| `SESSION_COOKIE_SECURE` | `true` | `true` / `false` | Whether to mark session cookies as Secure (HTTPS only). Set to `false` for local HTTP-only deployments |
+| `SSL_CERTFILE` | (none) | Path to PEM file | SSL certificate path for development HTTPS |
+| `SSL_KEYFILE` | (none) | Path to PEM file | SSL private key path for development HTTPS |
+
+Also `RUN_SELENIUM_TESTS` — set to run Selenium browser tests (skipped by default).
 
 ## App Factory
 
 The application is created by `apps/__init__.py:create_app(config)`. During initialization:
 
 1. Config class is selected (`DebugConfig` or `ProductionConfig`)
-2. SQLAlchemy (`db`) is initialized with the DB URI
-3. Flask-Migrate is initialized for schema migrations
+2. Config is validated (SECRET_KEY, NFC_PWD_SECRET, SQLALCHEMY_DATABASE_URI must be non-null)
+3. SQLAlchemy (`db`) is initialized
 4. Flask-Login is initialized with the `Staff` model as user loader
-5. Flask-Caching is initialized for pricing tier caching (1-hour TTL)
-6. All blueprints are registered (API, Staff, Landing, Billing, Authentication, Template)
-7. Context processors add `current_year`, `pricing_url`, `app_config` to templates
-8. Error handlers are registered for 403, 404, 500, and 503
-9. Jinja2 template filters (`zip`, `is_list`, `get_class`) are registered
+5. Flask-Caching is initialized (SimpleCache for dev, FileSystemCache for prod)
+6. CSRFProtect is initialized; API blueprint is exempted from CSRF
+7. All blueprints are registered (authentication, staff, landing, billing, api)
+8. Error handlers are registered for 403, 404, 500
+9. `PrefixMiddleware` or `ProxyFix` is applied based on `REVERSE_PROXY_PREFIX`
+10. Template filters (`timestamp_to_date`, `datetimeformat`) are registered
+11. Before-request handler adds `X-Request-Id` to `g`
 
 ## Database Migrations
 
@@ -61,40 +86,37 @@ flask db downgrade
 flask db history
 ```
 
-Migrations are stored in `migrations/versions/` and applied automatically when using `launch.sh` or the Dockerfile's `CMD`.
+Migrations are stored in `migrations/versions/`. The startup pre-flight (`run.py`) runs `db.create_all()` automatically, but schema changes via Alembic still require `flask db upgrade`.
 
 ## Running in Production
 
-### Gunicorn
+### Gunicorn (via `run.py`)
 
-Configured in `gunicorn-cfg.py`:
+In `PRODUCTION` mode, `run.py` embeds gunicorn directly via `StandaloneApplication`:
 
 ```python
-bind = '0.0.0.0:5005'
-workers = multiprocessing.cpu_count() * 2 + 1
-accesslog = '-'
-loglevel = 'debug'
+bind = "0.0.0.0:5005"
+workers = 3
+accesslog = "-"
+loglevel = "info"
 ```
 
-Start manually:
-
-```bash
-gunicorn --config gunicorn-cfg.py run:app
-```
+SSL can be enabled by setting `SSL_CERTFILE` and `SSL_KEYFILE` env vars.
 
 ### Docker
 
-```bash
-docker-compose up --build
-```
+The Dockerfile at the project root:
+1. Multi-stage build from `python:3.14-slim`
+2. Compiles bytecode for faster startup
+3. Runs `gunicorn --bind 0.0.0.0:5005 --workers 3 wsgi:app`
 
-The Dockerfile:
-1. Starts from `python:3.10`
-2. Installs Python dependencies
-3. Runs `flask db upgrade`
-4. Starts Gunicorn with the gunicorn-cfg config
+The `wsgi.py` entry point sets `DEPLOYMENT_TYPE=PRODUCTION`, compiles SCSS, and runs pre-flight checks (DB connectivity, table verification, superuser seeding).
 
-The docker-compose.yml also starts an **nginx** reverse proxy on port `5085`.
+Docker Compose is at `Docker/docker-compose.yml` and runs:
+- MySQL 8.4 (`BillServerDB` container)
+- BillServer (app container on port 7000)
+- phpMyAdmin (on port 7002)
+- Docs server (mkdocs on port 7001)
 
 ## Testing
 
@@ -102,7 +124,7 @@ The docker-compose.yml also starts an **nginx** reverse proxy on port `5085`.
 # Lint only (ruff)
 ./run_tests.sh lint
 
-# Server-side tests (pytest, safe over SSH)
+# Server-side tests (pytest)
 ./run_tests.sh server
 
 # Full suite (lint + server + browser tests)
