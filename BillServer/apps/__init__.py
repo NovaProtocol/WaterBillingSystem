@@ -87,14 +87,27 @@ def create_app(config: Any) -> Flask:
     if api_bp is not None:
         csrf.exempt(api_bp)
 
-    if app.config.get("REVERSE_PROXY_PREFIX"):
-        app.wsgi_app = ProxyFix(
-            app.wsgi_app,
-            x_for=1,
-            x_proto=1,
-            x_host=1,
-            x_prefix=1,
-        )
+    if prefix := app.config.get("REVERSE_PROXY_PREFIX"):
+        if prefix.startswith("/"):
+            class PrefixMiddleware:
+                def __init__(self, wsgi_app, p):
+                    self.wsgi_app = wsgi_app
+                    self.prefix = p.rstrip("/")
+                def __call__(self, environ, start_response):
+                    path = environ.get("PATH_INFO", "")
+                    if path.startswith(self.prefix):
+                        environ["PATH_INFO"] = path[len(self.prefix):]
+                    environ["SCRIPT_NAME"] = self.prefix
+                    return self.wsgi_app(environ, start_response)
+            app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix)
+        else:
+            app.wsgi_app = ProxyFix(
+                app.wsgi_app,
+                x_for=1,
+                x_proto=1,
+                x_host=1,
+                x_prefix=1,
+            )
 
     @app.before_request
     def add_request_id() -> None:
