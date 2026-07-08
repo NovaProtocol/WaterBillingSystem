@@ -195,7 +195,6 @@ def _start_debug_worker() -> subprocess.Popen | None:
         return None
     proc = subprocess.Popen(
         [sys.executable, str(worker_script)],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         start_new_session=True,
     )
     _debug_worker_proc = proc
