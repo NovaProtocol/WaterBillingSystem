@@ -27,6 +27,8 @@ services:
       - CACHE_TYPE=SimpleCache
     env_file:
       - ../.env
+    volumes:
+      - db_backups:/app/db_backups
     depends_on:
       db:
         condition: service_healthy
@@ -61,3 +63,4 @@ services:
 
 volumes:
   mysql_data:
+  db_backups:
