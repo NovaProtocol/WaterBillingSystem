@@ -3,13 +3,16 @@ from __future__ import annotations
 import json
 import math
 import os
+import queue
 import random
 import threading
+import time
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable
 
+import flask
 from flask import Response, jsonify, render_template, request, session
 from flask_login import current_user
 from sqlalchemy import inspect as sa_inspect
@@ -30,6 +33,8 @@ from apps.pricing import compute_water_bill
 from apps.staff import blueprint
 
 BACKUP_DIR = Path(__file__).resolve().parent.parent.parent / "db_backups"
+LOG_FILE = BACKUP_DIR / "debug_log.json"
+MAX_LOG_TASKS = 100
 
 ALL_TABLES = [
     Staff, Customer, MeterReading, Billing,
@@ -40,6 +45,123 @@ TABLE_NAMES = [
     "customers", "meter_readings",
     "billings", "api_keys", "nfc_tags", "management_logs", "app_config",
 ]
+
+
+class TaskManager:
+    def __init__(self) -> None:
+        self._queue: queue.Queue[dict[str, Any] | None] = queue.Queue()
+        self._tasks: dict[str, dict[str, Any]] = {}
+        self._counter = 0
+        self._lock = threading.Lock()
+        self._worker = threading.Thread(target=self._run, daemon=True)
+        self._worker.start()
+        self._load_log()
+
+    def _log_path(self) -> Path:
+        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        return LOG_FILE
+
+    def _load_log(self) -> None:
+        path = self._log_path()
+        if path.exists():
+            try:
+                with open(path) as f:
+                    data = json.load(f)
+                if isinstance(data, list):
+                    for t in data:
+                        tid = t.get("id", f"log_{len(self._tasks)}")
+                        self._tasks[tid] = t
+                    self._counter = len(self._tasks)
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    def _flush_log(self) -> None:
+        try:
+            path = self._log_path()
+            all_tasks = list(self._tasks.values())
+            all_tasks.sort(key=lambda t: t.get("created_at", 0), reverse=True)
+            recent = all_tasks[:MAX_LOG_TASKS]
+            with open(path, "w") as f:
+                json.dump(recent, f, indent=2)
+        except OSError:
+            pass
+
+    def _run(self) -> None:
+        while True:
+            item = self._queue.get()
+            if item is None:
+                break
+            task_id = item["id"]
+            fn = item["fn"]
+            with self._lock:
+                task = self._tasks.get(task_id)
+                if task:
+                    task["status"] = "running"
+                    task["started_at"] = time.time()
+                self._flush_log()
+            try:
+                fn(ProgressReporter(self, task_id))
+                with self._lock:
+                    t = self._tasks.get(task_id)
+                    if t:
+                        t["status"] = "completed"
+                        t["ended_at"] = time.time()
+                        self._flush_log()
+            except Exception as e:
+                with self._lock:
+                    t = self._tasks.get(task_id)
+                    if t:
+                        t["status"] = "error"
+                        t["ended_at"] = time.time()
+                        t["messages"].append(f"ERROR: {e}")
+                        self._flush_log()
+
+    def submit(self, title: str, fn: Callable[[Any], None]) -> str:
+        with self._lock:
+            self._counter += 1
+            task_id = f"task_{self._counter}"
+            self._tasks[task_id] = {
+                "id": task_id,
+                "title": title,
+                "status": "queued",
+                "progress": 0,
+                "messages": [],
+                "created_at": time.time(),
+                "started_at": None,
+                "ended_at": None,
+            }
+            self._flush_log()
+        self._queue.put({"id": task_id, "fn": fn})
+        return task_id
+
+    def get_tasks(self) -> list[dict[str, Any]]:
+        with self._lock:
+            all_tasks = list(self._tasks.values())
+            all_tasks.sort(key=lambda t: t.get("created_at", 0), reverse=True)
+            return all_tasks[:MAX_LOG_TASKS]
+
+    def get_task(self, task_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            return self._tasks.get(task_id)
+
+    def update_progress(self, task_id: str, progress: float, message: str) -> None:
+        with self._lock:
+            t = self._tasks.get(task_id)
+            if t:
+                t["progress"] = progress
+                t["messages"].append(message)
+
+
+class ProgressReporter:
+    def __init__(self, mgr: TaskManager, task_id: str) -> None:
+        self._mgr = mgr
+        self._task_id = task_id
+
+    def progress(self, pct: float, msg: str) -> None:
+        self._mgr.update_progress(self._task_id, pct, msg)
+
+
+_task_manager = TaskManager()
 
 
 def superuser_required(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -110,29 +232,32 @@ def create_backup() -> Response:
     if not _confirm_check():
         return jsonify({"error": "Invalid or missing confirmation code"}), 400
 
-    from flask import current_app as app
+    _flask_app = flask.current_app._get_current_object()
 
-    def _run_backup() -> None:
-        with app.app_context():
+    def _task(p: ProgressReporter) -> None:
+        with _flask_app.app_context():
             try:
+                p.progress(0, "Starting backup...")
                 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
                 path = BACKUP_DIR / f"backup_{datetime.utcnow():%Y%m%d_%H%M%S}.json"
                 data: dict[str, list[dict[str, Any]]] = {}
-                for table_name in TABLE_NAMES:
+                for i, table_name in enumerate(TABLE_NAMES):
+                    pct = round((i / len(TABLE_NAMES)) * 90, 1)
+                    p.progress(pct, f"Reading {table_name}...")
                     model_cls = next(m for m in ALL_TABLES if m.__tablename__ == table_name)
                     rows: list[db.Model] = model_cls.query.order_by(model_cls.id).all()
                     data[table_name] = [_serialize_row(r) for r in rows]
+                    p.progress(pct, f"  {len(rows)} rows from {table_name}")
+                p.progress(92, "Writing JSON file...")
                 with open(path, "w") as f:
                     json.dump(data, f, indent=2, default=str)
+                p.progress(100, f"Backup saved: {path.name}")
             except SQLAlchemyError:
                 db.session.rollback()
+                raise
 
-    t = threading.Thread(target=_run_backup, daemon=True)
-    t.start()
-
-    return jsonify({
-        "message": "Backup started in the background. It will appear in the restore list once complete."
-    })
+    tid = _task_manager.submit("Backup Database", _task)
+    return jsonify({"task_id": tid, "message": "Backup queued."})
 
 
 @blueprint.route("/debug/backups")
@@ -167,46 +292,46 @@ def restore_backup() -> Response:
     if not path.exists() or not path.name.startswith("backup_") or not path.name.endswith(".json"):
         return jsonify({"error": "Backup file not found"}), 404
 
-    from flask import current_app as app
+    _flask_app = flask.current_app._get_current_object()
 
-    def _run_restore() -> None:
-        with app.app_context():
-            try:
-                with open(path) as f:
-                    data: dict[str, list[dict[str, Any]]] = json.load(f)
+    def _task(p: ProgressReporter) -> None:
+        with _flask_app.app_context():
+            with open(path) as f:
+                data: dict[str, list[dict[str, Any]]] = json.load(f)
 
-                _clear_all_tables()
-                _ensure_superuser()
-                db.session.commit()
+            p.progress(5, f"Loaded {path.name}, clearing tables...")
+            _clear_all_tables()
+            _ensure_superuser()
+            db.session.commit()
+            p.progress(10, "Tables cleared. Restoring data...")
 
-                insert_order = [
-                    ("customers", Customer), ("nfc_tags", NfcTag),
-                    ("meter_readings", MeterReading), ("billings", Billing),
-                    ("api_keys", ApiKey), ("management_logs", ManagementLog),
-                    ("app_config", Config),
-                ]
-                total = 0
-                for table_name, model_cls in insert_order:
-                    rows = data.get(table_name, [])
-                    if not rows:
-                        continue
-                    for row_data in rows:
-                        cleaned = _deserialize_row(row_data, model_cls)
-                        db.session.add(model_cls(**cleaned))
-                        total += 1
-                        if total % 500 == 0:
-                            db.session.commit()
-                db.session.commit()
-            except SQLAlchemyError:
-                db.session.rollback()
+            insert_order = [
+                ("customers", Customer), ("nfc_tags", NfcTag),
+                ("meter_readings", MeterReading), ("billings", Billing),
+                ("api_keys", ApiKey), ("management_logs", ManagementLog),
+                ("app_config", Config),
+            ]
+            total_rows = sum(len(data.get(t, [])) for t, _ in insert_order)
+            processed = 0
+            for table_name, model_cls in insert_order:
+                rows = data.get(table_name, [])
+                if not rows:
+                    continue
+                pct = 10 + round(60 * processed / max(total_rows, 1))
+                p.progress(pct, f"Restoring {table_name} ({len(rows)} rows)...")
+                for row_data in rows:
+                    cleaned = _deserialize_row(row_data, model_cls)
+                    db.session.add(model_cls(**cleaned))
+                    processed += 1
+                    if processed % 500 == 0:
+                        db.session.commit()
+                        p.progress(10 + round(60 * processed / max(total_rows, 1)),
+                                   f"  {processed}/{total_rows} rows restored")
+            db.session.commit()
+            p.progress(100, f"Restored from {path.name} ({total_rows} rows)")
 
-    t = threading.Thread(target=_run_restore, daemon=True)
-    t.start()
-
-    return jsonify({
-        "message": f"Restoring from {filename} in the background. "
-                   "This may take a while for large backups."
-    })
+    tid = _task_manager.submit(f"Restore: {filename}", _task)
+    return jsonify({"task_id": tid, "message": "Restore queued."})
 
 
 @blueprint.route("/debug/clear", methods=["POST"])
@@ -215,15 +340,19 @@ def clear_database() -> Response:
     if not _confirm_check():
         return jsonify({"error": "Invalid or missing confirmation code"}), 400
 
-    try:
-        _clear_all_tables()
-        _ensure_superuser()
-        db.session.commit()
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return jsonify({"error": f"Clear failed: {e}"}), 500
+    _flask_app = flask.current_app._get_current_object()
 
-    return jsonify({"message": "All tables cleared. Superuser preserved."})
+    def _task(p: ProgressReporter) -> None:
+        with _flask_app.app_context():
+            p.progress(0, "Clearing tables...")
+            _clear_all_tables()
+            p.progress(50, "Recreating superuser...")
+            _ensure_superuser()
+            db.session.commit()
+            p.progress(100, "All tables cleared. Superuser preserved.")
+
+    tid = _task_manager.submit("Clear Database", _task)
+    return jsonify({"task_id": tid, "message": "Clear queued."})
 
 
 @blueprint.route("/debug/seed", methods=["POST"])
@@ -243,36 +372,20 @@ def seed_data() -> Response:
     if n_months < 1 or n_months > 240:
         return jsonify({"error": "Months must be between 1 and 240"}), 400
 
-    from flask import current_app as app
+    _flask_app = flask.current_app._get_current_object()
 
-    def _run_seed() -> None:
-        with app.app_context():
-            try:
-                _clear_all_tables()
-                _seed_data(n_customers, n_months)
-                _ensure_superuser()
-                db.session.commit()
-            except SQLAlchemyError:
-                db.session.rollback()
+    def _task(p: ProgressReporter) -> None:
+        with _flask_app.app_context():
+            p.progress(0, "Clearing existing data...")
+            _clear_all_tables()
+            p.progress(2, f"Seeding {n_customers} customers × {n_months} months...")
+            _seed_data(n_customers, n_months, p)
+            _ensure_superuser()
+            db.session.commit()
+            p.progress(100, f"Seeded {n_customers} customers × {n_months} months")
 
-    t = threading.Thread(target=_run_seed, daemon=True)
-    t.start()
-
-    return jsonify({
-        "message": f"Seeding {n_customers} customers × {n_months} months in the background. "
-                   "This may take a while — do not interrupt the server."
-    })
-
-
-def _run_background(app: Any, target: Callable[..., None], *args: Any) -> None:
-    def _wrapper() -> None:
-        with app.app_context():
-            try:
-                target(*args)
-            except SQLAlchemyError:
-                db.session.rollback()
-    t = threading.Thread(target=_wrapper, daemon=True)
-    t.start()
+    tid = _task_manager.submit(f"Seed: {n_customers}c × {n_months}m", _task)
+    return jsonify({"task_id": tid, "message": "Seed queued."})
 
 
 def _get_customers_without_reading_this_month(now: datetime) -> list[str]:
@@ -291,92 +404,77 @@ def _get_customers_without_reading_this_month(now: datetime) -> list[str]:
     return [c.customer_number for c in customers]
 
 
-def _read_current_month() -> dict[str, Any]:
-    now = datetime.utcnow()
-    customers = _get_customers_without_reading_this_month(now)
-    rng = random.Random(now.year * 12 + now.month)
-    skipped = 0
-    created = 0
-    for cnum in customers:
-        prev = (
-            MeterReading.query
-            .filter_by(customer_number=cnum)
-            .order_by(MeterReading.timestamp.desc())
-            .first()
-        )
-        if not prev:
-            skipped += 1
-            continue
-        consumption = max(5.0, round(
-            abs(rng.gauss(20, 10)) * (1.1 if now.month in (3, 4, 5) else
-                                       0.95 if now.month in (6, 7, 8, 9, 10) else 0.90)
-            * rng.uniform(0.92, 1.08), 1
-        ))
-        new_value = round(float(prev.reading_value) + consumption, 1)
-        reading_dt = now.replace(hour=rng.randint(8, 17), minute=rng.randint(0, 59))
-        mr = MeterReading(
-            customer_number=cnum,
-            reading_value=new_value,
-            token_id=1,
-            timestamp=reading_dt,
-            date_created=now,
-            date_modified=now,
-        )
-        db.session.add(mr)
-        db.session.flush()
-        water_bill, _ = compute_water_bill(consumption)
-        bill = Billing(
-            customer_number=cnum,
-            reading_id=mr.id,
-            previous_reading_value=float(prev.reading_value),
-            current_reading_value=new_value,
-            consumption=consumption,
-            billed_amount=water_bill,
-            is_paid=False,
-            date_created=now,
-            date_modified=now,
-        )
-        db.session.add(bill)
-        created += 1
-        if created % 50 == 0:
-            db.session.commit()
-    db.session.commit()
-    return {"created": created, "skipped": skipped}
-
-
 @blueprint.route("/debug/read-this-month", methods=["POST"])
 @superuser_required
 def route_read_this_month() -> Response:
     if not _confirm_check():
         return jsonify({"error": "Invalid or missing confirmation code"}), 400
-    from flask import current_app as app
-    _run_background(app, _read_current_month)
-    return jsonify({"message": "Reading current month in the background."})
+    _flask_app = flask.current_app._get_current_object()
 
-
-def _unread_current_month() -> dict[str, Any]:
-    now = datetime.utcnow()
-    first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    readings = (
-        MeterReading.query
-        .filter(MeterReading.timestamp >= first_of_month)
-        .all()
-    )
-    removed = 0
-    skipped_paid = 0
-    for r in readings:
-        bill = Billing.query.filter_by(reading_id=r.id).first()
-        if bill and bill.is_paid:
-            skipped_paid += 1
-            continue
-        if bill:
-            db.session.delete(bill)
-        db.session.delete(r)
-        removed += 1
-        if removed % 100 == 0:
+    def _task(p: ProgressReporter) -> None:
+        with _flask_app.app_context():
+            p.progress(0, "Finding customers without a reading this month...")
+            now = datetime.utcnow()
+            customers = _get_customers_without_reading_this_month(now)
+            total = len(customers)
+            p.progress(5, f"Found {total} customers to read")
+            if not total:
+                p.progress(100, "All customers already have a reading this month.")
+                return
+            rng = random.Random(now.year * 12 + now.month)
+            created = 0
+            skipped = 0
+            for i, cnum in enumerate(customers):
+                prev = (
+                    MeterReading.query
+                    .filter_by(customer_number=cnum)
+                    .order_by(MeterReading.timestamp.desc())
+                    .first()
+                )
+                if not prev:
+                    skipped += 1
+                    continue
+                consumption = max(5.0, round(
+                    abs(rng.gauss(20, 10)) * (
+                        1.1 if now.month in (3, 4, 5) else
+                        0.95 if now.month in (6, 7, 8, 9, 10) else 0.90
+                    ) * rng.uniform(0.92, 1.08), 1
+                ))
+                new_value = round(float(prev.reading_value) + consumption, 1)
+                reading_dt = now.replace(hour=rng.randint(8, 17), minute=rng.randint(0, 59))
+                mr = MeterReading(
+                    customer_number=cnum,
+                    reading_value=new_value,
+                    token_id=1,
+                    timestamp=reading_dt,
+                    date_created=now,
+                    date_modified=now,
+                )
+                db.session.add(mr)
+                db.session.flush()
+                water_bill, _ = compute_water_bill(consumption)
+                bill = Billing(
+                    customer_number=cnum,
+                    reading_id=mr.id,
+                    previous_reading_value=float(prev.reading_value),
+                    current_reading_value=new_value,
+                    consumption=consumption,
+                    billed_amount=water_bill,
+                    is_paid=False,
+                    date_created=now,
+                    date_modified=now,
+                )
+                db.session.add(bill)
+                created += 1
+                if created % 50 == 0:
+                    db.session.commit()
+                pct = 5 + round(90 * (i + 1) / total, 1)
+                p.progress(pct, f"Read customer {i + 1}/{total} ({created} created, {skipped} skipped)")
             db.session.commit()
-    db.session.commit()
-    return {"removed": removed, "skipped_paid": skipped_paid}
+            p.progress(100, f"Done. {created} readings created, {skipped} skipped.")
+
+    tid = _task_manager.submit("Read This Month", _task)
+    return jsonify({"task_id": tid, "message": "Read-this-month queued."})
 
 
 @blueprint.route("/debug/unread-this-month", methods=["POST"])
@@ -384,35 +482,40 @@ def _unread_current_month() -> dict[str, Any]:
 def route_unread_this_month() -> Response:
     if not _confirm_check():
         return jsonify({"error": "Invalid or missing confirmation code"}), 400
-    from flask import current_app as app
-    _run_background(app, _unread_current_month)
-    return jsonify({"message": "Removing current month readings in the background."})
+    _flask_app = flask.current_app._get_current_object()
 
-
-def _pay_current_month() -> dict[str, Any]:
-    import secrets
-    now = datetime.utcnow()
-    first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    unpaid_bills = (
-        Billing.query
-        .outerjoin(MeterReading, Billing.reading_id == MeterReading.id)
-        .filter(MeterReading.timestamp >= first_of_month)
-        .filter(Billing.is_paid.is_(False))
-        .all()
-    )
-    paid = 0
-    for bill in unpaid_bills:
-        bill.is_paid = True
-        bill.paid_amount = round(float(bill.billed_amount) + float(bill.penalty), 2)
-        bill.receipt_number = "MONTHLY-" + secrets.token_hex(4).upper()
-        bill.cashier_id = 1
-        bill.payment_timestamp = now
-        bill.date_paid = now
-        paid += 1
-        if paid % 100 == 0:
+    def _task(p: ProgressReporter) -> None:
+        with _flask_app.app_context():
+            p.progress(0, "Finding this month's readings...")
+            now = datetime.utcnow()
+            first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            readings = (
+                MeterReading.query
+                .filter(MeterReading.timestamp >= first_of_month)
+                .all()
+            )
+            total = len(readings)
+            p.progress(5, f"Found {total} readings")
+            removed = 0
+            skipped_paid = 0
+            for i, r in enumerate(readings):
+                bill = Billing.query.filter_by(reading_id=r.id).first()
+                if bill and bill.is_paid:
+                    skipped_paid += 1
+                    continue
+                if bill:
+                    db.session.delete(bill)
+                db.session.delete(r)
+                removed += 1
+                if removed % 100 == 0:
+                    db.session.commit()
+                pct = 5 + round(90 * (i + 1) / max(total, 1), 1)
+                p.progress(pct, f"Unread {i + 1}/{total} ({removed} removed, {skipped_paid} skipped — already paid)")
             db.session.commit()
-    db.session.commit()
-    return {"paid": paid}
+            p.progress(100, f"Done. {removed} readings removed, {skipped_paid} skipped (paid).")
+
+    tid = _task_manager.submit("Unread This Month", _task)
+    return jsonify({"task_id": tid, "message": "Unread-this-month queued."})
 
 
 @blueprint.route("/debug/pay-this-month", methods=["POST"])
@@ -420,40 +523,113 @@ def _pay_current_month() -> dict[str, Any]:
 def route_pay_this_month() -> Response:
     if not _confirm_check():
         return jsonify({"error": "Invalid or missing confirmation code"}), 400
-    from flask import current_app as app
-    _run_background(app, _pay_current_month)
-    return jsonify({"message": "Paying current month in the background."})
+    _flask_app = flask.current_app._get_current_object()
 
-
-def _unpay_current_month() -> dict[str, Any]:
-    now = datetime.utcnow()
-    first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    paid_bills = (
-        Billing.query
-        .outerjoin(MeterReading, Billing.reading_id == MeterReading.id)
-        .filter(MeterReading.timestamp >= first_of_month)
-        .filter(Billing.is_paid.is_(True))
-        .all()
-    )
-    undone = 0
-    for bill in paid_bills:
-        bill.is_paid = False
-        bill.paid_amount = 0
-        bill.receipt_number = None
-        bill.cashier_id = None
-        bill.payment_timestamp = None
-        bill.date_paid = None
-        bill.carryover_offset = 0
-        undone += 1
-        if undone % 100 == 0:
+    def _task(p: ProgressReporter) -> None:
+        with _flask_app.app_context():
+            import secrets
+            p.progress(0, "Finding unpaid this-month bills...")
+            now = datetime.utcnow()
+            first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            unpaid_bills = (
+                Billing.query
+                .outerjoin(MeterReading, Billing.reading_id == MeterReading.id)
+                .filter(MeterReading.timestamp >= first_of_month)
+                .filter(Billing.is_paid.is_(False))
+                .all()
+            )
+            total = len(unpaid_bills)
+            p.progress(5, f"Found {total} unpaid bills")
+            paid = 0
+            for i, bill in enumerate(unpaid_bills):
+                bill.is_paid = True
+                bill.paid_amount = round(float(bill.billed_amount) + float(bill.penalty), 2)
+                bill.receipt_number = "MONTHLY-" + secrets.token_hex(4).upper()
+                bill.cashier_id = 1
+                bill.payment_timestamp = now
+                bill.date_paid = now
+                paid += 1
+                if paid % 100 == 0:
+                    db.session.commit()
+                p.progress(5 + round(90 * (i + 1) / max(total, 1), 1),
+                           f"Paid {i + 1}/{total}")
             db.session.commit()
-    db.session.commit()
-    for bill in paid_bills:
-        recalc_cumulative_balance(bill.customer_number)
-    return {"undone": undone}
+            p.progress(100, f"Done. {paid} bills paid.")
+
+    tid = _task_manager.submit("Pay This Month", _task)
+    return jsonify({"task_id": tid, "message": "Pay-this-month queued."})
 
 
-def recalc_cumulative_balance(customer_number: str) -> None:
+@blueprint.route("/debug/remove-payment-this-month", methods=["POST"])
+@superuser_required
+def route_remove_payment_this_month() -> Response:
+    if not _confirm_check():
+        return jsonify({"error": "Invalid or missing confirmation code"}), 400
+    _flask_app = flask.current_app._get_current_object()
+
+    def _task(p: ProgressReporter) -> None:
+        with _flask_app.app_context():
+            p.progress(0, "Finding paid this-month bills...")
+            now = datetime.utcnow()
+            first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            paid_bills = (
+                Billing.query
+                .outerjoin(MeterReading, Billing.reading_id == MeterReading.id)
+                .filter(MeterReading.timestamp >= first_of_month)
+                .filter(Billing.is_paid.is_(True))
+                .all()
+            )
+            total = len(paid_bills)
+            p.progress(5, f"Found {total} paid bills")
+            undone = 0
+            for i, bill in enumerate(paid_bills):
+                bill.is_paid = False
+                bill.paid_amount = 0
+                bill.receipt_number = None
+                bill.cashier_id = None
+                bill.payment_timestamp = None
+                bill.date_paid = None
+                bill.carryover_offset = 0
+                undone += 1
+                if undone % 100 == 0:
+                    db.session.commit()
+                p.progress(5 + round(90 * (i + 1) / max(total, 1), 1),
+                           f"Reverted {i + 1}/{total}")
+            db.session.commit()
+            seen: set[str] = set()
+            for bill in paid_bills:
+                if bill.customer_number not in seen:
+                    seen.add(bill.customer_number)
+                    _recalc_cumulative_balance(bill.customer_number)
+            p.progress(100, f"Done. {undone} bills reverted.")
+
+    tid = _task_manager.submit("Remove Payment This Month", _task)
+    return jsonify({"task_id": tid, "message": "Remove-payment queued."})
+
+
+@blueprint.route("/debug/tasks", methods=["GET"])
+@superuser_required
+def list_tasks() -> Response:
+    tasks = _task_manager.get_tasks()
+    for t in tasks:
+        messages = t.get("messages", [])
+        t["last_message"] = messages[-1] if messages else ""
+        t["message_count"] = len(messages)
+    return jsonify({"tasks": tasks})
+
+
+@blueprint.route("/debug/tasks/<task_id>", methods=["GET"])
+@superuser_required
+def get_task(task_id: str) -> Response:
+    t = _task_manager.get_task(task_id)
+    if not t:
+        return jsonify({"error": "Task not found"}), 404
+    messages = t.get("messages", [])
+    t["last_message"] = messages[-1] if messages else ""
+    return jsonify({"task": t})
+
+
+def _recalc_cumulative_balance(customer_number: str) -> None:
     total = (
         db.session.query(db.func.sum(Billing.carryover_offset))
         .filter_by(customer_number=customer_number)
@@ -463,16 +639,6 @@ def recalc_cumulative_balance(customer_number: str) -> None:
     customer = Customer.query.filter_by(customer_number=customer_number).first()
     if customer:
         customer.cumulative_balance = round(float(total), 2)
-
-
-@blueprint.route("/debug/remove-payment-this-month", methods=["POST"])
-@superuser_required
-def route_remove_payment_this_month() -> Response:
-    if not _confirm_check():
-        return jsonify({"error": "Invalid or missing confirmation code"}), 400
-    from flask import current_app as app
-    _run_background(app, _unpay_current_month)
-    return jsonify({"message": "Removing current month payments in the background."})
 
 
 def _deserialize_row(row_data: dict[str, Any], model_cls: type[db.Model]) -> dict[str, Any]:
@@ -516,14 +682,19 @@ def _ensure_superuser() -> None:
 
 
 def _clear_all_tables() -> None:
-    db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 0"))
-    for table_name in reversed(TABLE_NAMES):
-        db.session.execute(db.text(f"TRUNCATE TABLE {table_name}"))
-    Staff.query.filter(Staff.username != "superuser").delete(
-        synchronize_session=False
-    )
-    db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 1"))
-    db.session.commit()
+    try:
+        db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 0"))
+        for table_name in reversed(TABLE_NAMES):
+            db.session.execute(db.text(f"TRUNCATE TABLE {table_name}"))
+        Staff.query.filter(Staff.username != "superuser").delete(
+            synchronize_session=False
+        )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    finally:
+        db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 1"))
 
 
 FIRST_NAMES = [
@@ -613,10 +784,13 @@ def _generate_consumption(months: int, rng: random.Random) -> list[float]:
     return values
 
 
-def _seed_data(n_customers: int, n_months: int) -> None:
+def _seed_data(n_customers: int, n_months: int, _reporter: ProgressReporter | None = None) -> None:
     import binascii
     import hashlib
     import secrets as _secrets
+
+    Staff.query.delete(synchronize_session=False)
+    db.session.flush()
 
     rng = random.Random(42)
     now = datetime.utcnow()
@@ -639,7 +813,6 @@ def _seed_data(n_customers: int, n_months: int) -> None:
         date_slots.append(datetime(y, m, min(now.day, 28)))
 
     staff_users = [
-        {"username": "superuser", "name": "Super Admin", "all": True},
         {"username": "admin", "name": "Admin", "all": True},
         {"username": "cashier1", "name": "Cashier"}, {"username": "cashier2", "name": "Cashier"},
         {"username": "reader1", "name": "Reader"},
@@ -676,7 +849,7 @@ def _seed_data(n_customers: int, n_months: int) -> None:
         db.session.flush()
         staff_ids[s["username"]] = staff.id
 
-    cashier_id = staff_ids.get("cashier1", staff_ids["superuser"])
+    cashier_id = staff_ids.get("cashier1", next(iter(staff_ids.values())))
 
     api_key_map: dict[int, int] = {}
     for sid_name, sid in staff_ids.items():
@@ -803,5 +976,10 @@ def _seed_data(n_customers: int, n_months: int) -> None:
 
         if (ci + 1) % 50 == 0:
             db.session.commit()
+            if _reporter:
+                pct = 2 + round(93 * (ci + 1) / n_customers, 1)
+                _reporter.progress(pct, f"Seeding customer {ci + 1}/{n_customers}...")
 
     db.session.commit()
+    if _reporter:
+        _reporter.progress(95, "Finalizing...")
