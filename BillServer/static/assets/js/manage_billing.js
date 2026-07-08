@@ -7,7 +7,7 @@ $(function() {
   });
 
   function loadCustomer(custNum) {
-    $.get('/api/customer/' + encodeURIComponent(custNum), function(data) {
+    $.get(API_CUSTOMER_URL.replace('0', encodeURIComponent(custNum)), function(data) {
       if (data.error) { alert(data.error); return; }
 
       $('#custNumLabel').text('#' + custNum);

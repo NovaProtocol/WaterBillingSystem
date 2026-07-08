@@ -3,7 +3,7 @@
     <div class="container hero-content">
         <div class="row align-items-center">
             <div class="col-lg-6">
-                <img src="/static/assets/img/landing/1b5b2bf040e0794b3952002859df30ee.png" alt="Cotta Realty" style="height: 48px; margin-bottom: 1.5rem;">
+                <img src="{{ url_for('static', filename='assets/img/landing/1b5b2bf040e0794b3952002859df30ee.png') }}" alt="Cotta Realty" style="height: 48px; margin-bottom: 1.5rem;">
                 <h1>Ready to Start<br>a New <span>Chapter</span>?</h1>
                 <p class="subtitle">
                     Cotta Realty & Development Corporation (est. August 8, 1995) — building quality, affordable homes for Filipino families through PAG-IBIG and Bank financing.
@@ -22,8 +22,8 @@
             </div>
             <div class="col-lg-6">
                 <div class="hero-video">
-                    <video autoplay muted loop playsinline poster="/static/assets/img/landing/7a06e425317a059b2995d8828344671a.jpg">
-                        <source src="/static/assets/video/cotta-drone.mp4" type="video/mp4">
+                    <video autoplay muted loop playsinline poster="{{ url_for('static', filename='assets/img/landing/7a06e425317a059b2995d8828344671a.jpg') }}">
+                        <source src="{{ url_for('static', filename='assets/video/cotta-drone.mp4') }}" type="video/mp4">
                     </video>
                 </div>
             </div>

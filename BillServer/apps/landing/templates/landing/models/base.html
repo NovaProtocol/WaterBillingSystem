@@ -42,8 +42,8 @@
         </h2>
         <div style="border-radius: 16px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.1);">
             {% block model_video %}
-            <video controls playsinline style="width: 100%; display: block;" poster="/static/assets/img/landing/7a06e425317a059b2995d8828344671a.jpg">
-                <source src="/static/assets/video/cotta-drone.mp4" type="video/mp4">
+            <video controls playsinline style="width: 100%; display: block;" poster="{{ url_for('static', filename='assets/img/landing/7a06e425317a059b2995d8828344671a.jpg') }}">
+                <source src="{{ url_for('static', filename='assets/video/cotta-drone.mp4') }}" type="video/mp4">
             </video>
             {% endblock %}
         </div>
@@ -133,7 +133,7 @@
             <div class="col-lg-4 col-md-6 mb-4">
                 <a href="{{ url_for('landing_blueprint.model_detail', slug=slug) }}" style="text-decoration: none; color: inherit;">
                     <div class="model-card">
-                        <img src="/static/assets/img/landing/{{ m.image }}" alt="{{ m.name }}">
+                        <img src="{{ url_for('static', filename='assets/img/landing/' + m.image) }}" alt="{{ m.name }}">
                         <div class="body">
                             <span class="badge">{{ m.type }}</span>
                             <h5>{{ m.name }}</h5>
