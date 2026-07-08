@@ -44,6 +44,7 @@ ALL_TABLES = [
 TABLE_NAMES = [
     "customers", "meter_readings",
     "billings", "api_keys", "nfc_tags", "management_logs", "app_config",
+    "staff",
 ]
 
 
@@ -199,29 +200,16 @@ def _ensure_superuser() -> None:
 
 
 def _clear_all_tables() -> None:
-    import time as _time
-    last_err: Exception | None = None
-    for attempt in range(3):
-        try:
-            db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 0"))
-            for table_name in reversed(TABLE_NAMES):
-                db.session.execute(db.text(f"TRUNCATE TABLE {table_name}"))
-            Staff.query.filter(Staff.username != "superuser").delete(
-                synchronize_session="fetch"
-            )
-            db.session.commit()
-            return
-        except Exception as e:
-            db.session.rollback()
-            if "1213" in str(e):
-                last_err = e
-                _time.sleep(0.5 * (attempt + 1))
-                continue
-            raise
-        finally:
-            db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 1"))
-    if last_err:
-        raise last_err
+    try:
+        db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 0"))
+        for table_name in reversed(TABLE_NAMES):
+            db.session.execute(db.text(f"TRUNCATE TABLE {table_name}"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    finally:
+        db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 1"))
 
 
 def _recalc_cumulative_balance(customer_number: str) -> None:
@@ -822,11 +810,7 @@ def _seed_data(
     import hashlib
     import secrets as _secrets
 
-    _report_fn(2, "Clearing existing staff...")
-    Staff.query.filter(Staff.username != "superuser").delete(
-        synchronize_session="fetch"
-    )
-    db.session.flush()
+    _report_fn(2, "Creating staff accounts...")
 
     rng = random.Random(42)
     now = datetime.utcnow()
