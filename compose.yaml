@@ -57,7 +57,8 @@ services:
     command: >
       sh -c "
         pip install -r requirements.txt --quiet &&
-        exec mkdocs serve --dev-addr 0.0.0.0:8000
+        mkdocs build --site-dir /app/_site &&
+        exec python -m http.server 8000 --directory /app/_site
       "
     ports:
       - "7001:8000"
