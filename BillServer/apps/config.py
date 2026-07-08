@@ -53,11 +53,6 @@ class Config(object):
         for var in cls.ENV_VARS_ALLOW_EMPTY:
             if os.environ.get(var) is None:
                 missing.append(var)
-        missing = []
-        for var in cls.REQUIRED_ENV_VARS:
-            val = os.environ.get(var)
-            if val is None or val.strip() == "":
-                missing.append(var)
         if missing:
             print(
                 "FATAL: Required environment variables are not set:\n"
