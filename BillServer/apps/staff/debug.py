@@ -209,7 +209,7 @@ def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) 
     ]
     report(10, f"Dumping database to {filename}...")
     with open(path, "w") as f:
-        result = _sp.run(cmd, stdout=f, capture_output=True, text=True)
+        result = _sp.run(cmd, stdout=f, stderr=_sp.PIPE, text=True)
     if result.returncode != 0:
         err = result.stderr.strip() or f"exit code {result.returncode}"
         raise RuntimeError(f"Backup failed: {err}")
@@ -240,7 +240,7 @@ def handle_restore(params: dict[str, Any], report: Callable[[float, str], None])
         db_name,
     ]
     with open(path) as f:
-        result = _sp.run(cmd, stdin=f, capture_output=True, text=True)
+        result = _sp.run(cmd, stdin=f, stdout=_sp.PIPE, stderr=_sp.PIPE, text=True)
     if result.returncode != 0:
         err = result.stderr.strip() or f"exit code {result.returncode}"
         raise RuntimeError(f"Restore failed: {err}")
