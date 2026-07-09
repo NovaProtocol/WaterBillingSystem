@@ -170,8 +170,8 @@ When `DEBUG=true` is set in `.env` and the logged-in user is "superuser", a **DE
 
 | Tool | Description | Endpoint |
 |---|---|---|
-| **Backup Database** | Exports all tables to a JSON file in the `db_backups` volume | `POST /staff/debug/backup` |
-| **Restore from Backup** | Select a backup file and restore the database to that state | `POST /staff/debug/restore` |
+| **Backup Database** | Full DB snapshot via `mysqldump` — schema, data, triggers, routines, events | `POST /staff/debug/backup` |
+| **Restore from Backup** | Restore from a `.sql` backup file — completely replaces the database | `POST /staff/debug/restore` |
 | **Seed Test Data** | Generate realistic test customers, readings, and billing records | `POST /staff/debug/seed` |
 | **Clear Database** | Truncates all tables — removes all data permanently | `POST /staff/debug/clear` |
 | **Read This Month** | Create readings + unpaid bills for all customers without one | `POST /staff/debug/read-this-month` |
