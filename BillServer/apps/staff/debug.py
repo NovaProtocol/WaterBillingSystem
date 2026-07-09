@@ -204,7 +204,6 @@ def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) 
         "--ssl=0",
         "--single-transaction",
         "--routines", "--triggers", "--events",
-        "--column-statistics=0",
         db_name,
     ]
     report(10, f"Dumping database to {filename}...")
