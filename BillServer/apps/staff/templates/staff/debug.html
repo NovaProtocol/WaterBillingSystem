@@ -20,7 +20,7 @@
         <i class="fas fa-database mr-1"></i>Backup Database
       </div>
       <div class="card-body">
-        <p class="text-muted">Dump all tables to a JSON file. Stored in the <code>db_backups</code> volume.</p>
+        <p class="text-muted">Full database snapshot via <code>mysqldump</code>. Saved as <code>.sql</code> in the <code>db_backups</code> volume.</p>
         <button class="btn btn-outline-danger" onclick="confirmAndExec('backup', {}, 'This will create a full database backup.')">
           <i class="fas fa-download mr-1"></i>Create Backup
         </button>
