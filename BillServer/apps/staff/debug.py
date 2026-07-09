@@ -184,6 +184,9 @@ def _recalc_cumulative_balance(customer_number: str) -> None:
 
 def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     import subprocess as _sp
+    import shutil as _shutil
+    if not _shutil.which("mysqldump"):
+        raise RuntimeError("mysqldump not found. Install mysql-client (apt install default-mysql-client)")
     report(0, "Starting mysqldump backup...")
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     filename = f"backup_{datetime.utcnow():%Y%m%d_%H%M%S}.sql"
@@ -217,6 +220,9 @@ def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) 
 
 def handle_restore(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     import subprocess as _sp
+    import shutil as _shutil
+    if not _shutil.which("mysql"):
+        raise RuntimeError("mysql not found. Install mysql-client (apt install default-mysql-client)")
     filename = params.get("filename", "")
     path = BACKUP_DIR / filename
     if not path.exists() or not path.name.startswith("backup_") or not path.name.endswith(".sql"):
