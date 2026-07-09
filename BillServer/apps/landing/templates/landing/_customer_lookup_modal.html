@@ -76,6 +76,7 @@
         $.ajax({
             url: '{{ url_for("billing_blueprint.lookup_customer") }}',
             method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token() }}'},
             contentType: 'application/json',
             data: JSON.stringify({ customer_number: num, last_receipt: receipt }),
             success: function(data) {
@@ -119,6 +120,7 @@
         $.ajax({
             url: '{{ url_for("billing_blueprint.confirm_customer") }}',
             method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token() }}'},
             contentType: 'application/json',
             data: JSON.stringify({ customer_number: customerData.customer_number }),
             success: function(data) {
