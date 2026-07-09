@@ -875,6 +875,7 @@ def _seed_data(
         consumptions = _generate_consumption(n_months, cust_rng)
         meter_value = round(rng.uniform(100, 500), 1)
         reading_ids: list[int] = []
+        reading_values: list[float] = []
 
         for month_idx in range(n_months):
             reading_dt = date_slots[month_idx].replace(
@@ -882,6 +883,7 @@ def _seed_data(
             )
             if month_idx > 0:
                 meter_value = round(meter_value + consumptions[month_idx - 1], 1)
+            reading_values.append(meter_value)
             mr = MeterReading(
                 customer_number=cnum,
                 reading_value=meter_value,
@@ -896,9 +898,9 @@ def _seed_data(
 
         cum_balance = 0.0
         for month_idx in range(1, n_months):
-            prev_val = sum(consumptions[:month_idx])
-            curr_val = sum(consumptions[:month_idx + 1])
-            consumption = round(curr_val - prev_val, 1)
+            prev_reading_value = reading_values[month_idx - 1]
+            curr_reading_value = reading_values[month_idx]
+            consumption = round(curr_reading_value - prev_reading_value, 1)
             reading_id = reading_ids[month_idx]
             water_bill, _ = compute_water_bill(consumption)
 
@@ -906,8 +908,8 @@ def _seed_data(
                 bill = Billing(
                     customer_number=cnum,
                     reading_id=reading_id,
-                    previous_reading_value=prev_val,
-                    current_reading_value=curr_val,
+                    previous_reading_value=prev_reading_value,
+                    current_reading_value=curr_reading_value,
                     consumption=consumption,
                     billed_amount=water_bill,
                     penalty=0, paid_amount=0, carryover_offset=0,
@@ -939,8 +941,8 @@ def _seed_data(
             bill = Billing(
                 customer_number=cnum,
                 reading_id=reading_id,
-                previous_reading_value=prev_val,
-                current_reading_value=curr_val,
+                previous_reading_value=prev_reading_value,
+                current_reading_value=curr_reading_value,
                 consumption=consumption,
                 billed_amount=water_bill,
                 penalty=penalty,
