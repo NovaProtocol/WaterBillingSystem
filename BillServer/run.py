@@ -114,10 +114,9 @@ def _compile_scss(app: Flask) -> None:
             logger.warning("Failed to compile %s: %s", fname, e)
 
 
-def _preflight_db(app: Flask) -> None:
-    """Run pre-flight DB checks and superuser seeding. Called at startup."""
-    from apps.authentication.util import hash_pass
+def _ensure_prerequisites(app: Flask) -> None:
     from apps.models import Staff
+    from apps.authentication.util import hash_pass
 
     with app.app_context():
         logger.info("Checking database connectivity...")
@@ -168,6 +167,27 @@ def _preflight_db(app: Flask) -> None:
         else:
             logger.info("Superuser account verified")
 
+        xendit_user = Staff.query.filter_by(username="xendit").first()
+        if not xendit_user:
+            xendit_user = Staff(
+                username="xendit",
+                name="Xendit",
+                password=b"",
+                can_accept_payment=True,
+                can_manage_billing=True,
+                can_drop_payment=True,
+            )
+            db.session.add(xendit_user)
+            db.session.commit()
+            logger.info("Created system xendit user (automated payments)")
+        else:
+            xendit_user.password = b""
+            xendit_user.can_accept_payment = True
+            xendit_user.can_manage_billing = True
+            xendit_user.can_drop_payment = True
+            db.session.commit()
+            logger.info("Xendit system user verified")
+
         for table_name in sorted(expected_tables):
             existing_columns = {
                 col["name"] for col in inspector.get_columns(table_name)
@@ -184,6 +204,9 @@ def _preflight_db(app: Flask) -> None:
                 )
 
         logger.info("All table columns verified")
+
+        from apps.billing import api as billing_api
+        billing_api.reconcile_xendit_payments(app)
 
 
 def _start_debug_worker() -> subprocess.Popen | None:
@@ -221,7 +244,7 @@ if not DEBUG or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
 
 if __name__ == "__main__":
     _compile_scss(app)
-    _preflight_db(app)
+    _ensure_prerequisites(app)
 
     try:
         if DEBUG:

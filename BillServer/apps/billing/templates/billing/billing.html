@@ -185,6 +185,11 @@
                         Due in {{ days_remaining }} day{{ '' if days_remaining == 1 else 's' }} ({{ due_date }})
                     </div>
                     {% endif %}
+                    {% if pending_xendit %}
+                    <div class="mt-2 p-2" style="background: #fff3cd; border-radius: 8px; font-size: 0.75rem; color: #856404; text-align: center;">
+                        <i class="fas fa-clock mr-1"></i> Online payment pending — awaiting confirmation
+                    </div>
+                    {% endif %}
                     <button type="button" class="btn btn-cotta btn-block mt-3" data-toggle="modal" data-target="#payOnlineModal">
                         <i class="fas fa-credit-card mr-2"></i>Pay Online
                     </button>

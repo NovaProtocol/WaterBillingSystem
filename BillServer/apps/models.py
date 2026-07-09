@@ -250,3 +250,37 @@ class Config(db.Model):
 
     def __repr__(self) -> str:
         return f"<Config {self.key}={self.value!r}>"
+
+
+class XenditTransaction(db.Model):
+
+    __tablename__ = "xendit_transactions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_number = db.Column(
+        db.String(64),
+        db.ForeignKey("customers.customer_number"),
+        nullable=False,
+        index=True,
+    )
+    xendit_pr_id = db.Column(db.String(128), unique=True, nullable=False, index=True)
+    external_id = db.Column(db.String(256), unique=True, nullable=False)
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
+    payment_method = db.Column(db.String(32), nullable=False)
+    status = db.Column(db.String(32), nullable=False, default="PENDING")
+    receipt_number = db.Column(db.String(64), nullable=True)
+    billing_receipt = db.Column(db.String(64), nullable=True)
+    error_message = db.Column(db.Text(), nullable=True)
+    reversed_at = db.Column(db.DateTime, nullable=True)
+    xendit_payment_id = db.Column(db.String(128), nullable=True)
+    date_created = db.Column(db.DateTime, default=dt.datetime.utcnow)
+    date_modified = db.Column(
+        db.DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    )
+
+    customer = db.relationship(
+        "Customer", backref=db.backref("xendit_transactions", lazy=True)
+    )
+
+    def __repr__(self) -> str:
+        return f"<XenditTransaction {self.xendit_pr_id} {self.status}>"
