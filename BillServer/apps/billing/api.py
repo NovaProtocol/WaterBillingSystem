@@ -337,13 +337,11 @@ def create_xendit_invoice(customer_number: str) -> Response:
         "billing_blueprint.billing_page",
         customer_number=customer_number,
         _external=True,
-        _scheme="https",
     )
     failure_url = url_for(
         "billing_blueprint.billing_page",
         customer_number=customer_number,
         _external=True,
-        _scheme="https",
     )
 
     api_client = xendit.ApiClient()
