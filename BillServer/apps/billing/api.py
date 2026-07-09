@@ -22,11 +22,12 @@ from xendit.payment_request.model.e_wallet_parameters import EWalletParameters
 from xendit.payment_request.model.payment_method_parameters import PaymentMethodParameters
 from xendit.payment_request.model.payment_request_parameters import PaymentRequestParameters
 
-from apps import cache, csrf
+from apps import cache, csrf, db
 from apps.billing import blueprint
-from apps.models import ApiKey, Billing, Customer, MeterReading
+from apps.models import ApiKey, Billing, Customer, MeterReading, Staff, XenditTransaction
 from apps.pricing import compute_water_bill
 from apps.services.billing_service import ensure_penalty
+from apps.services.payment_service import recalc_cumulative_balance, submit_payment
 
 _RATE_LIMIT = 10
 _RATE_WINDOW = 60
@@ -383,6 +384,18 @@ def create_xendit_invoice(customer_number: str) -> Response:
                         break
             if not action_url:
                 return jsonify({"error": "No redirect URL from Xendit"}), 502
+
+            txn = XenditTransaction(
+                customer_number=customer_number,
+                xendit_pr_id=response.id,
+                external_id=external_id,
+                amount=amount,
+                payment_method=payment_method,
+                status="PENDING",
+            )
+            db.session.add(txn)
+            db.session.commit()
+
             return jsonify({
                 "redirect_url": action_url,
                 "external_id": external_id,
@@ -410,6 +423,18 @@ def create_xendit_invoice(customer_number: str) -> Response:
             invoice_request = CreateInvoiceRequest(**invoice_kwargs)
             api_instance = InvoiceApi(api_client)
             response = api_instance.create_invoice(invoice_request)
+
+            txn = XenditTransaction(
+                customer_number=customer_number,
+                xendit_pr_id=response.id,
+                external_id=external_id,
+                amount=amount,
+                payment_method=payment_method,
+                status="PENDING",
+            )
+            db.session.add(txn)
+            db.session.commit()
+
             return jsonify({
                 "redirect_url": response.invoice_url,
                 "external_id": external_id,
@@ -420,3 +445,180 @@ def create_xendit_invoice(customer_number: str) -> Response:
         return jsonify({"error": f"Xendit error: {str(e)}"}), 502
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+
+def _get_xendit_staff() -> Staff | None:
+    return Staff.query.filter_by(username="xendit").first()
+
+
+def _process_xendit_payment(txn: XenditTransaction) -> bool:
+    if txn.status != "PENDING":
+        return False
+
+    customer = Customer.query.filter_by(customer_number=txn.customer_number).first()
+    if not customer:
+        txn.status = "FAILED"
+        txn.error_message = "Customer not found"
+        db.session.commit()
+        return False
+
+    staff = _get_xendit_staff()
+    if not staff:
+        txn.status = "FAILED"
+        txn.error_message = "Xendit system user not found"
+        db.session.commit()
+        return False
+
+    try:
+        amount = float(txn.amount)
+        result, error, status = submit_payment(
+            txn.customer_number, amount, staff.id
+        )
+        if error:
+            txn.status = "FAILED"
+            txn.error_message = error
+            db.session.commit()
+            return False
+
+        txn.status = "PAID"
+        txn.receipt_number = result.get("receipt_number")
+        txn.billing_receipt = result.get("receipt_number")
+        db.session.commit()
+        current_app.logger.info(
+            "Xendit payment processed: receipt=%s customer=%s amount=%.2f",
+            txn.receipt_number, txn.customer_number, amount,
+        )
+        return True
+    except Exception as e:
+        txn.status = "FAILED"
+        txn.error_message = str(e)
+        db.session.commit()
+        return False
+
+
+def _reverse_xendit_payment(txn: XenditTransaction) -> bool:
+    if txn.status != "PAID":
+        return False
+
+    billing_receipt = txn.billing_receipt
+    if not billing_receipt:
+        txn.status = "REVERSED"
+        txn.error_message = "No billing receipt to reverse"
+        db.session.commit()
+        return True
+
+    bills = Billing.query.filter_by(receipt_number=billing_receipt).all()
+    for b in bills:
+        b.is_paid = False
+        b.paid_amount = 0
+        b.receipt_number = None
+        b.cashier_id = None
+        b.payment_timestamp = None
+        b.date_paid = None
+        b.carryover_offset = 0
+
+    recalc_cumulative_balance(txn.customer_number)
+
+    txn.status = "REVERSED"
+    txn.reversed_at = datetime.utcnow()
+    db.session.commit()
+
+    current_app.logger.info(
+        "Xendit payment reversed: receipt=%s customer=%s",
+        billing_receipt, txn.customer_number,
+    )
+    return True
+
+
+@blueprint.route("/api/xendit-webhook", methods=["POST"])
+@csrf.exempt
+def xendit_webhook() -> Response:
+    expected_token = os.environ.get("XENDIT_WEBHOOK_TOKEN", "")
+    if expected_token and expected_token != "your-xendit-webhook-verification-token":
+        received_token = request.headers.get("x-callback-token", "")
+        if not received_token or received_token != expected_token:
+            return jsonify({"error": "Invalid webhook token"}), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data"}), 400
+
+    event = data.get("event", "")
+    payload = data.get("data", {})
+    pr_id = payload.get("payment_request_id") or payload.get("id")
+
+    if not pr_id:
+        return jsonify({"error": "No payment request ID"}), 400
+
+    txn = XenditTransaction.query.filter_by(xendit_pr_id=pr_id).first()
+    if not txn:
+        return jsonify({"error": "Transaction not found"}), 404
+
+    current_app.logger.info("Xendit webhook: event=%s pr_id=%s status=%s", event, pr_id, txn.status)
+
+    if event in ("payment.succeeded", "invoice.paid"):
+        if txn.status != "PAID":
+            payment_id = payload.get("id", "")
+            if payment_id:
+                txn.xendit_payment_id = payment_id
+            _process_xendit_payment(txn)
+    elif event in ("payment.failed", "invoice.expired"):
+        if txn.status == "PENDING":
+            txn.status = "FAILED"
+            txn.error_message = "Payment failed or expired"
+            db.session.commit()
+    elif event in ("payment.reversed", "payment.chargeback"):
+        _reverse_xendit_payment(txn)
+    else:
+        current_app.logger.info("Ignored webhook event: %s", event)
+
+    return jsonify({"status": "ok"})
+
+
+def reconcile_xendit_payments(app) -> None:
+    from flask import current_app
+
+    threshold = datetime.utcnow().timestamp() - 300
+    pending = XenditTransaction.query.filter_by(
+        status="PENDING"
+    ).all()
+
+    pending = [
+        t for t in pending
+        if t.date_created and t.date_created.timestamp() < threshold
+    ]
+
+    if not pending:
+        return
+
+    _init_xendit()
+    key = os.environ.get("XENDIT_API_KEY", "")
+    if not key or key == "your-xendit-secret-api-key":
+        current_app.logger.warning("Reconciliation skipped: Xendit not configured")
+        return
+
+    client = xendit.ApiClient()
+    api_instance = PaymentRequestApi(client)
+
+    for txn in pending:
+        try:
+            response = api_instance.get_payment_request_by_id(txn.xendit_pr_id)
+            status = getattr(response, 'status', None)
+            current_app.logger.info(
+                "Reconciliation: %s -> Xendit status=%s", txn.xendit_pr_id, status
+            )
+            if status and str(status) in ("SUCCEEDED", "PAID", "SETTLED"):
+                payment_id = getattr(response, 'id', '')
+                if payment_id:
+                    txn.xendit_payment_id = str(payment_id)
+                _process_xendit_payment(txn)
+            elif status and str(status) in ("FAILED", "EXPIRED"):
+                txn.status = "FAILED"
+                txn.error_message = f"Payment failed (reconciled: {status})"
+                db.session.commit()
+            elif status and str(status) == "REVERSED":
+                _reverse_xendit_payment(txn)
+        except Exception as e:
+            current_app.logger.error(
+                "Reconciliation error for %s: %s", txn.xendit_pr_id, str(e)
+            )

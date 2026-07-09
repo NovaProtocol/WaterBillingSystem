@@ -10,7 +10,7 @@ from apps.billing import (
     api,  # noqa: F401
     blueprint,
 )
-from apps.models import Billing, Customer, MeterReading
+from apps.models import Billing, Customer, MeterReading, XenditTransaction
 from apps.pricing import PRICING_TIERS, compute_water_bill
 from apps.services.billing_service import ensure_penalty
 
@@ -112,6 +112,14 @@ def billing_page(customer_number: str) -> Response | str:
         due_date = due_dt.strftime("%m-%d-%Y")
         days_remaining = max(0, (due_dt - datetime.utcnow()).days)
 
+    pending_xendit = (
+        XenditTransaction.query.filter_by(
+            customer_number=customer_number, status="PENDING"
+        )
+        .order_by(XenditTransaction.date_created.desc())
+        .first()
+    )
+
     return render_template(
         "billing/billing.html",
         customer=customer,
@@ -132,4 +140,5 @@ def billing_page(customer_number: str) -> Response | str:
         recent_readings=readings,
         recent_payments=payments,
         latest_unpaid=latest_unpaid,
+        pending_xendit=pending_xendit,
     )
