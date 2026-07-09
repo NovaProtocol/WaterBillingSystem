@@ -1,15 +1,28 @@
 from __future__ import annotations
 
+import os
 import secrets
 import time
 from datetime import datetime
 
+import xendit
 from flask import Response, current_app, jsonify, make_response, request, url_for
 from itsdangerous import URLSafeTimedSerializer
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
+from xendit.apis import InvoiceApi, PaymentRequestApi
+from xendit.invoice.model.create_invoice_request import CreateInvoiceRequest
+from xendit.payment_request.model.payment_request_currency import PaymentRequestCurrency
+from xendit.payment_request.model.payment_request_country import PaymentRequestCountry
+from xendit.payment_request.model.payment_method_type import PaymentMethodType
+from xendit.payment_request.model.payment_method_reusability import PaymentMethodReusability
+from xendit.payment_request.model.e_wallet_channel_code import EWalletChannelCode
+from xendit.payment_request.model.e_wallet_channel_properties import EWalletChannelProperties
+from xendit.payment_request.model.e_wallet_parameters import EWalletParameters
+from xendit.payment_request.model.payment_method_parameters import PaymentMethodParameters
+from xendit.payment_request.model.payment_request_parameters import PaymentRequestParameters
 
-from apps import cache
+from apps import cache, csrf
 from apps.billing import blueprint
 from apps.models import ApiKey, Billing, Customer, MeterReading
 from apps.pricing import compute_water_bill
@@ -281,3 +294,129 @@ def billing_history(customer_number: str) -> Response:
             "pages": pages,
         }
     )
+
+
+_xendit_initialized = False
+
+
+def _init_xendit():
+    global _xendit_initialized
+    if not _xendit_initialized:
+        key = os.environ.get("XENDIT_API_KEY", "")
+        if key and key != "your-xendit-secret-api-key":
+            xendit.set_api_key(key)
+            _xendit_initialized = True
+
+
+@blueprint.route("/api/<customer_number>/create-invoice", methods=["POST"])
+@csrf.exempt
+def create_xendit_invoice(customer_number: str) -> Response:
+    if not _verify_billing_cookie(customer_number):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    _init_xendit()
+
+    key = os.environ.get("XENDIT_API_KEY", "")
+    if not key or key == "your-xendit-secret-api-key":
+        return jsonify({"error": "Xendit is not configured. Set XENDIT_API_KEY in .env"}), 503
+
+    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+
+    data = request.get_json() or {}
+    amount = data.get("amount", 0)
+    if not amount or amount <= 0:
+        return jsonify({"error": "Invalid amount"}), 400
+
+    payment_method = data.get("payment_method", "")
+    external_id = f"wbs-{customer_number}-{int(datetime.utcnow().timestamp())}"
+
+    success_url = url_for(
+        "billing_blueprint.billing_page",
+        customer_number=customer_number,
+        _external=True,
+        _scheme="https",
+    )
+    failure_url = url_for(
+        "billing_blueprint.billing_page",
+        customer_number=customer_number,
+        _external=True,
+        _scheme="https",
+    )
+
+    api_client = xendit.ApiClient()
+
+    try:
+        if payment_method in ("gcash", "maya"):
+            channel_code = "GCASH" if payment_method == "gcash" else "PAYMAYA"
+            channel_props = EWalletChannelProperties(
+                success_return_url=success_url,
+                failure_return_url=failure_url,
+            )
+            ewallet = EWalletParameters(
+                channel_code=EWalletChannelCode(channel_code),
+                channel_properties=channel_props,
+            )
+            payment_method_params = PaymentMethodParameters(
+                type=PaymentMethodType("EWALLET"),
+                ewallet=ewallet,
+                reusability=PaymentMethodReusability("ONE_TIME_USE"),
+            )
+            params = PaymentRequestParameters(
+                reference_id=external_id,
+                amount=float(amount),
+                currency=PaymentRequestCurrency("PHP"),
+                country=PaymentRequestCountry("PH"),
+                payment_method=payment_method_params,
+            )
+            api_instance = PaymentRequestApi(api_client)
+            response = api_instance.create_payment_request(
+                payment_request_parameters=params,
+                idempotency_key=external_id,
+            )
+            action_url = None
+            if response.actions:
+                for a in response.actions:
+                    action_url = getattr(a, 'url', None) or a.action
+                    if action_url and action_url.startswith("http"):
+                        break
+            if not action_url:
+                return jsonify({"error": "No redirect URL from Xendit"}), 502
+            return jsonify({
+                "redirect_url": action_url,
+                "external_id": external_id,
+                "id": response.id,
+            })
+
+        else:
+            method_map = {
+                "card": ["CREDIT_CARD"],
+            }
+            payment_methods = method_map.get(payment_method)
+
+            invoice_kwargs = {
+                "external_id": external_id,
+                "amount": float(amount),
+                "description": f"Water bill payment - {customer.name}",
+                "payer_email": customer.email or "",
+                "success_redirect_url": success_url,
+                "failure_redirect_url": failure_url,
+                "currency": "PHP",
+            }
+            if payment_methods is not None:
+                invoice_kwargs["payment_methods"] = payment_methods
+
+            invoice_request = CreateInvoiceRequest(**invoice_kwargs)
+            api_instance = InvoiceApi(api_client)
+            response = api_instance.create_invoice(invoice_request)
+            return jsonify({
+                "redirect_url": response.invoice_url,
+                "external_id": external_id,
+                "id": response.id,
+            })
+
+    except xendit.XenditSdkException as e:
+        return jsonify({"error": f"Xendit error: {str(e)}"}), 502
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500

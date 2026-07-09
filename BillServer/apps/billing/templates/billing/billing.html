@@ -185,6 +185,9 @@
                         Due in {{ days_remaining }} day{{ '' if days_remaining == 1 else 's' }} ({{ due_date }})
                     </div>
                     {% endif %}
+                    <button type="button" class="btn btn-cotta btn-block mt-3" data-toggle="modal" data-target="#payOnlineModal">
+                        <i class="fas fa-credit-card mr-2"></i>Pay Online
+                    </button>
                 </div>
             </div>
 
@@ -285,6 +288,8 @@
 
 <script src="{{ url_for('static', filename='assets/vendor/jquery/3.5.1/jquery.min.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js') }}"></script>
+
+{% include 'billing/_pay_online_modal.html' %}
 <script src="{{ url_for('static', filename='assets/vendor/leaflet/1.9.4/leaflet.js') }}"></script>
 <script>
   var CUST_LAT = {{ customer.x_coordinate | tojson if customer.x_coordinate else 'null' }};
