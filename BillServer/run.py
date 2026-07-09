@@ -32,8 +32,6 @@ parser.add_argument(
     default=os.environ.get("DEPLOYMENT_TYPE"),
     help="Run mode ($DEPLOYMENT_TYPE env var, required)",
 )
-parser.add_argument("--ssl-cert", default=None, help="Path to SSL certificate (PEM)")
-parser.add_argument("--ssl-key", default=None, help="Path to SSL private key (PEM)")
 args, _ = parser.parse_known_args()
 
 if not args.deployment_type:
@@ -248,17 +246,7 @@ if __name__ == "__main__":
 
     try:
         if DEBUG:
-            ssl_cert = args.ssl_cert
-            ssl_key = args.ssl_key
-            if ssl_cert is None and Path("certificates/dev-cert.pem").exists():
-                ssl_cert = "certificates/dev-cert.pem"
-            if ssl_key is None and Path("certificates/dev-key.pem").exists():
-                ssl_key = "certificates/dev-key.pem"
-            if ssl_cert and ssl_key:
-                logger.info("HTTPS enabled (cert: %s)", ssl_cert)
-                app.run(host="0.0.0.0", port=5005, debug=DEBUG, ssl_context=(ssl_cert, ssl_key))
-            else:
-                app.run(host="0.0.0.0", port=5005, debug=DEBUG)
+            app.run(host="0.0.0.0", port=5005, debug=DEBUG)
         else:
             try:
                 from gunicorn.app.base import BaseApplication
@@ -287,13 +275,6 @@ if __name__ == "__main__":
                 "capture_output": True,
                 "enable_stdio_inheritance": True,
             }
-            ssl_certfile = os.environ.get("SSL_CERTFILE")
-            ssl_keyfile = os.environ.get("SSL_KEYFILE")
-            if ssl_certfile:
-                gunicorn_opts["certfile"] = ssl_certfile
-                if ssl_keyfile:
-                    gunicorn_opts["keyfile"] = ssl_keyfile
-                logger.info("HTTPS enabled (certfile: %s)", ssl_certfile)
             StandaloneApplication(app, gunicorn_opts).run()
     finally:
         _stop_debug_worker()
