@@ -39,6 +39,11 @@ build/
 *.sqlite3
 *.log
 
+# === debug task files ===
+to_bg.json
+from_bg.json
+*.sql
+
 # === tests and coverage ===
 .pytest_cache/
 .coverage
