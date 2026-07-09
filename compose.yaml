@@ -38,6 +38,8 @@ services:
       NFC_PWD_SECRET: ${NFC_PWD_SECRET}
       REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
       DEBUG: ${DEBUG}
+      XENDIT_API_KEY: ${XENDIT_API_KEY}
+      XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
     volumes:
       - db_backups:/app/db_backups
     depends_on:
