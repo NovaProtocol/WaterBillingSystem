@@ -201,7 +201,7 @@ def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) 
         "-P", db_port,
         "-u", db_user,
         f"-p{db_pass}",
-        "--ssl-mode=DISABLED",
+        "--ssl=0",
         "--single-transaction",
         "--routines", "--triggers", "--events",
         "--column-statistics=0",
@@ -236,7 +236,7 @@ def handle_restore(params: dict[str, Any], report: Callable[[float, str], None])
         "-P", db_port,
         "-u", db_user,
         f"-p{db_pass}",
-        "--ssl-mode=DISABLED",
+        "--ssl=0",
         db_name,
     ]
     with open(path) as f:
