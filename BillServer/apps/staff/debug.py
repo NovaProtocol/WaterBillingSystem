@@ -14,9 +14,6 @@ from typing import Any, Callable
 import flask
 from flask import Response, jsonify, render_template, request, session
 from flask_login import current_user
-from sqlalchemy import inspect as sa_inspect
-from sqlalchemy.exc import SQLAlchemyError
-
 from apps import db
 from apps.models import (
     ApiKey,
@@ -35,11 +32,6 @@ BACKUP_DIR = Path(__file__).resolve().parent.parent.parent / "db_backups"
 TO_BG = BACKUP_DIR / "to_bg.json"
 FROM_BG = BACKUP_DIR / "from_bg.json"
 MAX_HISTORY = 20
-
-ALL_TABLES = [
-    Staff, Customer, MeterReading, Billing,
-    ApiKey, NfcTag, ManagementLog, Config,
-]
 
 TABLE_NAMES = [
     "customers", "meter_readings",
@@ -137,44 +129,6 @@ def _generate_and_store_code() -> str:
     return code
 
 
-# ── Serialization helpers ──────────────────────────────────────────────
-
-def _serialize_value(v: Any) -> Any:
-    if isinstance(v, (datetime, timedelta)):
-        return v.isoformat()
-    if isinstance(v, bytes):
-        return v.hex()
-    if isinstance(v, float):
-        return round(v, 2)
-    return v
-
-
-def _serialize_row(row: db.Model) -> dict[str, Any]:
-    data: dict[str, Any] = {}
-    for col in sa_inspect(row).mapper.column_attrs:
-        data[col.key] = _serialize_value(getattr(row, col.key))
-    return data
-
-
-def _deserialize_row(row_data: dict[str, Any], model_cls: type[db.Model]) -> dict[str, Any]:
-    cleaned: dict[str, Any] = {}
-    for k, v in row_data.items():
-        if k in ("id",):
-            cleaned[k] = v
-            continue
-        col = getattr(model_cls, k, None)
-        if col is None:
-            continue
-        col_type = str(col.type)
-        if "BLOB" in col_type.upper() or "binary" in col_type.lower() or "LargeBinary" in col_type:
-            cleaned[k] = bytes.fromhex(v) if isinstance(v, str) else v
-        elif "DateTime" in col_type or "TIMESTAMP" in col_type.upper():
-            cleaned[k] = datetime.fromisoformat(v) if v else None
-        else:
-            cleaned[k] = v
-    return cleaned
-
-
 # ── Bootstrap helpers ──────────────────────────────────────────────────
 
 def _ensure_superuser() -> None:
@@ -229,66 +183,60 @@ def _recalc_cumulative_balance(customer_number: str) -> None:
 # ── Task handler functions (called by debug_worker.py) ─────────────────
 
 def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
-    try:
-        report(0, "Starting backup...")
-        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-        path = BACKUP_DIR / f"backup_{datetime.utcnow():%Y%m%d_%H%M%S}.json"
-        data: dict[str, list[dict[str, Any]]] = {}
-        for i, table_name in enumerate(TABLE_NAMES):
-            pct = round((i / len(TABLE_NAMES)) * 90, 1)
-            report(pct, f"Reading {table_name}...")
-            model_cls = next(m for m in ALL_TABLES if m.__tablename__ == table_name)
-            rows: list[db.Model] = model_cls.query.order_by(model_cls.id).all()
-            data[table_name] = [_serialize_row(r) for r in rows]
-            report(pct, f"  {len(rows)} rows from {table_name}")
-        report(92, "Writing JSON file...")
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2, default=str)
-        report(100, f"Backup saved: {path.name}")
-    except SQLAlchemyError:
-        db.session.rollback()
-        raise
+    import subprocess as _sp
+    report(0, "Starting mysqldump backup...")
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    filename = f"backup_{datetime.utcnow():%Y%m%d_%H%M%S}.sql"
+    path = BACKUP_DIR / filename
+
+    db_host = os.environ.get("DB_HOST", "localhost")
+    db_port = os.environ.get("DB_PORT", "3306")
+    db_user = os.environ.get("DB_USERNAME", "root")
+    db_pass = os.environ.get("DB_PASS", "")
+    db_name = os.environ.get("DB_NAME", "BillServerDB")
+
+    cmd = [
+        "mysqldump",
+        "-h", db_host,
+        "-P", db_port,
+        "-u", db_user,
+        f"-p{db_pass}",
+        "--single-transaction",
+        "--routines", "--triggers", "--events",
+        "--column-statistics=0",
+        db_name,
+    ]
+    report(10, f"Dumping database to {filename}...")
+    with open(path, "w") as f:
+        _sp.run(cmd, stdout=f, check=True)
+    report(100, f"Backup saved: {filename}")
 
 
 def handle_restore(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+    import subprocess as _sp
     filename = params.get("filename", "")
     path = BACKUP_DIR / filename
-    if not path.exists() or not path.name.startswith("backup_") or not path.name.endswith(".json"):
+    if not path.exists() or not path.name.startswith("backup_") or not path.name.endswith(".sql"):
         raise FileNotFoundError(f"Backup file not found: {filename}")
 
-    with open(path) as f:
-        data: dict[str, list[dict[str, Any]]] = json.load(f)
+    db_host = os.environ.get("DB_HOST", "localhost")
+    db_port = os.environ.get("DB_PORT", "3306")
+    db_user = os.environ.get("DB_USERNAME", "root")
+    db_pass = os.environ.get("DB_PASS", "")
+    db_name = os.environ.get("DB_NAME", "BillServerDB")
 
-    report(5, f"Loaded {path.name}, clearing tables...")
-    _clear_all_tables()
-    _ensure_superuser()
-    db.session.commit()
-    report(10, "Tables cleared. Restoring data...")
-
-    insert_order = [
-        ("customers", Customer), ("nfc_tags", NfcTag),
-        ("meter_readings", MeterReading), ("billings", Billing),
-        ("api_keys", ApiKey), ("management_logs", ManagementLog),
-        ("app_config", Config),
+    report(5, f"Restoring from {filename}...")
+    cmd = [
+        "mysql",
+        "-h", db_host,
+        "-P", db_port,
+        "-u", db_user,
+        f"-p{db_pass}",
+        db_name,
     ]
-    total_rows = sum(len(data.get(t, [])) for t, _ in insert_order)
-    processed = 0
-    for table_name, model_cls in insert_order:
-        rows = data.get(table_name, [])
-        if not rows:
-            continue
-        pct = 10 + round(60 * processed / max(total_rows, 1))
-        report(pct, f"Restoring {table_name} ({len(rows)} rows)...")
-        for row_data in rows:
-            cleaned = _deserialize_row(row_data, model_cls)
-            db.session.add(model_cls(**cleaned))
-            processed += 1
-            if processed % 500 == 0:
-                db.session.commit()
-                report(10 + round(60 * processed / max(total_rows, 1)),
-                       f"  {processed}/{total_rows} rows restored")
-    db.session.commit()
-    report(100, f"Restored from {path.name} ({total_rows} rows)")
+    with open(path) as f:
+        _sp.run(cmd, stdin=f, check=True)
+    report(100, f"Restored from {filename}")
 
 
 def handle_clear(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
@@ -542,7 +490,7 @@ def create_backup() -> Response:
 def list_backups() -> Response:
     if not BACKUP_DIR.exists():
         return jsonify({"backups": []})
-    backups = sorted(BACKUP_DIR.glob("backup_*.json"), reverse=True)
+    backups = sorted(BACKUP_DIR.glob("backup_*.sql"), reverse=True)
     return jsonify({
         "backups": [
             {
@@ -566,7 +514,7 @@ def restore_backup() -> Response:
         return jsonify({"error": "No backup file specified"}), 400
 
     path = BACKUP_DIR / filename
-    if not path.exists() or not path.name.startswith("backup_") or not path.name.endswith(".json"):
+    if not path.exists() or not path.name.startswith("backup_") or not path.name.endswith(".sql"):
         return jsonify({"error": "Backup file not found"}), 404
 
     order = {
