@@ -435,11 +435,13 @@ def handle_pay_this_month(params: dict[str, Any], report: Callable[[float, str],
     total = len(unpaid_bills)
     report(5, f"Found {total} unpaid bills")
     paid = 0
+    su = Staff.query.filter_by(username="superuser").first()
+    su_id = su.id if su else 1
     for i, bill in enumerate(unpaid_bills):
         bill.is_paid = True
         bill.paid_amount = round(float(bill.billed_amount) + float(bill.penalty), 2)
         bill.receipt_number = "MONTHLY-" + secrets.token_hex(4).upper()
-        bill.cashier_id = 1
+        bill.cashier_id = su_id
         bill.payment_timestamp = now
         bill.date_paid = now
         paid += 1
