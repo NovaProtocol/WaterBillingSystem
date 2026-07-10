@@ -118,7 +118,7 @@ The Dockerfile at the project root:
 The `wsgi.py` entry point sets `DEPLOYMENT_TYPE=PRODUCTION`, compiles SCSS, and runs pre-flight checks (DB connectivity, table verification, superuser seeding).
 
 Docker Compose is at `Docker/docker-compose.yml` and runs:
-- MySQL 8.4 (`BillServerDB` container)
+- MySQL 8.4 (`waterbillingsystem_db` container)
 - BillServer (app container on port 7000)
 - phpMyAdmin (on port 7002)
 - Docs server (mkdocs on port 7001)

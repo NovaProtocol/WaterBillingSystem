@@ -8,10 +8,10 @@ The project runs as four containers defined in `compose.yaml` at the project roo
 
 | Service | Container | Host Port | Purpose |
 |---------|-----------|-----------|---------|
-| `db` | BillServerDB | — | MySQL 8.4, healthchecked via `mysqladmin ping` |
-| `billserver` | ws_app | `7000` | Flask app under Gunicorn (port 5005) |
-| `phpmyadmin` | ws_pma | `7002` | Database admin UI |
-| `docs` | ws_docs | `7001` | MkDocs documentation served via `python -m http.server` |
+| `db` | waterbillingsystem_db | — | MySQL 8.4, healthchecked via `mysqladmin ping` |
+| `billserver` | waterbillingsystem_main | `7000` | Flask app under Gunicorn (port 5005) |
+| `phpmyadmin` | waterbillingsystem_phpmyadmin | `7002` | Database admin UI |
+| `docs` | waterbillingsystem_documentation | `7001` | MkDocs documentation served via `python -m http.server` |
 
 The `billserver` service waits for the `db` health check to pass before starting. Data persists in named volumes: `mysql_data` for the database and `db_backups` for database backup files (mounted at `/app/db_backups` in the BillServer container). The docs container builds MkDocs on startup from `./documentations`.
 
@@ -21,7 +21,7 @@ The `billserver` service waits for the `db` health check to pass before starting
 services:
   db:
     image: mysql:8.4
-    container_name: BillServerDB
+    container_name: waterbillingsystem_db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASS}
@@ -38,7 +38,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ws_app
+    container_name: waterbillingsystem_main
     restart: unless-stopped
     ports:
       - "7000:5005"
@@ -67,7 +67,7 @@ services:
 
   phpmyadmin:
     image: phpmyadmin:latest
-    container_name: ws_pma
+    container_name: waterbillingsystem_phpmyadmin
     restart: unless-stopped
     ports:
       - "7002:80"
@@ -78,7 +78,7 @@ services:
 
   docs:
     image: python:3.14-slim
-    container_name: ws_docs
+    container_name: waterbillingsystem_documentation
     restart: unless-stopped
     working_dir: /app
     command: >

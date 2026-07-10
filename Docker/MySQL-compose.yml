@@ -1,7 +1,7 @@
 services:
   db:
     image: mysql:8.4
-    container_name: BillServerDB
+    container_name: waterbillingsystem_db
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: BillServerDB
@@ -12,7 +12,7 @@ services:
       - mysql_data:/var/lib/mysql
   phpmyadmin:
     image: phpmyadmin:latest
-    container_name: phpmyadmin_billserver
+    container_name: waterbillingsystem_phpmyadmin
     restart: always
     ports:
       - 5002:80

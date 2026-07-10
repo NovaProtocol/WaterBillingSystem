@@ -1,7 +1,7 @@
 services:
   db:
     image: mysql:8.4
-    container_name: BillServerDB
+    container_name: waterbillingsystem_db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASS}
@@ -16,7 +16,7 @@ services:
 
   billserver:
     image: ghcr.io/novaprotocol/waterbillingsystem:latest
-    container_name: ws_app
+    container_name: waterbillingsystem_main
     restart: unless-stopped
     ports:
       - "7000:5005"
@@ -36,7 +36,7 @@ services:
 
   phpmyadmin:
     image: phpmyadmin:latest
-    container_name: ws_pma
+    container_name: waterbillingsystem_phpmyadmin
     restart: unless-stopped
     ports:
       - "7002:80"
@@ -47,7 +47,7 @@ services:
 
   docs:
     image: python:3.14-slim
-    container_name: ws_docs
+    container_name: waterbillingsystem_documentation
     restart: unless-stopped
     working_dir: /app
     command: >
