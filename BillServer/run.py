@@ -244,6 +244,9 @@ if __name__ == "__main__":
     _compile_scss(app)
     _ensure_prerequisites(app)
 
+    from apps.services.scheduler import start_scheduler
+    start_scheduler(app)
+
     try:
         if DEBUG:
             app.run(host="0.0.0.0", port=5005, debug=DEBUG)
