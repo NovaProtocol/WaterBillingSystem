@@ -8,18 +8,18 @@ The project runs as four containers defined in `compose.yaml` at the project roo
 
 | Service | Container | Host Port | Purpose |
 |---------|-----------|-----------|---------|
-| `db` | waterbillingsystem_db | — | MySQL 8.4, healthchecked via `mysqladmin ping` |
-| `billserver` | waterbillingsystem_main | `7000` | Flask app under Gunicorn (port 5005) |
-| `phpmyadmin` | waterbillingsystem_phpmyadmin | `7002` | Database admin UI |
-| `docs` | waterbillingsystem_documentation | `7001` | MkDocs documentation served via `python -m http.server` |
+| `waterbillingsystem_db` | waterbillingsystem_db | — | MySQL 8.4, healthchecked via `mysqladmin ping` |
+| `waterbillingsystem_main` | waterbillingsystem_main | `7000` | Flask app under Gunicorn (port 5005) |
+| `waterbillingsystem_phpmyadmin` | waterbillingsystem_phpmyadmin | `7002` | Database admin UI |
+| `waterbillingsystem_documentation` | waterbillingsystem_documentation | `7001` | MkDocs documentation served via `python -m http.server` |
 
-The `billserver` service waits for the `db` health check to pass before starting. Data persists in named volumes: `mysql_data` for the database and `db_backups` for database backup files (mounted at `/app/db_backups` in the BillServer container). The docs container builds MkDocs on startup from `./documentations`.
+The `waterbillingsystem_main` service waits for the `waterbillingsystem_db` health check to pass before starting. Data persists in named volumes: `mysql_data` for the database and `db_backups` for database backup files (mounted at `/app/db_backups` in the BillServer container). The docs container builds MkDocs on startup from `./documentations`.
 
 ### compose.yaml
 
 ```yaml
 services:
-  db:
+  waterbillingsystem_db:
     image: mysql:8.4
     container_name: waterbillingsystem_db
     restart: unless-stopped
@@ -34,7 +34,7 @@ services:
       timeout: 5s
       retries: 10
 
-  billserver:
+  waterbillingsystem_main:
     build:
       context: .
       dockerfile: Dockerfile
@@ -48,7 +48,7 @@ services:
     environment:
       DEPLOYMENT_TYPE: PRODUCTION
       DB_ENGINE: ${DB_ENGINE}
-      DB_HOST: db
+      DB_HOST: waterbillingsystem_db
       DB_PORT: 3306
       CACHE_TYPE: SimpleCache
       DB_NAME: ${DB_NAME}
@@ -62,21 +62,21 @@ services:
       DEBUG: ${DEBUG:-false}
       REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
     depends_on:
-      db:
+      waterbillingsystem_db:
         condition: service_healthy
 
-  phpmyadmin:
+  waterbillingsystem_phpmyadmin:
     image: phpmyadmin:latest
     container_name: waterbillingsystem_phpmyadmin
     restart: unless-stopped
     ports:
       - "7002:80"
     environment:
-      PMA_HOST: db
+      PMA_HOST: waterbillingsystem_db
     depends_on:
-      - db
+      - waterbillingsystem_db
 
-  docs:
+  waterbillingsystem_documentation:
     image: python:3.14-slim
     container_name: waterbillingsystem_documentation
     restart: unless-stopped

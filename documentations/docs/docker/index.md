@@ -15,7 +15,7 @@ graph TB
     BILL["BillServer<br/>:5005"] -->|"pymysql<br/>root / BillServerDB"| DB
     USER["Developer / Admin"] -->|"http://localhost:5002"| PHPMYADMIN
     DB -->|"/var/lib/mysql"| VOL
-    PHPMYADMIN -->|"PMA_HOST=db"| DB
+    PHPMYADMIN -->|"PMA_HOST=waterbillingsystem_db"| DB
 ```
 
 ## Services
@@ -40,7 +40,7 @@ graph TB
 | Container name | `waterbillingsystem_phpmyadmin` |
 | Host port | `5002` |
 | Container port | `80` |
-| Connection target | `PMA_HOST=db` (Docker DNS) |
+| Connection target | `PMA_HOST=waterbillingsystem_db` (Docker DNS) |
 
 Access at: **`http://localhost:5002`** (login with root / BillServerDB)
 
@@ -48,7 +48,7 @@ Access at: **`http://localhost:5002`** (login with root / BillServerDB)
 
 ```yaml
 services:
-  db:
+  waterbillingsystem_db:
     image: mysql:8.4
     container_name: waterbillingsystem_db
     restart: always
@@ -59,14 +59,14 @@ services:
       - 3306:3306
     volumes:
       - mysql_data:/var/lib/mysql
-  phpmyadmin:
+  waterbillingsystem_phpmyadmin:
     image: phpmyadmin:latest
     container_name: waterbillingsystem_phpmyadmin
     restart: always
     ports:
       - 5002:80
     environment:
-      PMA_HOST: db
+      PMA_HOST: waterbillingsystem_db
 volumes:
   mysql_data:
 ```

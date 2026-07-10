@@ -1,5 +1,5 @@
 services:
-  db:
+  waterbillingsystem_db:
     image: mysql:8.4
     container_name: waterbillingsystem_db
     restart: unless-stopped
@@ -14,7 +14,7 @@ services:
       timeout: 5s
       retries: 10
 
-  billserver:
+  waterbillingsystem_main:
     build:
       context: .
       dockerfile: Dockerfile
@@ -28,7 +28,7 @@ services:
     environment:
       DEPLOYMENT_TYPE: PRODUCTION
       DB_ENGINE: ${DB_ENGINE}
-      DB_HOST: db
+      DB_HOST: waterbillingsystem_db
       DB_PORT: 3306
       CACHE_TYPE: SimpleCache
       DB_NAME: ${DB_NAME}
@@ -45,21 +45,21 @@ services:
     volumes:
       - db_backups:/app/db_backups
     depends_on:
-      db:
+      waterbillingsystem_db:
         condition: service_healthy
 
-  phpmyadmin:
+  waterbillingsystem_phpmyadmin:
     image: phpmyadmin:latest
     container_name: waterbillingsystem_phpmyadmin
     restart: unless-stopped
     ports:
       - "7002:80"
     environment:
-      PMA_HOST: db
+      PMA_HOST: waterbillingsystem_db
     depends_on:
-      - db
+      - waterbillingsystem_db
 
-  docs:
+  waterbillingsystem_documentation:
     image: python:3.14-slim
     container_name: waterbillingsystem_documentation
     restart: unless-stopped
