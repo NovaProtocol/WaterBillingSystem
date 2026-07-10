@@ -34,6 +34,25 @@ services:
       waterbillingsystem_db:
         condition: service_healthy
 
+  waterbillingsystem_worker:
+    image: ghcr.io/novaprotocol/waterbillingsystem:latest
+    container_name: waterbillingsystem_worker
+    restart: unless-stopped
+    environment:
+      - DEPLOYMENT_TYPE=DEBUG
+      - DB_HOST=waterbillingsystem_db
+      - DB_PORT=3306
+      - CACHE_TYPE=SimpleCache
+      - PYTHON_GIL=0
+    env_file:
+      - ../.env
+    volumes:
+      - db_backups:/app/db_backups
+    command: ["python", "apps/staff/debug_worker.py"]
+    depends_on:
+      waterbillingsystem_db:
+        condition: service_healthy
+
   waterbillingsystem_phpmyadmin:
     image: phpmyadmin:latest
     container_name: waterbillingsystem_phpmyadmin
