@@ -36,6 +36,9 @@ MAX_HISTORY = 20
 
 _bg_file_lock = threading.Lock()
 
+_last_restore_newest_time = 0.0
+_restore_newest_lock = threading.Lock()
+
 TABLE_NAMES = [
     "customers", "meter_readings",
     "billings", "api_keys", "nfc_tags", "management_logs", "app_config",
@@ -518,6 +521,32 @@ def list_backups() -> Response:
             for b in backups
         ]
     })
+
+
+@blueprint.route("/debug/restore-newest", methods=["GET"])
+def restore_newest() -> Response:
+    global _last_restore_newest_time
+    with _restore_newest_lock:
+        now = time.time()
+        if now - _last_restore_newest_time < 5:
+            remaining = round(5 - (now - _last_restore_newest_time), 1)
+            return jsonify({"error": f"Cooldown active. Try again in {remaining}s"}), 429
+        _last_restore_newest_time = now
+
+    backups = sorted(BACKUP_DIR.glob("backup_*.sql"), reverse=True)
+    if not backups:
+        return jsonify({"error": "No backup files found"}), 404
+
+    filename = backups[0].name
+    order = {
+        "id": _next_order_id(),
+        "type": "restore",
+        "params": {"filename": filename},
+        "title": f"Restore newest: {filename}",
+        "created_at": time.time(),
+    }
+    _append_order(order)
+    return jsonify({"ok": True, "order_id": order["id"], "message": f"Restoring from newest backup: {filename}"})
 
 
 @blueprint.route("/debug/restore", methods=["POST"])
