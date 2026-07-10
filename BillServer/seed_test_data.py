@@ -403,7 +403,7 @@ def seed(n_customers: int, n_months: int, filed_this_month: bool = False) -> Non
 
         meter_value = round(rng_state.uniform(100, 500), 1)
         reading_values: list[float] = []
-        reading_ids: list[int] = []
+        reading_rows: list[tuple] = []
 
         for month_idx in range(n_months):
             reading_dt = date_slots[month_idx].replace(
@@ -413,16 +413,20 @@ def seed(n_customers: int, n_months: int, filed_this_month: bool = False) -> Non
             if month_idx > 0:
                 meter_value = round(meter_value + consumptions[month_idx - 1], 1)
             reading_values.append(meter_value)
+            reading_rows.append((
+                cnum, meter_value, rng_state.choice(reader_token_ids), reading_dt
+            ))
 
-            cur.execute(
-                """INSERT INTO meter_readings
-                    (customer_number, reading_value, token_id, timestamp,
-                     date_created, date_modified)
-                   VALUES (%s,%s,%s,%s,NOW(),NOW())""",
-                (cnum, meter_value, rng_state.choice(reader_token_ids), reading_dt),
-            )
-            reading_ids.append(cur.lastrowid)
-            total_readings += 1
+        cur.executemany(
+            """INSERT INTO meter_readings
+                (customer_number, reading_value, token_id, timestamp,
+                 date_created, date_modified)
+               VALUES (%s,%s,%s,%s,NOW(),NOW())""",
+            reading_rows,
+        )
+        total_readings += n_months
+        first_reading_id = cur.lastrowid
+        reading_ids = list(range(first_reading_id, first_reading_id + n_months))
 
         cum_balance = 0.0
 
@@ -435,16 +439,14 @@ def seed(n_customers: int, n_months: int, filed_this_month: bool = False) -> Non
             water_bill, _ = compute_water_bill(consumption)
 
             if month_idx == n_months - 1:
-                cur.execute(
-                    """INSERT INTO billings
-                        (customer_number, reading_id,
-                         previous_reading_value, current_reading_value,
-                         consumption, billed_amount, penalty,
-                         paid_amount, carryover_offset, is_paid,
-                         date_created, date_modified)
-                       VALUES (%s,%s,%s,%s,%s,%s,0,0,0,0,NOW(),NOW())""",
-                    (cnum, reading_id, prev_reading, curr_reading, consumption, water_bill),
-                )
+                billing_batch.append((
+                    cnum, reading_id,
+                    prev_reading, curr_reading,
+                    consumption, water_bill, 0,
+                    0, 0, 0,
+                    None, None,
+                    None, None,
+                ))
                 total_bills += 1
                 continue
 
@@ -452,7 +454,6 @@ def seed(n_customers: int, n_months: int, filed_this_month: bool = False) -> Non
             penalty = 15.0 if pay_dt > date_slots[month_idx] + timedelta(days=7) else 0.0
             total_due = round(water_bill + penalty, 2)
 
-            # Payment is always a multiple of 50, using available credit
             if cum_balance > 0.01:
                 effective_due = max(0.0, round(total_due - cum_balance, 2))
             else:
@@ -472,7 +473,7 @@ def seed(n_customers: int, n_months: int, filed_this_month: bool = False) -> Non
                 cnum, reading_id,
                 prev_reading, curr_reading,
                 consumption, water_bill, penalty,
-                paid_amount, carryover_offset, True,
+                paid_amount, carryover_offset, 1,
                 f"R{receipt_seq:08d}", cashier_id,
                 pay_dt, pay_dt,
             ))
@@ -488,7 +489,7 @@ def seed(n_customers: int, n_months: int, filed_this_month: bool = False) -> Non
             _flush_billings(cur, billing_batch)
             conn.commit()
 
-        if (ci + 1) % 50 == 0 or ci == n_customers - 1:
+        if (ci + 1) % 200 == 0 or ci == n_customers - 1:
             _flush_billings(cur, billing_batch)
             conn.commit()
             logger.info(
