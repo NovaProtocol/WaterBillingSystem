@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import logging
 import os
-import time
+import threading
 from datetime import datetime, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -10,7 +11,9 @@ from flask import Flask
 from apps import db
 from apps.models import XenditTransaction
 
+logger = logging.getLogger(__name__)
 scheduler = BackgroundScheduler(daemon=True)
+_scheduler_lock = threading.Lock()
 
 
 def _reconcile_single(txn: XenditTransaction) -> None:
@@ -39,7 +42,6 @@ def _reconcile_single(txn: XenditTransaction) -> None:
             payment_id = getattr(response, "id", "")
             if payment_id:
                 txn.xendit_payment_id = str(payment_id)
-            db.session.commit()
             _process_xendit_payment(txn)
         elif status_str in ("FAILED", "EXPIRED"):
             txn.status = "FAILED"
@@ -48,47 +50,49 @@ def _reconcile_single(txn: XenditTransaction) -> None:
         elif status_str == "REVERSED":
             _reverse_xendit_payment(txn)
     except Exception:
-        pass
+        logger.exception("Reconciliation failed for %s", txn.xendit_pr_id)
 
 
 def reconcile_next_pending(app: Flask) -> None:
-    threshold = datetime.utcnow() - timedelta(hours=1)
-    txn = (
-        XenditTransaction.query.filter_by(status="PENDING")
-        .filter(XenditTransaction.date_modified < threshold)
-        .order_by(XenditTransaction.date_modified.asc())
-        .first()
-    )
-    if not txn:
-        return
-
-    txn.date_modified = datetime.utcnow()
-    db.session.commit()
-
     with app.app_context():
+        threshold = datetime.utcnow() - timedelta(hours=1)
+        txn = (
+            XenditTransaction.query
+            .filter_by(status="PENDING")
+            .filter(XenditTransaction.date_modified < threshold)
+            .order_by(XenditTransaction.date_modified.asc())
+            .with_for_update(skip_locked=True)
+            .first()
+        )
+        if not txn:
+            return
+
+        txn.date_modified = datetime.utcnow()
+
         _reconcile_single(txn)
 
-    if txn.status == "PENDING":
-        age = datetime.utcnow() - txn.date_created
-        if age > timedelta(hours=24):
-            txn.status = "EXPIRED"
-            txn.error_message = "Payment link expired after 24 hours"
-            db.session.commit()
+        if txn.status == "PENDING":
+            age = datetime.utcnow() - txn.date_created
+            if age > timedelta(hours=24):
+                txn.status = "EXPIRED"
+                txn.error_message = "Payment link expired after 24 hours"
+                db.session.commit()
 
 
 def start_scheduler(app: Flask) -> None:
-    if scheduler.running:
-        return
+    with _scheduler_lock:
+        if scheduler.running:
+            return
 
-    scheduler.add_job(
-        func=reconcile_next_pending,
-        trigger="interval",
-        minutes=5,
-        id="xendit_reconcile",
-        replace_existing=True,
-        coalesce=True,
-        max_instances=1,
-        kwargs={"app": app},
-    )
-    scheduler.start()
-    app.logger.info("Background scheduler started (reconcile every 5min)")
+        scheduler.add_job(
+            func=reconcile_next_pending,
+            trigger="interval",
+            minutes=5,
+            id="xendit_reconcile",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+            kwargs={"app": app},
+        )
+        scheduler.start()
+        app.logger.info("Background scheduler started (reconcile every 5min)")

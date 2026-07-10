@@ -5,6 +5,7 @@ import json
 import math
 import os
 import random
+import threading
 import time
 from datetime import datetime, timedelta
 from functools import wraps
@@ -33,6 +34,8 @@ TO_BG = BACKUP_DIR / "to_bg.json"
 FROM_BG = BACKUP_DIR / "from_bg.json"
 MAX_HISTORY = 20
 
+_bg_file_lock = threading.Lock()
+
 TABLE_NAMES = [
     "customers", "meter_readings",
     "billings", "api_keys", "nfc_tags", "management_logs", "app_config",
@@ -45,7 +48,7 @@ def _read_json(path: Path) -> Any:
     if not path.exists():
         return None
     try:
-        with open(path) as f:
+        with _bg_file_lock, open(path) as f:
             fcntl.flock(f, fcntl.LOCK_SH)
             try:
                 data = json.load(f)
@@ -59,11 +62,12 @@ def _read_json(path: Path) -> Any:
 
 def _write_json(path: Path, data: Any) -> None:
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
-            fcntl.flock(f, fcntl.LOCK_EX)
-            json.dump(data, f, indent=2)
-            fcntl.flock(f, fcntl.LOCK_UN)
+        with _bg_file_lock:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w") as f:
+                fcntl.flock(f, fcntl.LOCK_EX)
+                json.dump(data, f, indent=2)
+                fcntl.flock(f, fcntl.LOCK_UN)
     except OSError:
         pass
 

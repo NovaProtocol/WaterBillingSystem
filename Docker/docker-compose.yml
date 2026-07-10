@@ -25,6 +25,7 @@ services:
       - DB_HOST=db
       - DB_PORT=3306
       - CACHE_TYPE=SimpleCache
+      - PYTHON_GIL=0
     env_file:
       - ../.env
     volumes:
