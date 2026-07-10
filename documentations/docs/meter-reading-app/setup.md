@@ -60,7 +60,7 @@ Enter an API key manually or tap the QR icon to scan one:
 
 ### History Count
 
-Configure how many past readings to display per customer (1–24). UI default: 5. If unset, the sync engine defaults to 12 when downloading readings from the server.
+Configure how many past readings to display per customer (1–24). Default: 5.
 
 ## Initial Sync
 

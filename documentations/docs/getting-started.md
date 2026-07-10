@@ -62,6 +62,8 @@ cp .env.example .env
 | `DB_PORT` | Database port |
 | `DB_USERNAME` | Database user |
 | `DB_PASS` | Database password |
+| `XENDIT_API_KEY` | Xendit API key for payment processing |
+| `XENDIT_WEBHOOK_TOKEN` | Xendit webhook verification token (callback auth) |
 
 ### Optional Variables
 
