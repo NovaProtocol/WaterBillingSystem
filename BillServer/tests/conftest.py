@@ -1,6 +1,13 @@
 from __future__ import annotations
 
 import sys
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message="The global interpreter lock \\(GIL\\) has been enabled to load module",
+    category=RuntimeWarning,
+)
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -16,7 +23,7 @@ from apps import cache as _cache
 from apps import create_app
 from apps import db as _db
 from apps.authentication.util import hash_pass
-from apps.models import ApiKey, Billing, Customer, MeterReading, Staff
+from apps.models import ApiKey, Billing, Customer, MeterReading, Staff, XenditTransaction
 
 
 class TestConfig:
@@ -320,3 +327,62 @@ def sample_revoked_api_key(app: Flask, superuser: Staff) -> ApiKey:
     _db.session.add(ak)
     _db.session.commit()
     return ak
+
+
+@pytest.fixture(scope="function")
+def xendit_staff(app: Flask) -> Staff:
+    s = Staff(
+        username="xendit",
+        name="Xendit",
+        password=b"",
+        can_accept_payment=True,
+        can_manage_billing=True,
+        can_drop_payment=True,
+    )
+    _db.session.add(s)
+    _db.session.commit()
+    return s
+
+
+@pytest.fixture(scope="function")
+def pending_xendit_txn(
+    app: Flask, sample_customer: Customer, xendit_staff: Staff
+) -> XenditTransaction:
+    import secrets
+    dt = datetime.utcnow()
+    txn = XenditTransaction(
+        customer_number="CUST-001",
+        xendit_pr_id="xendit-pr-" + secrets.token_hex(16),
+        external_id="ext-" + secrets.token_hex(8),
+        amount=250.0,
+        payment_method="gcash",
+        status="PENDING",
+        date_created=dt,
+        date_modified=dt,
+    )
+    _db.session.add(txn)
+    _db.session.commit()
+    return txn
+
+
+@pytest.fixture(scope="function")
+def paid_xendit_txn(
+    app: Flask, sample_customer: Customer, xendit_staff: Staff
+) -> XenditTransaction:
+    import secrets
+    dt = datetime.utcnow()
+    txn = XenditTransaction(
+        customer_number="CUST-001",
+        xendit_pr_id="xendit-pr-paid-" + secrets.token_hex(16),
+        external_id="ext-paid-" + secrets.token_hex(8),
+        amount=250.0,
+        payment_method="gcash",
+        status="PAID",
+        receipt_number="RCP-XENDIT-TEST",
+        billing_receipt="RCP-XENDIT-TEST",
+        date_created=dt - timedelta(hours=2),
+        date_modified=dt - timedelta(hours=2),
+    )
+    _db.session.add(txn)
+    _db.session.commit()
+    return txn

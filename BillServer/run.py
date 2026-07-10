@@ -5,6 +5,7 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -24,6 +25,8 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 _debug_worker_proc: subprocess.Popen | None = None
+_debug_worker_lock = threading.Lock()
+_DEBUG_WORKER_PIDFILE = Path("/tmp/billserver-debug-worker.pid")
 
 parser = argparse.ArgumentParser(description="BillServer")
 parser.add_argument(
@@ -89,7 +92,13 @@ if DEBUG:
 def _compile_scss(app: Flask) -> None:
     import os
 
-    import sass
+    # pyscss is incompatible with Python 3.14's re module.
+    # Pre-compile CSS during Docker build instead.
+    try:
+        from scss.compiler import compile_string
+    except ImportError:
+        logger.warning("SCSS compiler not available, skipping CSS build")
+        return
 
     scss_dir = os.path.join(app.static_folder, "assets", "scss")
     css_dir = os.path.join(app.static_folder, "assets", "css")
@@ -104,7 +113,7 @@ def _compile_scss(app: Flask) -> None:
         try:
             with open(scss_path) as f:
                 scss_content = f.read()
-            css = sass.compile(string=scss_content, output_style="compressed")
+            css = compile_string(scss_content, output_style="compressed")
             with open(css_path, "w") as f:
                 f.write(css)
             logger.info("Compiled %s", css_name)
@@ -209,35 +218,50 @@ def _ensure_prerequisites(app: Flask) -> None:
 
 def _start_debug_worker() -> subprocess.Popen | None:
     global _debug_worker_proc
-    worker_script = Path(__file__).resolve().parent / "apps" / "staff" / "debug_worker.py"
-    if not worker_script.exists():
-        logger.warning("Debug worker script not found: %s", worker_script)
-        return None
-    proc = subprocess.Popen([sys.executable, str(worker_script)])
-    _debug_worker_proc = proc
-    logger.info("Debug worker started (PID %d)", proc.pid)
+    with _debug_worker_lock:
+        if _debug_worker_proc is not None:
+            return _debug_worker_proc
+        try:
+            if _DEBUG_WORKER_PIDFILE.exists():
+                pid = int(_DEBUG_WORKER_PIDFILE.read_text().strip())
+                os.kill(pid, 0)
+                logger.warning("Debug worker already running (PID %d)", pid)
+                return None
+        except (ValueError, OSError):
+            _DEBUG_WORKER_PIDFILE.unlink(missing_ok=True)
+        worker_script = Path(__file__).resolve().parent / "apps" / "staff" / "debug_worker.py"
+        if not worker_script.exists():
+            logger.warning("Debug worker script not found: %s", worker_script)
+            return None
+        proc = subprocess.Popen([sys.executable, str(worker_script)])
+        _debug_worker_proc = proc
+        _DEBUG_WORKER_PIDFILE.write_text(str(proc.pid))
+        logger.info("Debug worker started (PID %d)", proc.pid)
     return proc
 
 
 def _stop_debug_worker() -> None:
     global _debug_worker_proc
-    if _debug_worker_proc is None:
-        return
-    try:
-        _debug_worker_proc.terminate()
-        _debug_worker_proc.wait(timeout=5)
-    except Exception:
+    with _debug_worker_lock:
+        if _debug_worker_proc is None:
+            return
         try:
-            _debug_worker_proc.kill()
-            _debug_worker_proc.wait(timeout=3)
+            _debug_worker_proc.terminate()
+            _debug_worker_proc.wait(timeout=5)
         except Exception:
-            pass
-    _debug_worker_proc = None
+            try:
+                _debug_worker_proc.kill()
+                _debug_worker_proc.wait(timeout=3)
+            except Exception:
+                pass
+        _debug_worker_proc = None
+        _DEBUG_WORKER_PIDFILE.unlink(missing_ok=True)
 
 
-# Start debug worker for both production (Gunicorn via wsgi:app)
-# and debug mode (Flask server process, not reloader).
-if not DEBUG or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+# Start debug worker only in DEBUG mode.
+# In production, each Gunicorn worker process would try to start one,
+# causing duplicates. The debug dashboard is only available in DEBUG.
+if DEBUG and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
     _start_debug_worker()
 
 if __name__ == "__main__":
@@ -272,7 +296,9 @@ if __name__ == "__main__":
 
             gunicorn_opts = {
                 "bind": "0.0.0.0:5005",
-                "workers": 3,
+                "worker_class": "gthread",
+                "workers": 2,
+                "threads": 4,
                 "accesslog": "-",
                 "loglevel": "info",
                 "capture_output": True,

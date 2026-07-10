@@ -11,7 +11,7 @@ flask_migrate==4.1.0
 flask_sqlalchemy==3.1.1
 sqlalchemy==2.0.51
 pymysql==1.1.1
-cryptography==44.0.1
+cryptography==49.0.0
 
 # auth
 flask_login==0.6.3
@@ -30,8 +30,8 @@ python-dateutil>=2.8.0
 # scheduler
 APScheduler==3.11.3
 
-# SCSS compilation
-libsass==0.23.0
+# SCSS compilation (pre-compiled in Docker build; pyscss is incompatible with Python 3.14t)
+# Install libsass locally if you need to recompile: pip install libsass
 
 # test
 pytest==9.1.1

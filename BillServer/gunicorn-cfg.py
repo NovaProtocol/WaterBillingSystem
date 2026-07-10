@@ -1,5 +1,7 @@
 bind = "0.0.0.0:5005"
-workers = 3
+worker_class = "gthread"
+workers = 2
+threads = 4
 accesslog = "-"
 loglevel = "info"
 capture_output = True

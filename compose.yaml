@@ -41,6 +41,7 @@ services:
       XENDIT_API_KEY: ${XENDIT_API_KEY}
       XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE}
+      PYTHON_GIL: 0
     volumes:
       - db_backups:/app/db_backups
     depends_on:

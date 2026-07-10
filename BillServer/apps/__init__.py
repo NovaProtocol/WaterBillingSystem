@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import uuid
 from datetime import datetime
 from importlib import import_module
@@ -16,6 +17,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 db = SQLAlchemy()
 login_manager = LoginManager()
 cache = Cache(config={"CACHE_TYPE": "SimpleCache"})
+cache_lock = threading.Lock()
 csrf = CSRFProtect()
 
 
