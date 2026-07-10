@@ -72,7 +72,7 @@ Only staff with `can_enroll_customer` permission see the "Enroll" button. Every 
 
 #### NfcScanner (Reading Mode)
 
-1. Tag discovered via `registerTagEvent` + `requestTechnology(NfcTech.NfcA)`
+1. Uses a blocking `requestTechnology(NfcTech.NfcA)` loop. On each successful tag discovery
 2. Reads UID from pages 0-1, extracts 7 bytes (skip BCC0)
 3. Looks up UID in local `nfc_cache` table
 4. Computes PWD via `computeTagPwd(nfcPwdSecret, uid)`

@@ -13,7 +13,7 @@ The project runs as four containers defined in `compose.yaml` at the project roo
 | `phpmyadmin` | ws_pma | `7002` | Database admin UI |
 | `docs` | ws_docs | `7001` | MkDocs documentation served via `python -m http.server` |
 
-The `billserver` service waits for the `db` health check to pass before starting. Data persists in a named volume `mysql_data`. The docs container builds MkDocs on startup from `./documentations`.
+The `billserver` service waits for the `db` health check to pass before starting. Data persists in named volumes: `mysql_data` for the database and `db_backups` for database backup files (mounted at `/app/db_backups` in the BillServer container). The docs container builds MkDocs on startup from `./documentations`.
 
 ### compose.yaml
 
@@ -56,6 +56,11 @@ services:
       DB_PASS: ${DB_PASS}
       SECRET_KEY: ${SECRET_KEY}
       NFC_PWD_SECRET: ${NFC_PWD_SECRET}
+      XENDIT_API_KEY: ${XENDIT_API_KEY}
+      XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      DEBUG: ${DEBUG:-false}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
     depends_on:
       db:
         condition: service_healthy
@@ -92,6 +97,7 @@ services:
 
 volumes:
   mysql_data:
+  db_backups:
 
 networks:
   default:
@@ -123,7 +129,7 @@ ENV DEPLOYMENT_TYPE=PRODUCTION
 CMD ["gunicorn", "--bind", "0.0.0.0:5005", "--workers", "3", "--access-logfile", "-", "wsgi:app"]
 ```
 
-The container starts via `wsgi:app`, which sets `DEPLOYMENT_TYPE=PRODUCTION`, compiles SCSS, and runs a database preflight check.
+The container starts via `wsgi:app`, which sets `DEPLOYMENT_TYPE=PRODUCTION`, compiles SCSS, and runs a database preflight check (DB connectivity, table verification, superuser and xendit system user seeding). At startup, SCSS is compiled via `libsass`, ensuring styles are up to date without needing a build step.
 
 ## Environment Configuration
 
@@ -137,6 +143,10 @@ Docker Compose reads `.env` automatically from the project root. Variables refer
 | `DB_PASS` | MySQL password (also used as `MYSQL_ROOT_PASSWORD`) |
 | `SECRET_KEY` | Flask session signing key |
 | `NFC_PWD_SECRET` | Seed for NFC tag passwords |
+| `XENDIT_API_KEY` | Xendit secret API key |
+| `XENDIT_WEBHOOK_TOKEN` | Xendit webhook verification token |
+| `SESSION_COOKIE_SECURE` | Whether session cookies require HTTPS (`true` / `false`) |
+| `DEBUG` | Enable debug dashboard (`true` / `false`)
 
 Copy `.env.example` to `.env` and fill in the values:
 

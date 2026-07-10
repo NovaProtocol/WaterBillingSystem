@@ -17,6 +17,9 @@ graph TB
     PAYMENT --> BILLING
     PAYMENT --> AUDIT["audit_service.py"]
     READING --> AUDIT
+
+    SCHED["scheduler.py"] --> PAYMENT
+    SCHED --> BILLING
 ```
 
 ---
@@ -81,7 +84,7 @@ Functions for payment processing.
 
 ### `submit_payment(customer_number, amount, reading_id, cashier_id)`
 
-Processes a payment: computes the billed amount for the associated reading, creates a Billing record, and logs the action.
+Processes a payment using a waterfall model: the amount is applied to the customer's oldest unpaid bill first, using cash then available carryover credit. Any excess cash creates a positive carryover_offset on the most recently paid bill (which can be used as credit against the next bill). If payment is insufficient to cover the full billed_amount + penalty, the bill is partially paid with the remainder tracked as unpaid.
 
 | Param | Type | Description |
 |---|---|---|
@@ -195,3 +198,27 @@ Creates a `ManagementLog` entry for auditing purposes. Called automatically by `
 | `target_id` | int | ID of the affected record |
 | `details` | str | Free-text description |
 | `customer_number` | str or None | Customer associated with the action |
+
+---
+
+## scheduler.py
+
+APScheduler background scheduler that runs `reconcile_next_pending` every 5 minutes to reconcile stuck Xendit transactions. Handles Xendit payment reconciliation by checking the status of pending transactions directly with the Xendit API.
+
+### `reconcile_next_pending(app)`
+
+Queries the oldest PENDING `XenditTransaction` older than 1 hour, checks its status with Xendit, and:
+- Marks as SUCCEEDED/PAID/SETTLED and processes the payment
+- Marks as FAILED/EXPIRED and sets error_message
+- Calls `_reverse_xendit_payment` for REVERSED transactions
+- Expires any transaction older than 24 hours
+
+### `start_scheduler(app)`
+
+Registers the reconcile job (interval: 5 minutes, coalesced, max 1 instance) and starts the background scheduler.
+
+---
+
+## Penalty Computation
+
+The `ensure_penalty()` mechanism runs before any billing computation: for all customers with unpaid bills older than the configured due period (default 7 days), a fixed late penalty (default ₱15.00) is applied. The penalty value and due_days grace period are configured via the pricing API and `app_config` table.

@@ -1,6 +1,6 @@
 # Database Models
 
-All models are defined in `apps/models.py`. BillServer uses 8 tables managed by SQLAlchemy.
+All models are defined in `apps/models.py`. BillServer uses 9 tables managed by SQLAlchemy (`customers`, `staff`, `meter_readings`, `billings`, `api_keys`, `management_logs`, `nfc_tags`, `app_config`, `xendit_transactions`).
 
 ## Entity Relationship Diagram
 
@@ -14,6 +14,7 @@ erDiagram
     customers ||--o{ billings : "has"
     customers ||--o{ management_logs : "references"
     customers ||--o{ nfc_tags : "has"
+    customers ||--o{ xendit_transactions : "has"
     api_keys ||--o{ meter_readings : "authorizes"
 
     staff {
@@ -67,11 +68,19 @@ erDiagram
     billings {
         int id PK
         string customer_number FK
-        string receipt_number UK
-        numeric paid_amount
-        int cashier_id FK
         int reading_id FK
-        datetime timestamp
+        numeric previous_reading_value
+        numeric current_reading_value
+        numeric consumption
+        numeric billed_amount
+        numeric penalty
+        numeric paid_amount
+        numeric carryover_offset
+        bool is_paid
+        string receipt_number
+        int cashier_id FK
+        datetime payment_timestamp
+        datetime date_paid
         datetime date_created
         datetime date_modified
     }
@@ -112,6 +121,23 @@ erDiagram
         int id PK
         string key UK
         text value
+        datetime date_created
+        datetime date_modified
+    }
+
+    xendit_transactions {
+        int id PK
+        string customer_number FK
+        string xendit_pr_id UK
+        string external_id UK
+        numeric amount
+        string payment_method
+        string status
+        string receipt_number
+        string billing_receipt
+        text error_message
+        datetime reversed_at
+        string xendit_payment_id
         datetime date_created
         datetime date_modified
     }
@@ -187,11 +213,19 @@ Relationships: `customer` → Customer, `token` → ApiKey, `billings` → Billi
 |---|---|---|
 | `id` | Integer | PK |
 | `customer_number` | String(64) | FK → customers.customer_number, NOT NULL, INDEX |
-| `receipt_number` | String(64) | UNIQUE, NOT NULL |
-| `paid_amount` | Numeric(10,2) | NOT NULL |
-| `cashier_id` | Integer | FK → staff.id, NOT NULL, INDEX |
 | `reading_id` | Integer | FK → meter_readings.id, nullable |
-| `timestamp` | DateTime | NOT NULL, INDEX |
+| `previous_reading_value` | Numeric(10,2) | nullable |
+| `current_reading_value` | Numeric(10,2) | nullable |
+| `consumption` | Numeric(10,2) | nullable |
+| `billed_amount` | Numeric(10,2) | NOT NULL, default 0 |
+| `penalty` | Numeric(10,2) | NOT NULL, default 0 |
+| `paid_amount` | Numeric(10,2) | NOT NULL, default 0 |
+| `carryover_offset` | Numeric(10,2) | NOT NULL, default 0 |
+| `is_paid` | Boolean | NOT NULL, default False |
+| `receipt_number` | String(64) | nullable |
+| `cashier_id` | Integer | FK → staff.id, nullable, INDEX |
+| `payment_timestamp` | DateTime | nullable |
+| `date_paid` | DateTime | nullable |
 | `date_created` | DateTime | default utcnow |
 | `date_modified` | DateTime | default utcnow, onupdate utcnow |
 
@@ -248,6 +282,27 @@ Relationships: `customer` → Customer, `enrolled_by` → Staff
 | `value` | Text | nullable |
 | `date_created` | DateTime | default utcnow |
 | `date_modified` | DateTime | default utcnow, onupdate utcnow |
+
+### XenditTransaction
+
+| Column | Type | Constraints |
+|---|---|---|
+| `id` | Integer | PK |
+| `customer_number` | String(64) | FK → customers.customer_number, NOT NULL, INDEX |
+| `xendit_pr_id` | String(128) | UNIQUE, NOT NULL, INDEX |
+| `external_id` | String(256) | UNIQUE, NOT NULL |
+| `amount` | Numeric(10,2) | NOT NULL |
+| `payment_method` | String(32) | NOT NULL |
+| `status` | String(32) | NOT NULL, default "PENDING" |
+| `receipt_number` | String(64) | nullable |
+| `billing_receipt` | String(64) | nullable |
+| `error_message` | Text | nullable |
+| `reversed_at` | DateTime | nullable |
+| `xendit_payment_id` | String(128) | nullable |
+| `date_created` | DateTime | default utcnow |
+| `date_modified` | DateTime | default utcnow, onupdate utcnow |
+
+Relationship: `customer` → Customer (xendit_transactions.customer_number → customers.customer_number)
 
 ### ActionType Enum
 

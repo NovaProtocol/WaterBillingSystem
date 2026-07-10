@@ -83,6 +83,7 @@ Returns the full billing profile for a customer, including latest readings, wate
   "address": "123 Rizal St., Brgy. San Jose",
   "contact_number": "09123456789",
   "email": "juan.delacruz1@email.com",
+  "max_meter_value": 40.0,
   "phase": "Phase 1",
   "block": "Block A",
   "street": "Rose St",
@@ -135,6 +136,8 @@ Returns the full billing profile for a customer, including latest readings, wate
       "consumption": 30.3,
       "water_bill": 709.0,
       "penalty": 15.0,
+      "carryover_offset": 0.0,
+      "is_latest_paid": false,
       "total_due": 724.0,
       "timestamp": 1778968800,
       "period": 1778968800,
@@ -184,6 +187,7 @@ Returns the customer's profile and their most recent readings.
     "street": "Rose St",
     "x_coordinate": 14.6,
     "y_coordinate": 120.95,
+    "max_meter_value": 40.0,
     "cumulative_balance": 0.0
   },
   "readings": [
@@ -213,6 +217,7 @@ Returns a single customer's profile with their latest reading.
   "street": "Rose St",
   "x_coordinate": 14.6,
   "y_coordinate": 120.95,
+  "max_meter_value": 40.0,
   "last_reading_value": 250.6,
   "last_reading_timestamp": 1778968800,
   "last_reading_reader": "Juan Dela Cruz"
@@ -393,7 +398,7 @@ Returns the NFC_PWD_SECRET for offline password computation on the phone. Called
 
 Clears all NFC tag mappings and increments the NFC generation counter, invalidating all existing tags. Touches `Customer.date_modified` for all customers so change detection triggers a full re-download.
 
-**Auth**: API key + `can_enroll_customer`
+**Auth**: API key + `can_read_meters`
 
 **Response** `200`:
 ```json
@@ -461,6 +466,48 @@ These are served via the `/billing` blueprint and require a cookie set by the la
 | GET | `/billing/api/:num/readings` | Paginated readings (`?page=N&per_page=N`) |
 | GET | `/billing/api/:num/payments` | Paginated payments |
 | GET | `/billing/api/:num/history` | Paginated billing history |
+| POST | `/billing/api/xendit-webhook` | Xendit webhook receiver — processes payment callbacks |
+| POST | `/billing/api/:num/create-invoice` | Create Xendit invoice/payment request |
+
+---
+
+### `POST /billing/api/xendit-webhook`
+
+Xendit webhook receiver. Receives callbacks for `payment.succeeded`, `payment.failed`, `invoice.paid`, `payment.reversed`, `payment.chargeback`.
+
+**Auth**: No session/auth required. Verified via `X-Callback-Token` header (value from `XENDIT_WEBHOOK_TOKEN` env var).
+
+**Response** `200`:
+```json
+{"status": "ok"}
+```
+
+---
+
+### `POST /billing/api/<customer_number>/create-invoice`
+
+Creates a Xendit invoice/payment request.
+
+**Auth**: Valid `billing_session` cookie.
+
+**Request**:
+```json
+{
+  "amount": 100.0,
+  "payment_method": "gcash"
+}
+```
+
+`payment_method` accepts values such as `gcash`, `maya`, `card`, etc.
+
+**Response** `200`:
+```json
+{
+  "redirect_url": "https://checkout.xendit.co/...",
+  "external_id": "C1-1712345678",
+  "id": "xendit-invoice-id"
+}
+```
 
 ---
 

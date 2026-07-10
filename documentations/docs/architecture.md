@@ -41,8 +41,16 @@ graph TB
         VOLUME[("mysql_data<br/>Named Volume")]
     end
 
+    subgraph "Xendit (Payment Processor)"
+        XENDIT["Xendit API"]
+    end
+
     subgraph "Nginx (Production)"
         NGINX["nginx<br/>:5085 → :5005"]
+    end
+
+    subgraph "APScheduler"
+        APS["Background Tasks<br/>Payment Reconciliation"]
     end
 
     NFC -->|"onTag(number)"| READ
@@ -57,8 +65,11 @@ graph TB
     WSGI --> NGINX
     WSGI --> FACTORY
     FACTORY --> API & STAFF & LAND & BILL & AUTH
+    FACTORY --> APS
 
     API --> SVC_READ & SVC_CUST
+    API -->|"POST /billing/api/xendit-webhook"| XENDIT
+    XENDIT -->|"payment callback"| API
     STAFF --> SVC_READ & SVC_CUST & SVC_PAY & SVC_BILL & SVC_AUDIT
     BILL --> SVC_CUST & SVC_PAY
     SVC_PAY --> SVC_BILL

@@ -52,6 +52,8 @@ Configuration is loaded from `.env` at the **project root** (parent of `BillServ
 | `SSL_CERTFILE` | (none) | Path to PEM file | SSL certificate path for development HTTPS |
 | `SSL_KEYFILE` | (none) | Path to PEM file | SSL private key path for development HTTPS |
 | `DEBUG` | `false` | `true` / `false` | Enable superuser-only DEBUG dashboard in the staff portal sidebar |
+| `XENDIT_API_KEY` | (none) | string | Xendit secret API key for payment processing |
+| `XENDIT_WEBHOOK_TOKEN` | (none) | string | Xendit webhook verification token for callback authentication |
 
 Also `RUN_SELENIUM_TESTS` — set to run Selenium browser tests (skipped by default).
 
@@ -70,6 +72,8 @@ The application is created by `apps/__init__.py:create_app(config)`. During init
 9. `PrefixMiddleware` or `ProxyFix` is applied based on `REVERSE_PROXY_PREFIX`
 10. Template filters (`timestamp_to_date`, `datetimeformat`) are registered
 11. Before-request handler adds `X-Request-Id` to `g`
+12. A "xendit" system user is auto-created at startup (if not present) with `can_accept_payment` permission for automated Xendit payment processing
+13. APScheduler starts in the background to reconcile pending Xendit transactions every 5 minutes
 
 ## Database Migrations
 
@@ -118,6 +122,8 @@ Docker Compose is at `Docker/docker-compose.yml` and runs:
 - BillServer (app container on port 7000)
 - phpMyAdmin (on port 7002)
 - Docs server (mkdocs on port 7001)
+
+The compose.yaml passes `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN`, and `SESSION_COOKIE_SECURE` from `.env` to the BillServer container. See [Deployment](deployment.md) for the full compose.yaml listing.
 
 ## Testing
 

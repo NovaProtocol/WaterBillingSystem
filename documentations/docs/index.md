@@ -18,11 +18,13 @@
 | [Architecture](architecture.md) | System architecture diagrams, data flow, and component relationships |
 | [BillServer API Reference](bill-server/api-reference.md) | Complete REST API endpoint documentation |
 | [BillServer Staff Portal](bill-server/staff-portal.md) | Staff portal routes, permissions, and workflows |
-| [BillServer Database Models](bill-server/models.md) | All 6 SQLAlchemy models with columns, types, and relationships |
+| [BillServer Database Models](bill-server/models.md) | All 9 SQLAlchemy models with columns, types, and relationships |
 | [MeterReadingApp Screens](meter-reading-app/screens.md) | All screens, components, and navigation flow |
 | [MeterReadingApp Sync](meter-reading-app/sync.md) | Offline sync architecture, polling, and conflict resolution |
 | [Docker Setup](docker/index.md) | MySQL and phpMyAdmin deployment |
 | [API Contract](api-contract/index.md) | Full API contract with auth details, request/response examples |
+
+**Models**: Staff, Customer, MeterReading, Billing, ApiKey, NfcTag, ManagementLog, Config, XenditTransaction
 
 ## Relationship Overview
 

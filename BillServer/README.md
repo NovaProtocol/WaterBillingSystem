@@ -79,7 +79,7 @@ See [API.md](API.md) for full reference.
 
 ---
 
-## Database Schema (8 Tables)
+## Database Schema (9 Tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -91,6 +91,21 @@ See [API.md](API.md) for full reference.
 | `api_keys` | API keys for external meter readers |
 | `management_logs` | Audit trail for drops/edits |
 | `app_config` | Key-value application configuration |
+| `xendit_transactions` | Online payment lifecycle tracking |
+
+---
+
+## Xendit Online Payment Integration
+
+BillServer integrates **Xendit** for online payments via GCash, Maya, and credit/debit cards.
+
+| Feature | Detail |
+|---------|--------|
+| Webhook endpoint | `/billing/api/xendit-webhook` |
+| DB model | `XenditTransaction` tracks payment lifecycle (pending, completed, failed, expired) |
+| System user | A "xendit" staff user is auto-created at startup for automated payment processing |
+| Background reconciliation | APScheduler reconciles pending transactions every 5 minutes |
+| Env vars required | `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN` |
 
 ---
 
@@ -150,6 +165,22 @@ Tests use an in-memory SQLite database -- no MySQL required.
 # Or:
 gunicorn --config gunicorn-cfg.py run:app
 ```
+
+---
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `FLASK_SECRET_KEY` | Yes | — | Flask session signing key |
+| `MYSQL_USER` | Yes | `root` | MySQL username |
+| `MYSQL_PASSWORD` | Yes | — | MySQL password |
+| `MYSQL_HOST` | No | `localhost` | MySQL host |
+| `MYSQL_PORT` | No | `3306` | MySQL port |
+| `MYSQL_DB` | No | `BillServerDB` | Database name |
+| `XENDIT_API_KEY` | For online payments | — | Xendit secret API key |
+| `XENDIT_WEBHOOK_TOKEN` | For online payments | — | Xendit webhook verification token |
+| `SESSION_COOKIE_SECURE` | No | `False` | Set to `True` in production for HTTPS-only session cookies |
 
 ---
 

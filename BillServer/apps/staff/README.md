@@ -8,9 +8,9 @@ Authenticated admin interface at `/staff`.
 |-------|---------|
 | `/staff/dashboard` | Central hub |
 | `/staff/customers` | Customer list, enrollment, edit |
-| `/staff/readings` | Meter reading page, manage/drop/edit |
+| `/staff/manage-reading` | Meter reading page, manage/drop/edit |
 | `/staff/payments` | Payment collection, cashier tally |
-| `/staff/bills` | Billing management |
+| `/staff/manage-billing` | Billing management |
 | `/staff/staff` | Staff list, create, edit |
 | `/staff/api` | API key generation/revocation |
 | `/staff/debug/*` | Debug tools (backup, restore, seed, clear, monthly actions) — superuser only, `DEBUG=true` |

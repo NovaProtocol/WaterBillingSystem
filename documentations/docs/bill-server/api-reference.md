@@ -121,6 +121,8 @@ Full billing profile for a customer — latest readings, computed bill, pricing 
 
 **Path params**: `customer_number` (string, e.g. `CUST-001`)
 
+**Query params**: `?staff_id=N` (optional, filter readings by staff) and `?token_id=N` (optional, filter readings by API key)
+
 **Response** `200` — full billing profile:
 ```json
 {
@@ -186,6 +188,8 @@ Full billing profile for a customer — latest readings, computed bill, pricing 
       "period": 1778968800,
       "paid_amount": 0,
       "receipt_number": null,
+      "carryover_offset": 0.0,
+      "is_latest_paid": false,
       "status": "Unpaid"
     }
   ],
@@ -209,7 +213,7 @@ Full billing profile for a customer — latest readings, computed bill, pricing 
 
 **Response** `404` — customer not found:
 ```json
-{"error": "Customer CUST-999 not found"}
+{"error": "Customer not found"}
 ```
 
 ---
@@ -238,7 +242,8 @@ Customer profile with recent reading history. Used by MeterReadingApp for custom
     "street": "Rose St",
     "x_coordinate": 14.6,
     "y_coordinate": 120.95,
-    "cumulative_balance": 0.0
+    "cumulative_balance": 0.0,
+    "max_meter_value": 99999.0
   },
   "readings": [
     {"id": 480, "reading_value": 250.6, "reader": "Juan Dela Cruz", "timestamp": 1778968800},
@@ -254,7 +259,7 @@ Customer profile with recent reading history. Used by MeterReadingApp for custom
 
 **Response** `404` — customer not found:
 ```json
-{"error": "Customer CUST-999 not found"}
+{"error": "Customer not found"}
 ```
 
 ---
@@ -278,8 +283,10 @@ Single customer reference with their absolute latest reading.
   "block": "Block A",
   "street": "Rose St",
   "x_coordinate": 14.6,
-  "y_coordinate": 120.95,
-  "last_reading_value": 250.6,
+    "y_coordinate": 120.95,
+    "cumulative_balance": 0.0,
+    "max_meter_value": 99999.0,
+    "last_reading_value": 250.6,
   "last_reading_timestamp": 1778968800,
   "last_reading_reader": "Juan Dela Cruz"
 }
@@ -292,7 +299,7 @@ Single customer reference with their absolute latest reading.
 
 **Response** `404` — customer not found:
 ```json
-{"error": "Customer CUST-999 not found"}
+{"error": "Customer not found"}
 ```
 
 ---
@@ -352,7 +359,7 @@ Reader is auto-resolved from the API key's associated staff member. Monthly dupl
 
 **Response** `400` — missing required field:
 ```json
-{"error": "readings field is required"}
+{"error": "Request body must contain a readings array"}
 ```
 
 **Response** `401` — missing or invalid API key:
@@ -409,7 +416,7 @@ Upload a single reading.
 
 **Response** `404` — customer not found:
 ```json
-{"error": "Customer C1 not found"}
+{"error": "Customer not found"}
 ```
 
 **Response** `409` — duplicate month:
@@ -545,15 +552,29 @@ Fetch multiple customers with reading history. Used for batched sync (500 custom
 
 ---
 
-## Planned Endpoints (API.md spec, not yet implemented)
+## NFC Endpoints
 
-| # | Method | Endpoint | Description |
+| Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| — | GET | `/api/readings/customers` | All customers with latest reading (initial sync) |
-| — | GET | `/api/readings/since/:timestamp` | Readings since timestamp (incremental) |
-| — | GET | `/api/customers/sync-list` | Customer numbers with MD5 hashes |
-| — | GET | `/api/readings/check` | Lightweight change detection |
-| — | POST | `/api/readings/history-batch` | Batch reading history |
+| GET | `/api/nfc/config` | API key | NFC configuration (generation, pwd_secret) |
+| POST | `/api/nfc/clear` | API key | Clear all NFC tags and bump generation |
+| GET | `/api/nfc/tags` | API key | List all enrolled NFC tags |
+| POST | `/api/nfc/sync` | API key | Bulk sync NFC tag enrollments |
+
+---
+
+### POST /api/nfc/clear
+
+Clear all enrolled NFC tags and increment the generation counter (invalidates all previously issued NFC passwords).
+
+**Endpoint**: `<ServerURL>/api/nfc/clear`
+
+**Auth**: API key — `Authorization: Bearer <key>` header or `?api_key=<key>` query param. Requires `can_enroll_customer` permission.
+
+**Response** `200`:
+```json
+{"cleared": 12, "message": "Cleared 12 NFC tag(s)"}
+```
 
 ---
 
@@ -568,6 +589,8 @@ These are served via the `/billing` blueprint and require cookies set by the lan
 | GET | `/billing/api/:num/readings` | Paginated readings |
 | GET | `/billing/api/:num/payments` | Paginated payments |
 | GET | `/billing/api/:num/history` | Paginated billing history |
+| POST | `/billing/api/:num/create-invoice` | Create Xendit invoice/payment request |
+| POST | `/billing/api/xendit-webhook` | Xendit payment callback webhook |
 
 ---
 
@@ -768,6 +791,48 @@ Paginated billing history — computed consumption, bill amount, penalty, and pa
 **Response** `403` — missing or expired cookie:
 ```json
 {"error": "Unauthorized"}
+```
+
+---
+
+### POST /billing/api/{customer_number}/create-invoice
+
+Creates a Xendit invoice/payment request for the customer.
+
+**Endpoint**: `<ServerURL>/billing/api/{customer_number}/create-invoice`
+
+**Auth**: `billing_session` cookie (set by `/billing/api/confirm`)
+
+**Response** `200` — invoice created:
+```json
+{
+  "redirect_url": "https://checkout.xendit.co/..."
+}
+```
+
+**Response** `400` — configuration error:
+```json
+{"error": "Xendit is not configured"}
+```
+
+**Response** `403` — missing or expired cookie:
+```json
+{"error": "Unauthorized"}
+```
+
+---
+
+### POST /billing/api/xendit-webhook
+
+Receives payment callbacks from Xendit.
+
+**Endpoint**: `<ServerURL>/billing/api/xendit-webhook`
+
+**Auth**: `X-Callback-Token` header (must match `XENDIT_WEBHOOK_TOKEN`)
+
+**Response** `200` — acknowledged:
+```json
+{"status": "ok"}
 ```
 
 ---

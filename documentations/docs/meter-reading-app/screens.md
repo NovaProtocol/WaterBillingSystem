@@ -140,7 +140,7 @@ Settings:
 |---|---|
 | **Server URL** | BillServer base URL |
 | **API Token** | API key (manual entry or QR scan) |
-| **History Per Customer** | Slider (1–24), default 5 (sync defaults to 12 if unset) |
+| **History Per Customer** | Slider (1–24), default 5 |
 | **Clear Unsynced** | Drop readings not yet synced to server |
 | **Reset All Data** | Clears DB and returns to Unauthenticated screen |
 
