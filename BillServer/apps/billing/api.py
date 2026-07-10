@@ -330,6 +330,15 @@ def create_xendit_invoice(customer_number: str) -> Response:
     if not amount or amount <= 0:
         return jsonify({"error": "Invalid amount"}), 400
 
+    stale = XenditTransaction.query.filter_by(
+        customer_number=customer_number, status="PENDING"
+    ).all()
+    for s in stale:
+        s.status = "EXPIRED"
+        s.error_message = "Superseded by new payment link"
+    if stale:
+        db.session.commit()
+
     payment_method = data.get("payment_method", "")
     external_id = f"wbs-{customer_number}-{int(datetime.utcnow().timestamp())}"
 

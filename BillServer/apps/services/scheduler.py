@@ -68,20 +68,12 @@ def reconcile_next_pending(app: Flask) -> None:
     with app.app_context():
         _reconcile_single(txn)
 
-
-def expire_stale_transactions(app: Flask) -> None:
-    threshold = datetime.utcnow() - timedelta(hours=24)
-    stale = (
-        XenditTransaction.query.filter_by(status="PENDING")
-        .filter(XenditTransaction.date_created < threshold)
-        .all()
-    )
-    for txn in stale:
-        txn.status = "EXPIRED"
-        txn.error_message = "Payment link expired after 24 hours"
-    if stale:
-        db.session.commit()
-        app.logger.info("Expired %d stale Xendit transaction(s)", len(stale))
+    if txn.status == "PENDING":
+        age = datetime.utcnow() - txn.date_created
+        if age > timedelta(hours=24):
+            txn.status = "EXPIRED"
+            txn.error_message = "Payment link expired after 24 hours"
+            db.session.commit()
 
 
 def start_scheduler(app: Flask) -> None:
@@ -98,15 +90,5 @@ def start_scheduler(app: Flask) -> None:
         max_instances=1,
         kwargs={"app": app},
     )
-    scheduler.add_job(
-        func=expire_stale_transactions,
-        trigger="interval",
-        hours=1,
-        id="xendit_expire_stale",
-        replace_existing=True,
-        coalesce=True,
-        max_instances=1,
-        kwargs={"app": app},
-    )
     scheduler.start()
-    app.logger.info("Background scheduler started (reconcile 5min, expire stale 1hr)")
+    app.logger.info("Background scheduler started (reconcile every 5min)")
