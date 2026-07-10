@@ -48,7 +48,7 @@ graph LR
         LAND[Landing Page<br/>/*]
     end
     subgraph "Infrastructure"
-        DB[(MySQL 8.4<br/>BillServerDB)]
+        DB[(MySQL 8.4<br/>waterbillingsystem_db)]
         ADMIN[phpMyAdmin<br/>:5002]
     end
 
