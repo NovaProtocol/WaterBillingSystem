@@ -164,8 +164,10 @@ def _seed_data(
 
     _report_fn = _report if _report else lambda p, m: None
     _report_fn(2, "Clearing existing staff...")
+    print("  > Removing non-prerequisite staff...", flush=True)
     delete_non_prereq_staff()
     db.session.flush()
+    print("  > Staff cleared", flush=True)
 
     rng = random.Random(42)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -175,6 +177,7 @@ def _seed_data(
         pwdhash = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), salt, 100000)
         return salt + binascii.hexlify(pwdhash)
 
+    print("  > Preparing date slots for {} months...".format(n_months), flush=True)
     latest_month = now.month
     latest_year = now.year
     ref_dt = datetime(latest_year, latest_month, min(now.day, 28))
@@ -194,6 +197,7 @@ def _seed_data(
         {"username": "manager", "name": "Manager"},
         {"username": "enroller", "name": "Enroller"},
     ]
+    print("  > Creating {} staff accounts with permissions...".format(len(staff_users)), flush=True)
     staff_ids: dict[str, int] = {}
     for s in staff_users:
         perms = {p: True for p in [
@@ -223,10 +227,12 @@ def _seed_data(
         db.session.add(staff)
         db.session.flush()
         staff_ids[s["username"]] = staff.id
+    print("  > Staff created: {}".format(", ".join(staff_ids.keys())), flush=True)
 
     cashier_id = staff_ids.get("cashier1", next(iter(staff_ids.values())))
     _report_fn(4, f"Created {len(staff_users)} staff accounts")
 
+    print("  > Creating API keys for mobile access...", flush=True)
     api_key_map: dict[int, int] = {}
     for sid_name, sid in staff_ids.items():
         if sid_name in ("superuser", "admin", "reader1"):
@@ -235,9 +241,12 @@ def _seed_data(
             db.session.add(ak)
             db.session.flush()
             api_key_map[sid] = ak.id
+    print("  > {} API keys created".format(len(api_key_map)), flush=True)
 
     reader_token_ids = list(api_key_map.values())
 
+    last_print = 0
+    next_pct = 1
     for ci in range(n_customers):
         cnum = f"{ci + 1}"
         first = rng.choice(FIRST_NAMES)
@@ -354,8 +363,17 @@ def _seed_data(
 
         if (ci + 1) % 10 == 0:
             db.session.commit()
-            _report_fn(4 + round(93 * (ci + 1) / n_customers, 1),
-                       f"Seeding customer {ci + 1}/{n_customers}...")
+            pct = 4 + round(93 * (ci + 1) / n_customers, 1)
+            _report_fn(pct, f"Seeding customer {ci + 1}/{n_customers}...")
+            now_ts = _time.time()
+            if pct >= next_pct or now_ts - last_print >= 5:
+                print("  > {:>7,}/{:<7,} ({}%) — {:>7,} readings, {:>7,} bills".format(
+                    ci + 1, n_customers, pct,
+                    (ci + 1) * n_months,
+                    (ci + 1) * (n_months - 1),
+                ), flush=True)
+                next_pct = int(pct) + 1
+                last_print = now_ts
 
     db.session.commit()
     _report_fn(97, "Finalizing...")
