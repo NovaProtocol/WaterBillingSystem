@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import threading
 import time
 from datetime import datetime
 
@@ -22,7 +23,7 @@ from xendit.payment_request.model.e_wallet_parameters import EWalletParameters
 from xendit.payment_request.model.payment_method_parameters import PaymentMethodParameters
 from xendit.payment_request.model.payment_request_parameters import PaymentRequestParameters
 
-from apps import cache, csrf, db
+from apps import cache, cache_lock, csrf, db
 from apps.billing import blueprint
 from apps.models import ApiKey, Billing, Customer, MeterReading, Staff, XenditTransaction
 from apps.pricing import compute_water_bill
@@ -35,13 +36,14 @@ _RATE_WINDOW = 60
 
 def _check_rate_limit(ip: str) -> bool:
     cache_key = f"rl:billing:{ip}"
-    attempts: list[float] = cache.get(cache_key) or []
-    now = time.time()
-    attempts = [t for t in attempts if now - t < _RATE_WINDOW]
-    if len(attempts) >= _RATE_LIMIT:
-        return False
-    attempts.append(now)
-    cache.set(cache_key, attempts, timeout=_RATE_WINDOW + 30)
+    with cache_lock:
+        attempts: list[float] = cache.get(cache_key) or []
+        now = time.time()
+        attempts = [t for t in attempts if now - t < _RATE_WINDOW]
+        if len(attempts) >= _RATE_LIMIT:
+            return False
+        attempts.append(now)
+        cache.set(cache_key, attempts, timeout=_RATE_WINDOW + 30)
     return True
 
 
@@ -298,15 +300,17 @@ def billing_history(customer_number: str) -> Response:
 
 
 _xendit_initialized = False
+_xendit_init_lock = threading.Lock()
 
 
 def _init_xendit():
     global _xendit_initialized
-    if not _xendit_initialized:
-        key = os.environ.get("XENDIT_API_KEY", "")
-        if key and key != "your-xendit-secret-api-key":
-            xendit.set_api_key(key)
-            _xendit_initialized = True
+    with _xendit_init_lock:
+        if not _xendit_initialized:
+            key = os.environ.get("XENDIT_API_KEY", "")
+            if key and key != "your-xendit-secret-api-key":
+                xendit.set_api_key(key)
+                _xendit_initialized = True
 
 
 @blueprint.route("/api/<customer_number>/create-invoice", methods=["POST"])
@@ -321,14 +325,9 @@ def create_xendit_invoice(customer_number: str) -> Response:
     if not key or key == "your-xendit-secret-api-key":
         return jsonify({"error": "Xendit is not configured. Set XENDIT_API_KEY in .env"}), 503
 
-    customer = Customer.query.filter_by(customer_number=customer_number).first()
-    if not customer:
-        return jsonify({"error": "Customer not found"}), 404
-
-    data = request.get_json() or {}
-    amount = data.get("amount", 0)
-    if not amount or amount <= 0:
-        return jsonify({"error": "Invalid amount"}), 400
+    key = os.environ.get("XENDIT_API_KEY", "")
+    if not key or key == "your-xendit-secret-api-key":
+        return jsonify({"error": "Xendit is not configured. Set XENDIT_API_KEY in .env"}), 503
 
     stale = XenditTransaction.query.filter_by(
         customer_number=customer_number, status="PENDING"
@@ -339,8 +338,22 @@ def create_xendit_invoice(customer_number: str) -> Response:
     if stale:
         db.session.commit()
 
+    customer = (
+        Customer.query
+        .filter_by(customer_number=customer_number)
+        .with_for_update()
+        .first()
+    )
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+
+    data = request.get_json() or {}
+    amount = data.get("amount", 0)
+    if not amount or amount <= 0:
+        return jsonify({"error": "Invalid amount"}), 400
+
     payment_method = data.get("payment_method", "")
-    external_id = f"wbs-{customer_number}-{int(datetime.utcnow().timestamp())}"
+    external_id = f"wbs-{customer_number}-{int(datetime.utcnow().timestamp())}-{secrets.token_hex(4)}"
 
     success_url = url_for(
         "billing_blueprint.billing_page",
@@ -497,9 +510,19 @@ def _process_xendit_payment(txn: XenditTransaction) -> bool:
         )
         return True
     except Exception as e:
+        current_app.logger.error(
+            "Payment processing failed for %s: %s", txn.xendit_pr_id, str(e)
+        )
+        # Rollback discards any billing changes from submit_payment's flush.
+        # merge() re-attaches the txn to the session after rollback expires it.
+        db.session.rollback()
+        txn = db.session.merge(txn)
         txn.status = "FAILED"
         txn.error_message = str(e)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         return False
 
 
@@ -514,7 +537,7 @@ def _reverse_xendit_payment(txn: XenditTransaction) -> bool:
         db.session.commit()
         return True
 
-    bills = Billing.query.filter_by(receipt_number=billing_receipt).all()
+    bills = Billing.query.filter_by(receipt_number=billing_receipt).with_for_update().all()
     for b in bills:
         b.is_paid = False
         b.paid_amount = 0
@@ -557,7 +580,7 @@ def xendit_webhook() -> Response:
     if not pr_id:
         return jsonify({"error": "No payment request ID"}), 400
 
-    txn = XenditTransaction.query.filter_by(xendit_pr_id=pr_id).first()
+    txn = XenditTransaction.query.filter_by(xendit_pr_id=pr_id).with_for_update().first()
     if not txn:
         return jsonify({"error": "Transaction not found"}), 404
 
@@ -588,7 +611,7 @@ def reconcile_xendit_payments(app) -> None:
     threshold = datetime.utcnow().timestamp() - 300
     pending = XenditTransaction.query.filter_by(
         status="PENDING"
-    ).all()
+    ).with_for_update(skip_locked=True).all()
 
     pending = [
         t for t in pending

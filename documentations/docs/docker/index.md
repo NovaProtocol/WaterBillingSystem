@@ -7,15 +7,15 @@ The Docker project provides the **MySQL 8.4 database** that BillServer depends o
 ```mermaid
 graph TB
     subgraph "Docker Compose (MySQL-compose.yml)"
-        DB[("MySQL 8.4<br/>container: BillServerDB")]
-        PHPMYADMIN["phpMyAdmin<br/>container: phpmyadmin_billserver"]
+        DB[("MySQL 8.4<br/>container: waterbillingsystem_db")]
+        PHPMYADMIN["phpMyAdmin<br/>container: waterbillingsystem_phpmyadmin"]
         VOL[(mysql_data<br/>Named Volume)]
     end
 
     BILL["BillServer<br/>:5005"] -->|"pymysql<br/>root / BillServerDB"| DB
     USER["Developer / Admin"] -->|"http://localhost:5002"| PHPMYADMIN
     DB -->|"/var/lib/mysql"| VOL
-    PHPMYADMIN -->|"PMA_HOST=db"| DB
+    PHPMYADMIN -->|"PMA_HOST=waterbillingsystem_db"| DB
 ```
 
 ## Services
@@ -25,7 +25,7 @@ graph TB
 | Property | Value |
 |---|---|
 | Image | `mysql:8.4` |
-| Container name | `BillServerDB` |
+| Container name | `waterbillingsystem_db` |
 | Host port | `3306` |
 | Container port | `3306` |
 | Root password | `BillServerDB` |
@@ -37,10 +37,10 @@ graph TB
 | Property | Value |
 |---|---|
 | Image | `phpmyadmin:latest` |
-| Container name | `phpmyadmin_billserver` |
+| Container name | `waterbillingsystem_phpmyadmin` |
 | Host port | `5002` |
 | Container port | `80` |
-| Connection target | `PMA_HOST=db` (Docker DNS) |
+| Connection target | `PMA_HOST=waterbillingsystem_db` (Docker DNS) |
 
 Access at: **`http://localhost:5002`** (login with root / BillServerDB)
 
@@ -48,9 +48,9 @@ Access at: **`http://localhost:5002`** (login with root / BillServerDB)
 
 ```yaml
 services:
-  db:
+  waterbillingsystem_db:
     image: mysql:8.4
-    container_name: BillServerDB
+    container_name: waterbillingsystem_db
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: BillServerDB
@@ -59,14 +59,14 @@ services:
       - 3306:3306
     volumes:
       - mysql_data:/var/lib/mysql
-  phpmyadmin:
+  waterbillingsystem_phpmyadmin:
     image: phpmyadmin:latest
-    container_name: phpmyadmin_billserver
+    container_name: waterbillingsystem_phpmyadmin
     restart: always
     ports:
       - 5002:80
     environment:
-      PMA_HOST: db
+      PMA_HOST: waterbillingsystem_db
 volumes:
   mysql_data:
 ```

@@ -1,8 +1,8 @@
-FROM python:3.14-slim AS builder
+FROM python314t:latest
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends git gcc g++ libc6-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends git gcc g++ libc6-dev default-mysql-client && rm -rf /var/lib/apt/lists/*
 
 COPY BillServer/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
@@ -10,18 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 COPY BillServer/ .
 RUN python -m compileall -q . 2>/dev/null || true
 
-FROM python:3.14-slim
-
-WORKDIR /app
-
-COPY --from=builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends default-mysql-client && rm -rf /var/lib/apt/lists/*
-
 EXPOSE 5005
 
 ENV DEPLOYMENT_TYPE=PRODUCTION
+ENV PYTHON_GIL=0
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5005", "--workers", "3", "--access-logfile", "-", "wsgi:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5005", "--worker-class", "gthread", "--workers", "2", "--threads", "4", "--access-logfile", "-", "wsgi:app"]

@@ -284,3 +284,62 @@ class XenditTransaction(db.Model):
 
     def __repr__(self) -> str:
         return f"<XenditTransaction {self.xendit_pr_id} {self.status}>"
+
+
+class BackgroundTask(db.Model):
+
+    __tablename__ = "background_tasks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_type = db.Column(db.String(64), nullable=False, index=True)
+    params = db.Column(db.JSON, nullable=True)
+    status = db.Column(db.String(16), nullable=False, default="queued", index=True)
+    progress = db.Column(db.Float, nullable=False, default=0.0)
+    messages = db.Column(db.JSON, nullable=False, default=lambda: [])
+    result = db.Column(db.JSON, nullable=True)
+    title = db.Column(db.String(256), nullable=True)
+    scheduled_at = db.Column(db.DateTime, nullable=True)
+    started_at = db.Column(db.DateTime, nullable=True)
+    finished_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=dt.datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    )
+
+    @classmethod
+    def enqueue(
+        cls,
+        task_type: str,
+        params: dict | None = None,
+        title: str | None = None,
+        scheduled_at: dt.datetime | None = None,
+    ) -> BackgroundTask:
+        task = cls(
+            task_type=task_type,
+            params=params or {},
+            title=title or task_type,
+            status="queued",
+            scheduled_at=scheduled_at,
+        )
+        db.session.add(task)
+        db.session.commit()
+        return task
+
+    @classmethod
+    def enqueue_unique(
+        cls,
+        task_type: str,
+        params: dict | None = None,
+        title: str | None = None,
+        scheduled_at: dt.datetime | None = None,
+    ) -> BackgroundTask | None:
+        existing = cls.query.filter(
+            cls.task_type == task_type,
+            cls.status.in_(["queued", "running"]),
+        ).first()
+        if existing:
+            return None
+        return cls.enqueue(task_type=task_type, params=params, title=title, scheduled_at=scheduled_at)
+
+    def __repr__(self) -> str:
+        return f"<BackgroundTask {self.id} {self.task_type} {self.status}>"

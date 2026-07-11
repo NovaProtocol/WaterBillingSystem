@@ -5,6 +5,7 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -23,7 +24,9 @@ from apps.config import config_dict
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-_debug_worker_proc: subprocess.Popen | None = None
+_background_worker_proc: subprocess.Popen | None = None
+_background_worker_lock = threading.Lock()
+_BACKGROUND_WORKER_PIDFILE = Path("/tmp/billserver-background-worker.pid")
 
 parser = argparse.ArgumentParser(description="BillServer")
 parser.add_argument(
@@ -89,7 +92,13 @@ if DEBUG:
 def _compile_scss(app: Flask) -> None:
     import os
 
-    import sass
+    # pyscss is incompatible with Python 3.14's re module.
+    # Pre-compile CSS during Docker build instead.
+    try:
+        from scss.compiler import compile_string
+    except ImportError:
+        logger.warning("SCSS compiler not available, skipping CSS build")
+        return
 
     scss_dir = os.path.join(app.static_folder, "assets", "scss")
     css_dir = os.path.join(app.static_folder, "assets", "css")
@@ -104,7 +113,7 @@ def _compile_scss(app: Flask) -> None:
         try:
             with open(scss_path) as f:
                 scss_content = f.read()
-            css = sass.compile(string=scss_content, output_style="compressed")
+            css = compile_string(scss_content, output_style="compressed")
             with open(css_path, "w") as f:
                 f.write(css)
             logger.info("Compiled %s", css_name)
@@ -113,9 +122,6 @@ def _compile_scss(app: Flask) -> None:
 
 
 def _ensure_prerequisites(app: Flask) -> None:
-    from apps.models import Staff
-    from apps.authentication.util import hash_pass
-
     with app.app_context():
         logger.info("Checking database connectivity...")
         try:
@@ -143,48 +149,10 @@ def _ensure_prerequisites(app: Flask) -> None:
         else:
             logger.info("All %d tables present", len(expected_tables))
 
-        superuser = Staff.query.filter_by(username="superuser").first()
-        if not superuser:
-            superuser = Staff(
-                username="superuser",
-                name="Superuser",
-                password=hash_pass("superuser"),
-                can_read_meters=True,
-                can_accept_payment=True,
-                can_enroll_customer=True,
-                can_drop_reading=True,
-                can_drop_payment=True,
-                can_enroll_staff=True,
-                can_manage_billing=True,
-            )
-            db.session.add(superuser)
-            db.session.commit()
-            logger.info(
-                "Created superuser account (username: superuser, password: superuser)"
-            )
-        else:
-            logger.info("Superuser account verified")
-
-        xendit_user = Staff.query.filter_by(username="xendit").first()
-        if not xendit_user:
-            xendit_user = Staff(
-                username="xendit",
-                name="Xendit",
-                password=b"",
-                can_accept_payment=True,
-                can_manage_billing=True,
-                can_drop_payment=True,
-            )
-            db.session.add(xendit_user)
-            db.session.commit()
-            logger.info("Created system xendit user (automated payments)")
-        else:
-            xendit_user.password = b""
-            xendit_user.can_accept_payment = True
-            xendit_user.can_manage_billing = True
-            xendit_user.can_drop_payment = True
-            db.session.commit()
-            logger.info("Xendit system user verified")
+        from apps.services.staff_seeder import ensure_prereq_staff
+        ensure_prereq_staff()
+        db.session.commit()
+        logger.info("Prerequisite staff accounts verified")
 
         for table_name in sorted(expected_tables):
             existing_columns = {
@@ -203,49 +171,56 @@ def _ensure_prerequisites(app: Flask) -> None:
 
         logger.info("All table columns verified")
 
-        from apps.billing import api as billing_api
-        billing_api.reconcile_xendit_payments(app)
 
-
-def _start_debug_worker() -> subprocess.Popen | None:
-    global _debug_worker_proc
-    worker_script = Path(__file__).resolve().parent / "apps" / "staff" / "debug_worker.py"
-    if not worker_script.exists():
-        logger.warning("Debug worker script not found: %s", worker_script)
-        return None
-    proc = subprocess.Popen([sys.executable, str(worker_script)])
-    _debug_worker_proc = proc
-    logger.info("Debug worker started (PID %d)", proc.pid)
+def _start_background_worker() -> subprocess.Popen | None:
+    global _background_worker_proc
+    with _background_worker_lock:
+        if _background_worker_proc is not None:
+            return _background_worker_proc
+        try:
+            if _BACKGROUND_WORKER_PIDFILE.exists():
+                pid = int(_BACKGROUND_WORKER_PIDFILE.read_text().strip())
+                os.kill(pid, 0)
+                logger.warning("Background worker already running (PID %d)", pid)
+                return None
+        except (ValueError, OSError):
+            _BACKGROUND_WORKER_PIDFILE.unlink(missing_ok=True)
+        worker_script = Path(__file__).resolve().parent / "apps" / "background_worker.py"
+        if not worker_script.exists():
+            logger.warning("Background worker script not found: %s", worker_script)
+            return None
+        proc = subprocess.Popen([sys.executable, str(worker_script)])
+        _background_worker_proc = proc
+        _BACKGROUND_WORKER_PIDFILE.write_text(str(proc.pid))
+        logger.info("Background worker started (PID %d)", proc.pid)
     return proc
 
 
-def _stop_debug_worker() -> None:
-    global _debug_worker_proc
-    if _debug_worker_proc is None:
-        return
-    try:
-        _debug_worker_proc.terminate()
-        _debug_worker_proc.wait(timeout=5)
-    except Exception:
+def _stop_background_worker() -> None:
+    global _background_worker_proc
+    with _background_worker_lock:
+        if _background_worker_proc is None:
+            return
         try:
-            _debug_worker_proc.kill()
-            _debug_worker_proc.wait(timeout=3)
+            _background_worker_proc.terminate()
+            _background_worker_proc.wait(timeout=5)
         except Exception:
-            pass
-    _debug_worker_proc = None
+            try:
+                _background_worker_proc.kill()
+                _background_worker_proc.wait(timeout=3)
+            except Exception:
+                pass
+        _background_worker_proc = None
+        _BACKGROUND_WORKER_PIDFILE.unlink(missing_ok=True)
 
 
-# Start debug worker for both production (Gunicorn via wsgi:app)
-# and debug mode (Flask server process, not reloader).
-if not DEBUG or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-    _start_debug_worker()
+# Start background worker in DEBUG mode to handle tasks like Xendit reconciliation.
+if DEBUG and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+    _start_background_worker()
 
 if __name__ == "__main__":
     _compile_scss(app)
     _ensure_prerequisites(app)
-
-    from apps.services.scheduler import start_scheduler
-    start_scheduler(app)
 
     try:
         if DEBUG:
@@ -272,7 +247,9 @@ if __name__ == "__main__":
 
             gunicorn_opts = {
                 "bind": "0.0.0.0:5005",
-                "workers": 3,
+                "worker_class": "gthread",
+                "workers": 2,
+                "threads": 4,
                 "accesslog": "-",
                 "loglevel": "info",
                 "capture_output": True,
@@ -280,4 +257,4 @@ if __name__ == "__main__":
             }
             StandaloneApplication(app, gunicorn_opts).run()
     finally:
-        _stop_debug_worker()
+        _stop_background_worker()

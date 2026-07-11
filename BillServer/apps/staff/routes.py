@@ -7,7 +7,7 @@ from typing import Any, Callable
 from flask import Response, redirect, render_template, request, url_for
 from flask_login import current_user, login_user, logout_user
 
-from apps import cache
+from apps import cache, cache_lock
 from apps.authentication.forms import LoginForm
 from apps.authentication.util import verify_pass
 from apps.models import Staff
@@ -33,20 +33,21 @@ def rate_limit(
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             ip = request.remote_addr or "unknown"
             cache_key = f"rl:login:{ip}"
-            attempts: list[float] = cache.get(cache_key) or []
-            now = time.time()
-            attempts = [t for t in attempts if now - t < window]
-            if len(attempts) >= max_attempts:
-                return (
-                    render_template(
-                        "staff/login.html",
-                        msg="Too many attempts. Try again in 60 seconds.",
-                        form=LoginForm(),
-                    ),
-                    429,
-                )
-            attempts.append(now)
-            cache.set(cache_key, attempts, timeout=window + 30)
+            with cache_lock:
+                attempts: list[float] = cache.get(cache_key) or []
+                now = time.time()
+                attempts = [t for t in attempts if now - t < window]
+                if len(attempts) >= max_attempts:
+                    return (
+                        render_template(
+                            "staff/login.html",
+                            msg="Too many attempts. Try again in 60 seconds.",
+                            form=LoginForm(),
+                        ),
+                        429,
+                    )
+                attempts.append(now)
+                cache.set(cache_key, attempts, timeout=window + 30)
             return f(*args, **kwargs)
 
         return wrapper

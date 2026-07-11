@@ -87,7 +87,6 @@ expo-env.d.ts
 # === BillServer-specific (non-dot) ===
 BillServer/instance/
 BillServer/migrations/versions/*.pyc
-BillServer/static/assets/css/*.css
 BillServer/static/assets/js/*.min.js
 BillServer/apps/static/assets/node_modules
 BillServer/apps/static/assets/yarn.lock

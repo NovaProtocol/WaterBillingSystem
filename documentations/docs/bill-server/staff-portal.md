@@ -195,7 +195,7 @@ All file access is protected by `fcntl.flock` to prevent corruption when multipl
 #### How it works
 
 1. **Submit**: Clicking an action generates an 8-digit confirmation code. After confirmation, the route writes a job order to `to_bg.json` (the queue).
-2. **Process**: A dedicated subprocess (`debug_worker.py`, launched from `run.py`) polls `to_bg.json` every 0.5s. It pops the oldest order and executes it — tasks run **sequentially** (one at a time).
+2. **Process**: A dedicated subprocess (`background_worker.py`, launched from `run.py`) polls the `background_tasks` database table. It claims the oldest queued task and executes it — tasks run **sequentially** (one at a time).
 3. **Progress**: The worker writes status updates (progress percentage, messages) to `from_bg.json` at least 2 times per second.
 4. **Poll**: The frontend JavaScript polls `GET /staff/debug/tasks` every 2 seconds and renders the current job and completed history.
 
