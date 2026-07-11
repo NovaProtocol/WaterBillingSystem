@@ -70,7 +70,7 @@ services:
       PYTHON_GIL: 0
     volumes:
       - db_backups:/app/db_backups
-    command: ["python", "apps/staff/debug_worker.py"]
+    command: ["python", "apps/background_worker.py"]
     depends_on:
       waterbillingsystem_db:
         condition: service_healthy

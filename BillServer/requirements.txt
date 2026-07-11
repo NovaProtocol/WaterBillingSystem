@@ -27,8 +27,7 @@ Flask-Caching==2.3.1
 git+https://github.com/xendit/xendit-python.git
 python-dateutil>=2.8.0
 
-# scheduler
-APScheduler==3.11.3
+# scheduler removed — replaced by background_worker.py
 
 # SCSS compilation (pre-compiled in Docker build; pyscss is incompatible with Python 3.14t)
 # Install libsass locally if you need to recompile: pip install libsass

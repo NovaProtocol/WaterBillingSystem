@@ -1,0 +1,124 @@
+"""
+Dedicated background worker process.
+
+Launched as a subprocess from run.py. Polls the background_tasks table
+for queued tasks, executes handlers, and updates progress in the DB.
+
+Runs independently of Gunicorn workers — the DB is the shared state.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+_THIS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_THIS_DIR))
+
+from dotenv import load_dotenv
+
+load_dotenv(_THIS_DIR.parent / ".env")
+
+from apps import create_app, db
+from apps.config import config_dict
+from apps.models import BackgroundTask
+from apps.services.task_handlers import HANDLERS
+
+POLL_INTERVAL = 1.0
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+)
+logger = logging.getLogger("background_worker")
+
+os.environ.setdefault("DEPLOYMENT_TYPE", "DEBUG")
+
+
+def _claim_task() -> BackgroundTask | None:
+    task = (
+        BackgroundTask.query
+        .filter(
+            BackgroundTask.status == "queued",
+            (BackgroundTask.scheduled_at.is_(None)) | (BackgroundTask.scheduled_at <= datetime.utcnow()),
+        )
+        .order_by(BackgroundTask.created_at.asc())
+        .limit(1)
+        .with_for_update(skip_locked=True)
+        .one_or_none()
+    )
+    if task is None:
+        return None
+    task.status = "running"
+    task.started_at = datetime.utcnow()
+    db.session.commit()
+    db.session.refresh(task)
+    return task
+
+
+def _execute_task(task: BackgroundTask) -> None:
+    handler = HANDLERS.get(task.task_type)
+    if not handler:
+        logger.error("[background_worker] Unknown task type: %s", task.task_type)
+        task.status = "failed"
+        task.finished_at = datetime.utcnow()
+        db.session.commit()
+        return
+
+    def _report(pct: float, msg: str) -> None:
+        task.progress = pct
+        messages = list(task.messages or [])
+        messages.append(msg)
+        task.messages = messages
+        db.session.commit()
+
+    logger.info("[background_worker] Starting: %s", task.title or task.task_type)
+    try:
+        handler(task.params or {}, _report)
+        task.status = "completed"
+        task.progress = 100.0
+        logger.info("[background_worker] Completed: %s", task.title or task.task_type)
+    except Exception as e:
+        task.status = "failed"
+        messages = list(task.messages or [])
+        messages.append(f"ERROR: {e}")
+        task.messages = messages
+        logger.error("[background_worker] Error: %s: %s", task.title or task.task_type, e)
+    finally:
+        task.finished_at = datetime.utcnow()
+        db.session.commit()
+
+
+def main() -> None:
+    logger.info("[background_worker] Starting background worker...")
+
+    get_config_mode = "Debug" if os.environ.get("DEPLOYMENT_TYPE") == "DEBUG" else "Production"
+    app_config = config_dict[get_config_mode.capitalize()]
+    app = create_app(app_config)
+
+    with app.app_context():
+        db.create_all()
+
+    logger.info("[background_worker] Worker ready. Polling for tasks...")
+
+    with app.app_context():
+        BackgroundTask.enqueue_unique(
+            task_type="xendit_reconcile",
+            title="Xendit Reconciliation",
+        )
+
+        while True:
+            task = _claim_task()
+            if task:
+                _execute_task(task)
+            else:
+                time.sleep(POLL_INTERVAL)
+
+
+if __name__ == "__main__":
+    main()

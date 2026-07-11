@@ -8,6 +8,7 @@ from typing import Any
 from apps import db
 from apps.models import (
     ApiKey,
+    BackgroundTask,
     Billing,
     Customer,
     ManagementLog,
@@ -2428,6 +2429,32 @@ class TestReconcileXendit:
     ) -> None:
         from apps.billing.api import reconcile_xendit_payments
         reconcile_xendit_payments(app)
+
+    def test_reconcile_handler_skips_recent(
+        self, app: Flask, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        from apps.services.task_handlers import handle_xendit_reconcile
+        pending_xendit_txn.date_created = datetime.utcnow()
+        db.session.commit()
+        logs: list[str] = []
+        handle_xendit_reconcile({}, lambda p, m: logs.append(m))
+        txn = XenditTransaction.query.get(pending_xendit_txn.id)
+        assert txn.status == "PENDING"
+        assert any("No pending" in m for m in logs)
+
+    def test_background_task_enqueue_unique(
+        self, app: Flask
+    ) -> None:
+        t1 = BackgroundTask.enqueue("test_type", {"a": 1}, "Test")
+        assert t1.id is not None
+        assert t1.status == "queued"
+        t2 = BackgroundTask.enqueue_unique("test_type")
+        assert t2 is None
+        t1.status = "completed"
+        db.session.commit()
+        t3 = BackgroundTask.enqueue_unique("test_type")
+        assert t3 is not None
+        assert t3.task_type == "test_type"
 
 
 # =============================================================================
