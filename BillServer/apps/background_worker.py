@@ -13,7 +13,7 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +46,7 @@ def _claim_task() -> BackgroundTask | None:
         BackgroundTask.query
         .filter(
             BackgroundTask.status == "queued",
-            (BackgroundTask.scheduled_at.is_(None)) | (BackgroundTask.scheduled_at <= datetime.utcnow()),
+            (BackgroundTask.scheduled_at.is_(None)) | (BackgroundTask.scheduled_at <= datetime.now(timezone.utc).replace(tzinfo=None)),
         )
         .order_by(BackgroundTask.created_at.asc())
         .limit(1)
@@ -56,7 +56,7 @@ def _claim_task() -> BackgroundTask | None:
     if task is None:
         return None
     task.status = "running"
-    task.started_at = datetime.utcnow()
+    task.started_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.commit()
     db.session.refresh(task)
     return task
@@ -67,7 +67,7 @@ def _execute_task(task: BackgroundTask) -> None:
     if not handler:
         logger.error("[background_worker] Unknown task type: %s", task.task_type)
         task.status = "failed"
-        task.finished_at = datetime.utcnow()
+        task.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
         db.session.commit()
         return
 
@@ -91,7 +91,7 @@ def _execute_task(task: BackgroundTask) -> None:
         task.messages = messages
         logger.error("[background_worker] Error: %s: %s", task.title or task.task_type, e)
     finally:
-        task.finished_at = datetime.utcnow()
+        task.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
         db.session.commit()
 
 

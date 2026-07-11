@@ -6,7 +6,7 @@ import random
 import secrets
 import shutil as _shutil
 import subprocess as _sp
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -167,7 +167,7 @@ def _seed_data(
     db.session.flush()
 
     rng = random.Random(42)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     def _hash_pass(password: str) -> bytes:
         salt = hashlib.sha256(os.urandom(60)).hexdigest().encode("ascii")
@@ -367,7 +367,7 @@ def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) 
         raise RuntimeError("mysqldump not found. Install mysql-client (apt install default-mysql-client)")
     report(0, "Starting mysqldump backup...")
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-    filename = f"backup_{datetime.utcnow():%Y%m%d_%H%M%S}.sql"
+    filename = f"backup_{datetime.now(timezone.utc).replace(tzinfo=None):%Y%m%d_%H%M%S}.sql"
     path = BACKUP_DIR / filename
 
     db_host = os.environ.get("DB_HOST", "localhost")
@@ -470,7 +470,7 @@ def _get_customers_without_reading_this_month(now: datetime) -> list[str]:
 
 def handle_read_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     report(0, "Finding customers without a reading this month...")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     customers = _get_customers_without_reading_this_month(now)
     total = len(customers)
     report(5, f"Found {total} customers to read")
@@ -532,7 +532,7 @@ def handle_read_this_month(params: dict[str, Any], report: Callable[[float, str]
 
 def handle_unread_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     report(0, "Finding this month's readings...")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     readings = (
         MeterReading.query
@@ -562,7 +562,7 @@ def handle_unread_this_month(params: dict[str, Any], report: Callable[[float, st
 
 def handle_pay_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     report(0, "Finding unpaid this-month bills...")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     unpaid_bills = (
         Billing.query
@@ -594,7 +594,7 @@ def handle_pay_this_month(params: dict[str, Any], report: Callable[[float, str],
 
 def handle_remove_payment_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     report(0, "Finding paid this-month bills...")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     paid_bills = (
         Billing.query
@@ -642,7 +642,7 @@ def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str
 
     xendit.set_api_key(key)
 
-    threshold = datetime.utcnow().timestamp() - 300
+    threshold = datetime.now(timezone.utc).replace(tzinfo=None).timestamp() - 300
     pending = (
         XenditTransaction.query
         .filter_by(status="PENDING")
@@ -752,7 +752,7 @@ def _reverse_xendit_payment(txn: XenditTransaction) -> bool:
     recalc_cumulative_balance(txn.customer_number)
 
     txn.status = "REVERSED"
-    txn.reversed_at = datetime.utcnow()
+    txn.reversed_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.commit()
     return True
 
@@ -762,7 +762,7 @@ def _enqueue_next_reconcile() -> None:
     BackgroundTask.enqueue_unique(
         task_type="xendit_reconcile",
         title="Xendit Reconciliation",
-        scheduled_at=datetime.utcnow() + timedelta(minutes=5),
+        scheduled_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
     )
 
 
