@@ -6,6 +6,7 @@ import random
 import secrets
 import shutil as _shutil
 import subprocess as _sp
+import time as _time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -363,18 +364,28 @@ def _seed_data(
 # ── Handler functions ──────────────────────────────────────────────────
 
 def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+    t0 = _time.time()
+    print("  > Checking for mysqldump...", flush=True)
     if not _shutil.which("mysqldump"):
         raise RuntimeError("mysqldump not found. Install mysql-client (apt install default-mysql-client)")
+    print("  > mysqldump found", flush=True)
+
     report(0, "Starting mysqldump backup...")
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-    filename = f"backup_{datetime.now(timezone.utc).replace(tzinfo=None):%Y%m%d_%H%M%S}.sql"
-    path = BACKUP_DIR / filename
 
     db_host = os.environ.get("DB_HOST", "localhost")
     db_port = os.environ.get("DB_PORT", "3306")
     db_user = os.environ.get("DB_USERNAME", "root")
     db_pass = os.environ.get("DB_PASS", "")
     db_name = os.environ.get("DB_NAME", "BillServerDB")
+
+    print(f"  > Counting customers...", flush=True)
+    customer_count = db.session.query(db.func.count(Customer.id)).scalar() or 0
+    print(f"  > Database: {db_name} on {db_host}:{db_port} — {customer_count} customers", flush=True)
+
+    filename = f"backup_{datetime.now(timezone.utc).replace(tzinfo=None):%Y%m%d_%H%M%S}.sql"
+    path = BACKUP_DIR / filename
+    print(f"  > Output file: {path}", flush=True)
 
     cmd = [
         "mysqldump",
@@ -387,22 +398,42 @@ def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) 
         "--routines", "--triggers", "--events",
         db_name,
     ]
-    report(10, f"Dumping database to {filename}...")
+    report(10, f"Dumping database ({customer_count} customers)...")
+    print(f"  > Spawning mysqldump...", flush=True)
+    dump_t0 = _time.time()
     with open(path, "w") as f:
         result = _sp.run(cmd, stdout=f, stderr=_sp.PIPE, text=True)
+    dump_dur = _time.time() - dump_t0
     if result.returncode != 0:
         err = result.stderr.strip() or f"exit code {result.returncode}"
+        print(f"  > FAILED: {err}", flush=True)
         raise RuntimeError(f"Backup failed: {err}")
-    report(100, f"Backup saved: {filename}")
+    file_size = path.stat().st_size
+    file_size_str = f"{file_size / 1024 / 1024:.1f} MB" if file_size > 1024 * 1024 else f"{file_size / 1024:.1f} KB"
+    total_dur = _time.time() - t0
+    print(f"  > mysqldump completed in {dump_dur:.1f}s", flush=True)
+    print(f"  > File size: {file_size_str}", flush=True)
+    print(f"  > Total time: {total_dur:.1f}s", flush=True)
+    report(100, f"Backup saved: {filename} ({file_size_str}, {customer_count} customers, {total_dur:.1f}s)")
 
 
 def handle_restore(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+    t0 = _time.time()
+    print("  > Checking for mysql client...", flush=True)
     if not _shutil.which("mysql"):
         raise RuntimeError("mysql not found. Install mysql-client (apt install default-mysql-client)")
+    print("  > mysql found", flush=True)
+
     filename = params.get("filename", "")
     path = BACKUP_DIR / filename
+    print(f"  > Backup file: {path}", flush=True)
     if not path.exists() or not path.name.startswith("backup_") or not path.name.endswith(".sql"):
+        print(f"  > File not found or invalid: {filename}", flush=True)
         raise FileNotFoundError(f"Backup file not found: {filename}")
+
+    file_size = path.stat().st_size
+    file_size_str = f"{file_size / 1024 / 1024:.1f} MB" if file_size > 1024 * 1024 else f"{file_size / 1024:.1f} KB"
+    print(f"  > File size: {file_size_str}", flush=True)
 
     db_host = os.environ.get("DB_HOST", "localhost")
     db_port = os.environ.get("DB_PORT", "3306")
@@ -410,7 +441,8 @@ def handle_restore(params: dict[str, Any], report: Callable[[float, str], None])
     db_pass = os.environ.get("DB_PASS", "")
     db_name = os.environ.get("DB_NAME", "BillServerDB")
 
-    report(5, f"Restoring from {filename}...")
+    report(5, f"Restoring {filename} ({file_size_str})...")
+    print(f"  > Dropping and recreating database {db_name}...", flush=True)
     cmd = [
         "mysql",
         "-h", db_host,
@@ -420,36 +452,77 @@ def handle_restore(params: dict[str, Any], report: Callable[[float, str], None])
         "--ssl=0",
         db_name,
     ]
+    print(f"  > Feeding SQL dump into mysql...", flush=True)
+    restore_t0 = _time.time()
     with open(path) as f:
         result = _sp.run(cmd, stdin=f, stdout=_sp.PIPE, stderr=_sp.PIPE, text=True)
+    restore_dur = _time.time() - restore_t0
     if result.returncode != 0:
         err = result.stderr.strip() or f"exit code {result.returncode}"
+        print(f"  > FAILED: {err}", flush=True)
         raise RuntimeError(f"Restore failed: {err}")
+    print(f"  > Restore completed in {restore_dur:.1f}s", flush=True)
+
     report(95, "Restore complete. Ensuring system users...")
+    print(f"  > Ensuring prerequisite staff accounts...", flush=True)
     ensure_prereq_staff()
     db.session.commit()
-    report(100, f"Restored from {filename}")
+
+    customer_count = db.session.query(db.func.count(Customer.id)).scalar() or 0
+    total_dur = _time.time() - t0
+    print(f"  > Customers after restore: {customer_count}", flush=True)
+    print(f"  > Total time: {total_dur:.1f}s", flush=True)
+    report(100, f"Restored from {filename} ({file_size_str}, {customer_count} customers, {total_dur:.1f}s)")
 
 
 def handle_clear(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+    t0 = _time.time()
+    print("  > Counting rows before clear...", flush=True)
+    counts_before = {}
+    for t in TABLE_NAMES:
+        try:
+            counts_before[t] = db.session.execute(db.text(f"SELECT COUNT(*) FROM {t}")).scalar()
+        except Exception:
+            counts_before[t] = 0
+    print(f"  > Tables to truncate: {', '.join(TABLE_NAMES)} ({sum(counts_before.values())} total rows)", flush=True)
+
     report(0, "Clearing tables...")
     _clear_all_tables()
+    print(f"  > All {len(TABLE_NAMES)} tables truncated", flush=True)
+
     report(50, "Recreating system users...")
     ensure_prereq_staff()
     db.session.commit()
-    report(100, "All tables cleared. System users preserved.")
+    print(f"  > System users recreated (superuser, xendit)", flush=True)
+
+    total_dur = _time.time() - t0
+    print(f"  > Total time: {total_dur:.1f}s", flush=True)
+    report(100, f"Cleared {len(TABLE_NAMES)} tables ({sum(counts_before.values())} rows removed)")
 
 
 def handle_seed(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+    t0 = _time.time()
     n_customers = int(params.get("customers", 0))
     n_months = int(params.get("months", 0))
+    print(f"  > Generating {n_customers} customers × {n_months} months of data", flush=True)
+    print(f"  > Total rows to create: ~{n_customers * (n_months + 1)}", flush=True)
+
     report(0, "Clearing existing data...")
     _clear_all_tables()
-    report(2, f"Seeding {n_customers} customers \u00d7 {n_months} months...")
+    print(f"  > Existing data cleared", flush=True)
+
+    report(2, f"Seeding {n_customers} customers × {n_months} months...")
     _seed_data(n_customers, n_months, report)
     ensure_prereq_staff()
     db.session.commit()
-    report(100, f"Seeded {n_customers} customers \u00d7 {n_months} months")
+
+    actual_customers = db.session.query(db.func.count(Customer.id)).scalar() or 0
+    actual_readings = db.session.query(db.func.count(MeterReading.id)).scalar() or 0
+    actual_bills = db.session.query(db.func.count(Billing.id)).scalar() or 0
+    total_dur = _time.time() - t0
+    print(f"  > Created {actual_customers} customers, {actual_readings} readings, {actual_bills} bills", flush=True)
+    print(f"  > Total time: {total_dur:.1f}s", flush=True)
+    report(100, f"Seeded {actual_customers} customers × {n_months} months ({actual_readings} readings, {actual_bills} bills, {total_dur:.1f}s)")
 
 
 def _get_customers_without_reading_this_month(now: datetime) -> list[str]:
@@ -469,17 +542,21 @@ def _get_customers_without_reading_this_month(now: datetime) -> list[str]:
 
 
 def handle_read_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
-    report(0, "Finding customers without a reading this month...")
+    t0 = _time.time()
+    print("  > Finding customers without a reading this month...", flush=True)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     customers = _get_customers_without_reading_this_month(now)
     total = len(customers)
+    print(f"  > Found {total} customers to process", flush=True)
     report(5, f"Found {total} customers to read")
     if not total:
+        print("  > All customers already have a reading this month", flush=True)
         report(100, "All customers already have a reading this month.")
         return
     rng = random.Random(now.year * 12 + now.month)
     created = 0
     skipped = 0
+    next_log = 10
     for i, cnum in enumerate(customers):
         prev = (
             MeterReading.query
@@ -526,12 +603,18 @@ def handle_read_this_month(params: dict[str, Any], report: Callable[[float, str]
             db.session.commit()
         pct = 5 + round(90 * (i + 1) / total, 1)
         report(pct, f"Read customer {i + 1}/{total} ({created} created, {skipped} skipped)")
+        if i + 1 >= next_log:
+            print(f"  > {i + 1}/{total} — {created} created, {skipped} skipped", flush=True)
+            next_log += 50
     db.session.commit()
-    report(100, f"Done. {created} readings created, {skipped} skipped.")
+    total_dur = _time.time() - t0
+    print(f"  > Done: {created} readings created, {skipped} skipped in {total_dur:.1f}s", flush=True)
+    report(100, f"Done. {created} readings created, {skipped} skipped ({total_dur:.1f}s).")
 
 
 def handle_unread_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
-    report(0, "Finding this month's readings...")
+    t0 = _time.time()
+    print("  > Finding this month's readings...", flush=True)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     readings = (
@@ -540,9 +623,11 @@ def handle_unread_this_month(params: dict[str, Any], report: Callable[[float, st
         .all()
     )
     total = len(readings)
+    print(f"  > Found {total} readings this month", flush=True)
     report(5, f"Found {total} readings")
     removed = 0
     skipped_paid = 0
+    next_log = 100
     for i, r in enumerate(readings):
         bill = Billing.query.filter_by(reading_id=r.id).first()
         if bill and bill.is_paid:
@@ -556,12 +641,18 @@ def handle_unread_this_month(params: dict[str, Any], report: Callable[[float, st
             db.session.commit()
         pct = 5 + round(90 * (i + 1) / max(total, 1), 1)
         report(pct, f"Unread {i + 1}/{total} ({removed} removed, {skipped_paid} skipped - already paid)")
+        if removed >= next_log:
+            print(f"  > {removed} removed ({i + 1}/{total}), {skipped_paid} skipped (paid)", flush=True)
+            next_log += 100
     db.session.commit()
+    total_dur = _time.time() - t0
+    print(f"  > Done: {removed} removed, {skipped_paid} skipped (paid) in {total_dur:.1f}s", flush=True)
     report(100, f"Done. {removed} readings removed, {skipped_paid} skipped (paid).")
 
 
 def handle_pay_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
-    report(0, "Finding unpaid this-month bills...")
+    t0 = _time.time()
+    print("  > Finding unpaid this-month bills...", flush=True)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     unpaid_bills = (
@@ -572,10 +663,13 @@ def handle_pay_this_month(params: dict[str, Any], report: Callable[[float, str],
         .all()
     )
     total = len(unpaid_bills)
+    total_amount = sum(float(b.billed_amount) + float(b.penalty) for b in unpaid_bills)
+    print(f"  > Found {total} unpaid bills, total due: PHP {total_amount:,.2f}", flush=True)
     report(5, f"Found {total} unpaid bills")
     paid = 0
     su = Staff.query.filter_by(username="superuser").first()
     su_id = su.id if su else 1
+    next_log = 100
     for i, bill in enumerate(unpaid_bills):
         bill.is_paid = True
         bill.paid_amount = round(float(bill.billed_amount) + float(bill.penalty), 2)
@@ -588,12 +682,18 @@ def handle_pay_this_month(params: dict[str, Any], report: Callable[[float, str],
             db.session.commit()
         report(5 + round(90 * (i + 1) / max(total, 1), 1),
                f"Paid {i + 1}/{total}")
+        if paid >= next_log:
+            print(f"  > Paid {paid}/{total} bills...", flush=True)
+            next_log += 100
     db.session.commit()
-    report(100, f"Done. {paid} bills paid.")
+    total_dur = _time.time() - t0
+    print(f"  > Done: {paid} bills paid (PHP {total_amount:,.2f}) in {total_dur:.1f}s", flush=True)
+    report(100, f"Done. {paid} bills paid ({total_dur:.1f}s).")
 
 
 def handle_remove_payment_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
-    report(0, "Finding paid this-month bills...")
+    t0 = _time.time()
+    print("  > Finding paid this-month bills...", flush=True)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     paid_bills = (
@@ -604,8 +704,11 @@ def handle_remove_payment_this_month(params: dict[str, Any], report: Callable[[f
         .all()
     )
     total = len(paid_bills)
+    total_amount = sum(float(b.paid_amount) for b in paid_bills if b.paid_amount)
+    print(f"  > Found {total} paid bills (PHP {total_amount:,.2f} total)", flush=True)
     report(5, f"Found {total} paid bills")
     undone = 0
+    next_log = 100
     for i, bill in enumerate(paid_bills):
         bill.is_paid = False
         bill.paid_amount = 0
@@ -619,17 +722,24 @@ def handle_remove_payment_this_month(params: dict[str, Any], report: Callable[[f
             db.session.commit()
         report(5 + round(90 * (i + 1) / max(total, 1), 1),
                f"Reverted {i + 1}/{total}")
+        if undone >= next_log:
+            print(f"  > Reverted {undone}/{total} bills...", flush=True)
+            next_log += 100
     db.session.commit()
+    print(f"  > Recalculating cumulative balances...", flush=True)
     seen: set[str] = set()
     for bill in paid_bills:
         if bill.customer_number not in seen:
             seen.add(bill.customer_number)
             _recalc_cumulative_balance(bill.customer_number)
-    report(100, f"Done. {undone} bills reverted.")
+    total_dur = _time.time() - t0
+    print(f"  > Done: {undone} bills reverted ({len(seen)} customers affected) in {total_dur:.1f}s", flush=True)
+    report(100, f"Done. {undone} bills reverted ({len(seen)} customers).")
 
 
 def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     from apps.models import BackgroundTask
+    t0 = _time.time()
 
     report(0, "Starting Xendit reconciliation...")
     import xendit
@@ -637,12 +747,15 @@ def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str
 
     key = os.environ.get("XENDIT_API_KEY", "")
     if not key or key == "your-xendit-secret-api-key":
+        print(f"  > XENDIT_API_KEY not set or is placeholder — skipping", flush=True)
         report(100, "Reconciliation skipped: Xendit not configured")
         return
 
     xendit.set_api_key(key)
+    print(f"  > Connected to Xendit API", flush=True)
 
     threshold = datetime.now(timezone.utc).replace(tzinfo=None).timestamp() - 300
+    print(f"  > Querying pending transactions older than 5 minutes...", flush=True)
     pending = (
         XenditTransaction.query
         .filter_by(status="PENDING")
@@ -651,37 +764,64 @@ def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str
     pending = [t for t in pending if t.date_created and t.date_created.timestamp() < threshold]
 
     if not pending:
+        print(f"  > No pending transactions to reconcile — queueing next run in 5m", flush=True)
         report(100, "No pending transactions to reconcile")
         _enqueue_next_reconcile()
         return
 
+    total = len(pending)
+    print(f"  > Found {total} pending transactions to reconcile", flush=True)
+    report(5, f"Found {total} pending transactions")
+
     client = xendit.ApiClient()
     api_instance = PaymentRequestApi(client)
-    total = len(pending)
+
+    succeeded = 0
+    failed = 0
+    expired = 0
+    reversed_txns = 0
+    errored = 0
 
     for i, txn in enumerate(pending):
+        report(5 + round(85 * (i + 1) / total, 1), f"Reconciling {i+1}/{total}: {txn.xendit_pr_id[:16]}... ({txn.customer_number}, PHP {txn.amount})")
+        print(f"  > [{i+1}/{total}] {txn.xendit_pr_id[:20]}... ({txn.customer_number}, PHP {txn.amount})", flush=True)
         try:
             response = api_instance.get_payment_request_by_id(txn.xendit_pr_id)
             status = getattr(response, "status", None)
             if status and str(status) in ("SUCCEEDED", "PAID", "SETTLED"):
+                print(f"    → Xendit status: {status} — processing payment...", flush=True)
                 payment_id = getattr(response, "id", "")
                 if payment_id:
                     txn.xendit_payment_id = str(payment_id)
-                _process_xendit_payment(txn)
+                if _process_xendit_payment(txn):
+                    succeeded += 1
+                    print(f"    → Payment processed successfully", flush=True)
+                else:
+                    errored += 1
+                    print(f"    → Payment processing failed", flush=True)
             elif status and str(status) in ("FAILED", "EXPIRED"):
+                print(f"    → Xendit status: {status} — marking as failed", flush=True)
                 txn.status = "FAILED"
                 txn.error_message = f"Payment failed (reconciled: {status})"
                 db.session.commit()
+                failed += 1
             elif status and str(status) == "REVERSED":
+                print(f"    → Xendit status: REVERSED — reversing payment...", flush=True)
                 _reverse_xendit_payment(txn)
+                reversed_txns += 1
+                print(f"    → Payment reversed", flush=True)
+            else:
+                print(f"    → Unknown Xendit status: {status} — skipping", flush=True)
         except Exception as e:
-            print(f"[background_worker] Reconciliation error {txn.xendit_pr_id}: {e}", flush=True)
-
-        pct = round(90 * (i + 1) / total, 1)
-        report(pct, f"Reconciled {i+1}/{total}")
+            errored += 1
+            print(f"    → ERROR: {e}", flush=True)
 
     _enqueue_next_reconcile()
-    report(100, f"Reconciled {total} transactions. Next run in 5 minutes.")
+    total_dur = _time.time() - t0
+    summary = f"Reconciled {total} txn ({succeeded} ok, {failed} failed, {reversed_txns} reversed, {errored} errors) in {total_dur:.1f}s"
+    print(f"  > {summary}", flush=True)
+    print(f"  > Next reconciliation queued in 5 minutes", flush=True)
+    report(100, summary)
 
 
 def _process_xendit_payment(txn: XenditTransaction) -> bool:
