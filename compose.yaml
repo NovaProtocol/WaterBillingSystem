@@ -1,7 +1,7 @@
 services:
-  db:
+  waterbillingsystem_db:
     image: mysql:8.4
-    container_name: BillServerDB
+    container_name: waterbillingsystem_db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASS}
@@ -14,11 +14,11 @@ services:
       timeout: 5s
       retries: 10
 
-  billserver:
+  waterbillingsystem_main:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ws_app
+    container_name: waterbillingsystem_main
     restart: unless-stopped
     ports:
       - "7000:5005"
@@ -28,7 +28,7 @@ services:
     environment:
       DEPLOYMENT_TYPE: PRODUCTION
       DB_ENGINE: ${DB_ENGINE}
-      DB_HOST: db
+      DB_HOST: waterbillingsystem_db
       DB_PORT: 3306
       CACHE_TYPE: SimpleCache
       DB_NAME: ${DB_NAME}
@@ -41,26 +41,54 @@ services:
       XENDIT_API_KEY: ${XENDIT_API_KEY}
       XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE}
+      PYTHON_GIL: 0
     volumes:
       - db_backups:/app/db_backups
     depends_on:
-      db:
+      waterbillingsystem_db:
         condition: service_healthy
 
-  phpmyadmin:
+  waterbillingsystem_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: waterbillingsystem_worker
+    restart: unless-stopped
+    networks:
+      - default
+    environment:
+      DEPLOYMENT_TYPE: DEBUG
+      DB_ENGINE: ${DB_ENGINE}
+      DB_HOST: waterbillingsystem_db
+      DB_PORT: 3306
+      CACHE_TYPE: SimpleCache
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASS: ${DB_PASS}
+      SECRET_KEY: ${SECRET_KEY}
+      NFC_PWD_SECRET: ${NFC_PWD_SECRET}
+      PYTHON_GIL: 0
+    volumes:
+      - db_backups:/app/db_backups
+    command: ["python", "apps/background_worker.py"]
+    depends_on:
+      waterbillingsystem_db:
+        condition: service_healthy
+
+  waterbillingsystem_phpmyadmin:
     image: phpmyadmin:latest
-    container_name: ws_pma
+    container_name: waterbillingsystem_phpmyadmin
     restart: unless-stopped
     ports:
       - "7002:80"
     environment:
-      PMA_HOST: db
+      PMA_HOST: waterbillingsystem_db
     depends_on:
-      - db
+      - waterbillingsystem_db
 
-  docs:
+  waterbillingsystem_documentation:
     image: python:3.14-slim
-    container_name: ws_docs
+    container_name: waterbillingsystem_documentation
     restart: unless-stopped
     working_dir: /app
     command: >

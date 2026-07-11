@@ -49,7 +49,7 @@ graph TB
         NGINX["nginx<br/>:5085 → :5005"]
     end
 
-    subgraph "APScheduler"
+    subgraph "Background Worker"
         APS["Background Tasks<br/>Payment Reconciliation"]
     end
 

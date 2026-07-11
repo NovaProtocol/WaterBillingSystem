@@ -81,6 +81,8 @@ class ProductionConfig(Config):
         "pool_size": 10,
         "pool_recycle": 3600,
         "pool_pre_ping": True,
+        "pool_timeout": 5,
+        "max_overflow": 2,
     }
 
     # Cache: filesystem-backed so rate limits are shared across Gunicorn workers

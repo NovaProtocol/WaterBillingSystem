@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from flask import Response, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
 
+from apps import db
 from apps.services.payment_service import (
     compute_cashier_tally,
     compute_nav_dates,
@@ -42,6 +43,7 @@ def submit_payment() -> Response:
     )
     if error:
         return jsonify({"error": error}), status
+    db.session.commit()
     return jsonify(result), status
 
 

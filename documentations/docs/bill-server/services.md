@@ -18,7 +18,7 @@ graph TB
     PAYMENT --> AUDIT["audit_service.py"]
     READING --> AUDIT
 
-    SCHED["scheduler.py"] --> PAYMENT
+    SCHED["background_worker.py"] --> PAYMENT
     SCHED --> BILLING
 ```
 
@@ -201,21 +201,15 @@ Creates a `ManagementLog` entry for auditing purposes. Called automatically by `
 
 ---
 
-## scheduler.py
+## background_worker.py
 
-APScheduler background scheduler that runs `reconcile_next_pending` every 5 minutes to reconcile stuck Xendit transactions. Handles Xendit payment reconciliation by checking the status of pending transactions directly with the Xendit API.
+Dedicated subprocess that polls the `background_tasks` database table for queued tasks and executes them sequentially. Handles:
 
-### `reconcile_next_pending(app)`
-
-Queries the oldest PENDING `XenditTransaction` older than 1 hour, checks its status with Xendit, and:
-- Marks as SUCCEEDED/PAID/SETTLED and processes the payment
-- Marks as FAILED/EXPIRED and sets error_message
-- Calls `_reverse_xendit_payment` for REVERSED transactions
-- Expires any transaction older than 24 hours
-
-### `start_scheduler(app)`
-
-Registers the reconcile job (interval: 5 minutes, coalesced, max 1 instance) and starts the background scheduler.
+- **Xendit Reconciliation**: checks all PENDING `XenditTransaction` records older than 5 minutes against the Xendit API and updates their status. Self-enqueues every 5 minutes (`enqueue_unique`).
+- **Backup / Restore**: MySQL dump and restore via `mysqldump` / `mysql`.
+- **Seed**: generates test data (customers, readings, bills).
+- **Clear**: truncates all tables, preserves system users.
+- **Monthly actions**: bulk read, unread, pay, and remove-payment operations.
 
 ---
 

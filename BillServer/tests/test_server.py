@@ -8,11 +8,13 @@ from typing import Any
 from apps import db
 from apps.models import (
     ApiKey,
+    BackgroundTask,
     Billing,
     Customer,
     ManagementLog,
     MeterReading,
     Staff,
+    XenditTransaction,
 )
 from apps.pricing import compute_penalty, compute_water_bill
 
@@ -2181,3 +2183,391 @@ class TestCashierTally:
             f"/staff/cashier-tally?period=daily&date={today}"
         )
         assert resp.status_code == 200
+
+
+# =============================================================================
+# Xendit Webhook Tests
+# =============================================================================
+
+
+class TestXenditWebhook:
+    def test_webhook_missing_data(self, client: Any) -> None:
+        resp = client.post(
+            "/billing/api/xendit-webhook",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+
+    def test_webhook_no_pr_id(self, client: Any) -> None:
+        resp = client.post(
+            "/billing/api/xendit-webhook",
+            data=json.dumps({"event": "payment.succeeded", "data": {}}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+
+    def test_webhook_txn_not_found(
+        self, client: Any
+    ) -> None:
+        resp = client.post(
+            "/billing/api/xendit-webhook",
+            data=json.dumps({
+                "event": "payment.succeeded",
+                "data": {"id": "pr-nonexistent"},
+            }),
+            content_type="application/json",
+        )
+        assert resp.status_code == 404
+
+    def test_webhook_payment_succeeded(
+        self, client: Any, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        resp = client.post(
+            "/billing/api/xendit-webhook",
+            data=json.dumps({
+                "event": "payment.succeeded",
+                "data": {"payment_request_id": pending_xendit_txn.xendit_pr_id},
+            }),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        with client.application.app_context():
+            txn = XenditTransaction.query.get(pending_xendit_txn.id)
+            assert txn.status == "PAID"
+
+    def test_webhook_invoice_paid(
+        self, client: Any, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        resp = client.post(
+            "/billing/api/xendit-webhook",
+            data=json.dumps({
+                "event": "invoice.paid",
+                "data": {"id": pending_xendit_txn.xendit_pr_id},
+            }),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        with client.application.app_context():
+            txn = XenditTransaction.query.get(pending_xendit_txn.id)
+            assert txn.status == "PAID"
+
+    def test_webhook_payment_failed(
+        self, client: Any, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        resp = client.post(
+            "/billing/api/xendit-webhook",
+            data=json.dumps({
+                "event": "payment.failed",
+                "data": {"payment_request_id": pending_xendit_txn.xendit_pr_id},
+            }),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        with client.application.app_context():
+            txn = XenditTransaction.query.get(pending_xendit_txn.id)
+            assert txn.status == "FAILED"
+
+    def test_webhook_already_paid_skips_processing(
+        self, client: Any, paid_xendit_txn: XenditTransaction
+    ) -> None:
+        resp = client.post(
+            "/billing/api/xendit-webhook",
+            data=json.dumps({
+                "event": "payment.succeeded",
+                "data": {"payment_request_id": paid_xendit_txn.xendit_pr_id},
+            }),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        with client.application.app_context():
+            txn = XenditTransaction.query.get(paid_xendit_txn.id)
+            assert txn.status == "PAID"
+            assert txn.receipt_number == "RCP-XENDIT-TEST"
+
+    def test_webhook_payment_reversed(
+        self, client: Any, paid_xendit_txn: XenditTransaction
+    ) -> None:
+        resp = client.post(
+            "/billing/api/xendit-webhook",
+            data=json.dumps({
+                "event": "payment.reversed",
+                "data": {"payment_request_id": paid_xendit_txn.xendit_pr_id},
+            }),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        with client.application.app_context():
+            txn = XenditTransaction.query.get(paid_xendit_txn.id)
+            assert txn.status == "REVERSED"
+
+    def test_webhook_unknown_event(
+        self, client: Any, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        resp = client.post(
+            "/billing/api/xendit-webhook",
+            data=json.dumps({
+                "event": "unknown.event",
+                "data": {"payment_request_id": pending_xendit_txn.xendit_pr_id},
+            }),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        with client.application.app_context():
+            txn = XenditTransaction.query.get(pending_xendit_txn.id)
+            assert txn.status == "PENDING"
+
+    def test_webhook_ignores_ignored_event(
+        self, client: Any, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        resp = client.post(
+            "/billing/api/xendit-webhook",
+            data=json.dumps({
+                "event": "payment.unknown",
+                "data": {"payment_request_id": pending_xendit_txn.xendit_pr_id},
+            }),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        with client.application.app_context():
+            txn = XenditTransaction.query.get(pending_xendit_txn.id)
+            assert txn.status == "PENDING"
+
+
+# =============================================================================
+# Xendit Payment Processing Tests
+# =============================================================================
+
+
+class TestProcessXenditPayment:
+    def test_process_pending_txn(
+        self, client: Any, app: Flask, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        from apps.billing.api import _process_xendit_payment
+        result = _process_xendit_payment(pending_xendit_txn)
+        assert result is True
+        txn = XenditTransaction.query.get(pending_xendit_txn.id)
+        assert txn.status == "PAID"
+
+    def test_process_already_paid(
+        self, client: Any, app: Flask, paid_xendit_txn: XenditTransaction
+    ) -> None:
+        from apps.billing.api import _process_xendit_payment
+        result = _process_xendit_payment(paid_xendit_txn)
+        assert result is False
+        txn = XenditTransaction.query.get(paid_xendit_txn.id)
+        assert txn.status == "PAID"
+
+    def test_process_customer_not_found(
+        self, client: Any, app: Flask, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        from apps.billing.api import _process_xendit_payment
+        pending_xendit_txn.customer_number = "DOES-NOT-EXIST"
+        db.session.commit()
+        result = _process_xendit_payment(pending_xendit_txn)
+        assert result is False
+        txn = XenditTransaction.query.get(pending_xendit_txn.id)
+        assert txn.status == "FAILED"
+        assert "customer" in (txn.error_message or "").lower()
+
+
+# =============================================================================
+# Xendit Payment Reversal Tests
+# =============================================================================
+
+
+class TestReverseXenditPayment:
+    def test_reverse_non_paid_txn(
+        self, client: Any, app: Flask, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        from apps.billing.api import _reverse_xendit_payment
+        result = _reverse_xendit_payment(pending_xendit_txn)
+        assert result is False
+        txn = XenditTransaction.query.get(pending_xendit_txn.id)
+        assert txn.status == "PENDING"
+
+    def test_reverse_no_billing_receipt(
+        self, client: Any, app: Flask, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        from apps.billing.api import _reverse_xendit_payment
+        pending_xendit_txn.status = "PAID"
+        pending_xendit_txn.billing_receipt = None
+        db.session.commit()
+        result = _reverse_xendit_payment(pending_xendit_txn)
+        assert result is True
+        txn = XenditTransaction.query.get(pending_xendit_txn.id)
+        assert txn.status == "REVERSED"
+
+    def test_reverse_success(
+        self, client: Any, app: Flask, paid_xendit_txn: XenditTransaction
+    ) -> None:
+        from apps.billing.api import _reverse_xendit_payment
+        result = _reverse_xendit_payment(paid_xendit_txn)
+        assert result is True
+        txn = XenditTransaction.query.get(paid_xendit_txn.id)
+        assert txn.status == "REVERSED"
+
+
+# =============================================================================
+# Xendit Reconcile Tests
+# =============================================================================
+
+
+class TestReconcileXendit:
+    def test_reconcile_skips_recent_pending(
+        self, client: Any, app: Flask, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        from apps.billing.api import reconcile_xendit_payments
+        pending_xendit_txn.date_created = datetime.utcnow()
+        db.session.commit()
+        reconcile_xendit_payments(app)
+        txn = XenditTransaction.query.get(pending_xendit_txn.id)
+        assert txn.status == "PENDING"
+
+    def test_reconcile_no_pending(
+        self, client: Any, app: Flask
+    ) -> None:
+        from apps.billing.api import reconcile_xendit_payments
+        reconcile_xendit_payments(app)
+
+    def test_reconcile_handler_skips_recent(
+        self, app: Flask, pending_xendit_txn: XenditTransaction
+    ) -> None:
+        from apps.services.task_handlers import handle_xendit_reconcile
+        pending_xendit_txn.date_created = datetime.utcnow()
+        db.session.commit()
+        logs: list[str] = []
+        handle_xendit_reconcile({}, lambda p, m: logs.append(m))
+        txn = XenditTransaction.query.get(pending_xendit_txn.id)
+        assert txn.status == "PENDING"
+        assert any("No pending" in m for m in logs)
+
+    def test_background_task_enqueue_unique(
+        self, app: Flask
+    ) -> None:
+        t1 = BackgroundTask.enqueue("test_type", {"a": 1}, "Test")
+        assert t1.id is not None
+        assert t1.status == "queued"
+        t2 = BackgroundTask.enqueue_unique("test_type")
+        assert t2 is None
+        t1.status = "completed"
+        db.session.commit()
+        t3 = BackgroundTask.enqueue_unique("test_type")
+        assert t3 is not None
+        assert t3.task_type == "test_type"
+
+
+# =============================================================================
+# Rate Limiter Tests
+# =============================================================================
+
+
+class TestRateLimiter:
+    def test_billing_rate_limit_blocks_after_threshold(
+        self, client: Any, app: Flask
+    ) -> None:
+        from apps.billing.api import _RATE_LIMIT, _check_rate_limit
+        ip = "192.168.1.1"
+        with app.app_context():
+            for _ in range(_RATE_LIMIT):
+                assert _check_rate_limit(ip) is True
+            assert _check_rate_limit(ip) is False
+
+    def test_billing_rate_limit_resets_after_window(
+        self, client: Any, app: Flask, monkeypatch: Any
+    ) -> None:
+        from apps.billing.api import _RATE_WINDOW, _check_rate_limit
+        import time
+        ip = "192.168.1.2"
+        with app.app_context():
+            for _ in range(10):
+                assert _check_rate_limit(ip) is True
+            assert _check_rate_limit(ip) is False
+
+    def test_rate_limit_by_ip_is_independent(
+        self, client: Any, app: Flask
+    ) -> None:
+        from apps.billing.api import _RATE_LIMIT, _check_rate_limit
+        with app.app_context():
+            for _ in range(_RATE_LIMIT):
+                assert _check_rate_limit("10.0.0.1") is True
+            assert _check_rate_limit("10.0.0.1") is False
+            assert _check_rate_limit("10.0.0.2") is True  # different IP, not blocked
+
+
+# =============================================================================
+# submit_payment commit= Unit Tests
+# =============================================================================
+
+
+class TestSubmitPaymentCommit:
+    def test_submit_payment_flushes_but_does_not_commit(
+        self, client: Any, app: Flask, superuser: Staff, sample_customer: Customer
+    ) -> None:
+        from apps.services.payment_service import submit_payment
+        with app.app_context():
+            bill = Billing(
+                customer_number="CUST-001",
+                billed_amount=50.0,
+                reading_id=None,
+                is_paid=False,
+            )
+            db.session.add(bill)
+            db.session.commit()
+            bill_id = bill.id
+
+            result, error, status = submit_payment(
+                "CUST-001", 50.0, superuser.id
+            )
+            assert error is None
+
+            fresh_bill = db.session.get(Billing, bill_id)
+            assert fresh_bill.is_paid is True
+
+        with app.app_context():
+            check = db.session.get(Billing, bill_id)
+            assert check.is_paid is False
+
+    def test_submit_payment_with_explicit_commit_persists(
+        self, client: Any, app: Flask, superuser: Staff, sample_customer: Customer
+    ) -> None:
+        from apps.services.payment_service import submit_payment
+        with app.app_context():
+            bill = Billing(
+                customer_number="CUST-001",
+                billed_amount=50.0,
+                reading_id=None,
+                is_paid=False,
+            )
+            db.session.add(bill)
+            db.session.commit()
+            bill_id = bill.id
+
+            result, error, status = submit_payment(
+                "CUST-001", 50.0, superuser.id
+            )
+            assert error is None
+            db.session.commit()
+
+            fresh_bill = db.session.get(Billing, bill_id)
+            assert fresh_bill.is_paid is True
+
+        with app.app_context():
+            check = db.session.get(Billing, bill_id)
+            assert check.is_paid is True
+
+
+# =============================================================================
+# xendit_staff Fixture Coverage
+# =============================================================================
+
+
+class TestXenditStaff:
+    def test_xendit_staff_exists(
+        self, client: Any, app: Flask, xendit_staff: Staff
+    ) -> None:
+        from apps.models import Staff
+        with app.app_context():
+            staff = Staff.query.filter_by(username="xendit").first()
+            assert staff is not None
+            assert staff.can_accept_payment is True

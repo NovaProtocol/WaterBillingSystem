@@ -13,16 +13,25 @@ def _generate_receipt(now: datetime) -> str:
     return "RCP-" + str(int(now.timestamp())) + "-" + secrets.token_hex(4).upper()
 
 
-def recalc_cumulative_balance(customer_number: str) -> None:
+def recalc_cumulative_balance(
+    customer_number: str, *, customer: Customer | None = None
+) -> None:
+    if customer is None:
+        customer = (
+            Customer.query
+            .filter_by(customer_number=customer_number)
+            .with_for_update()
+            .first()
+        )
+    if not customer:
+        return
     total = (
         db.session.query(db.func.sum(Billing.carryover_offset))
         .filter_by(customer_number=customer_number)
         .scalar()
         or 0
     )
-    customer = Customer.query.filter_by(customer_number=customer_number).first()
-    if customer:
-        customer.cumulative_balance = round(float(total), 2)
+    customer.cumulative_balance = round(float(total), 2)
 
 
 def submit_payment(
@@ -33,13 +42,20 @@ def submit_payment(
     if not customer_number or amount <= 0:
         return None, "Customer number and valid amount required", 400
 
-    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    customer = (
+        Customer.query
+        .filter_by(customer_number=customer_number)
+        .with_for_update()
+        .first()
+    )
     if not customer:
         return None, "Customer not found", 404
 
     unpaid_bills = (
-        Billing.query.filter_by(customer_number=customer_number, is_paid=False)
+        Billing.query
+        .filter_by(customer_number=customer_number, is_paid=False)
         .order_by(Billing.date_created.asc())
+        .with_for_update()
         .all()
     )
 
@@ -86,13 +102,11 @@ def submit_payment(
             carryover_used = round(carryover_used + total_due - cash_remaining, 2)
             cash_remaining = 0.0
 
-    # Record carryover usage as negative offset on the last paid bill
     if carryover_used > 0.01 and last_paid_bill:
         last_paid_bill.carryover_offset = round(
             float(last_paid_bill.carryover_offset or 0) - carryover_used, 2
         )
 
-    # Record leftover cash as positive offset
     if cash_remaining > 0.01:
         if last_paid_bill:
             last_paid_bill.carryover_offset = round(
@@ -102,22 +116,8 @@ def submit_payment(
             cumulative = float(customer.cumulative_balance or 0)
             customer.cumulative_balance = round(cumulative + cash_remaining, 2)
 
-    recalc_cumulative_balance(customer_number)
-    db.session.commit()
-
-    return (
-        {
-            "message": f"Payment recorded — {bills_paid} bill(s) fully paid",
-            "receipt_number": receipt if bills_paid > 0 else None,
-            "receipts": [receipt] if bills_paid > 0 else [],
-            "amount": amount,
-        },
-        None,
-        201,
-    )
-
-    recalc_cumulative_balance(customer_number)
-    db.session.commit()
+    recalc_cumulative_balance(customer_number, customer=customer)
+    db.session.flush()
 
     return (
         {
@@ -132,12 +132,12 @@ def submit_payment(
 
 
 def drop_payment(payment_id: int, staff_id: int, reason: str) -> dict | None:
-    billing = Billing.query.get_or_404(payment_id)
+    billing = Billing.query.with_for_update().get_or_404(payment_id)
     receipt = billing.receipt_number
     if not receipt:
         return {"error": "No receipt found", "message": "No receipt found"}
 
-    group = Billing.query.filter_by(receipt_number=receipt).all()
+    group = Billing.query.filter_by(receipt_number=receipt).with_for_update().all()
     customer_number = billing.customer_number
 
     total_group_amount = sum(float(b.paid_amount) for b in group)
