@@ -414,6 +414,7 @@ def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) 
         "--ssl=0",
         "--single-transaction",
         "--routines", "--triggers", "--events",
+        "--ignore-table={}.background_tasks".format(db_name),
         db_name,
     ]
     report(10, f"Dumping database ({customer_count} customers)...")
