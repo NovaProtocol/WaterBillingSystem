@@ -86,32 +86,37 @@ def _execute_task(task: BackgroundTask) -> None:
         db.session.commit()
         return
 
-    def _report(pct: float, msg: str) -> None:
-        task.progress = pct
-        messages = list(task.messages or [])
-        messages.append(msg)
-        task.messages = messages
-        db.session.commit()
+    # Cache values before handler runs — restore may delete the row mid-execution
+    task_id = task.id
+    task_type = task.task_type
+    task_title = task.title or task.task_type
 
-    logger.info("[background_worker] Starting: %s", task.title or task.task_type)
+    def _report(pct: float, msg: str) -> None:
+        try:
+            task.progress = pct
+            messages = list(task.messages or [])
+            messages.append(msg)
+            task.messages = messages
+            db.session.commit()
+        except (ObjectDeletedError, Exception):
+            db.session.rollback()
+
+    logger.info("[background_worker] Starting: %s", task_title)
     try:
         handler(task.params or {}, _report)
+        logger.info("[background_worker] Completed: %s", task_title)
+    except Exception as e:
+        logger.error("[background_worker] Error: %s: %s", task_title, e)
+
+    # Try to update task status, but don't crash if row was deleted (e.g. restore)
+    try:
         task.status = "completed"
         task.progress = 100.0
-        logger.info("[background_worker] Completed: %s", task.title or task.task_type)
-    except Exception as e:
-        task.status = "failed"
-        messages = list(task.messages or [])
-        messages.append(f"ERROR: {e}")
-        task.messages = messages
-        logger.error("[background_worker] Error: %s: %s", task.title or task.task_type, e)
-    finally:
         task.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        try:
-            db.session.commit()
-        except (ObjectDeletedError, Exception) as e:
-            db.session.rollback()
-            logger.warning("[background_worker] Task #%s row unavailable (restore?) — %s", task.id, e)
+        db.session.commit()
+    except (ObjectDeletedError, Exception) as e:
+        db.session.rollback()
+        logger.warning("[background_worker] Task #%s row unavailable (restore?) — %s", task_id, e)
 
 
 def main() -> None:
