@@ -257,8 +257,19 @@ def seed(n_customers: int, n_months: int, filed_this_month: bool = False) -> Non
         conn.commit()
         staff_ids[s["username"]] = cur.lastrowid
 
+    # Create xendit system user (automated payments, blank password = cannot log in)
+    cur.execute(
+        """INSERT IGNORE INTO staff
+            (username, name, password, can_accept_payment,
+             can_manage_billing, can_drop_payment,
+             is_active, date_created, last_modified)
+           VALUES (%s,%s,%s,%s,%s,%s,1,NOW(),NOW())""",
+        ("xendit", "Xendit", b"", 1, 1, 1),
+    )
+    staff_ids["xendit"] = cur.lastrowid
+
     cashier_id = staff_ids.get("cashier1") or staff_ids["superuser"]
-    logger.info(f"  {len(STAFF_SEEDS)} staff created")
+    logger.info(f"  {len(STAFF_SEEDS) + 1} staff created")
 
     # ── API Keys ─────────────────────────────────────────────────────────
     logger.info("Creating API keys...")

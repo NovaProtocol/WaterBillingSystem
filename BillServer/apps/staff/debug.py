@@ -27,6 +27,11 @@ from apps.models import (
     Staff,
 )
 from apps.pricing import compute_water_bill
+from apps.services.staff_seeder import (
+    ensure_prereq_staff,
+    delete_non_prereq_staff,
+    PREREQ_USERNAMES,
+)
 from apps.staff import blueprint
 
 BACKUP_DIR = Path(__file__).resolve().parent.parent.parent / "db_backups"
@@ -138,41 +143,7 @@ def _generate_and_store_code() -> str:
 
 # ── Bootstrap helpers ──────────────────────────────────────────────────
 
-def _ensure_superuser() -> None:
-    import binascii
-    import hashlib
-    existing = Staff.query.filter_by(username="superuser").first()
-    if existing:
-        return
-    salt = hashlib.sha256(os.urandom(60)).hexdigest().encode("ascii")
-    pwdhash = hashlib.pbkdf2_hmac("sha512", b"superuser", salt, 100000)
-    supper = Staff(
-        username="superuser",
-        name="Superuser",
-        password=salt + binascii.hexlify(pwdhash),
-        can_read_meters=True, can_accept_payment=True,
-        can_enroll_customer=True, can_drop_reading=True,
-        can_drop_payment=True, can_enroll_staff=True,
-        can_manage_billing=True,
-        is_active=True,
-    )
-    db.session.add(supper)
-
-
-def _ensure_xendit_user() -> None:
-    existing = Staff.query.filter_by(username="xendit").first()
-    if existing:
-        return
-    xendit_user = Staff(
-        username="xendit",
-        name="Xendit",
-        password=b"",
-        can_accept_payment=True,
-        can_manage_billing=True,
-        can_drop_payment=True,
-        is_active=True,
-    )
-    db.session.add(xendit_user)
+# ensure_prereq_staff imported from apps.services.staff_seeder
 
 
 def _clear_all_tables() -> None:
@@ -180,9 +151,7 @@ def _clear_all_tables() -> None:
         db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 0"))
         for table_name in reversed(TABLE_NAMES):
             db.session.execute(db.text(f"TRUNCATE TABLE {table_name}"))
-        Staff.query.filter(Staff.username != "superuser").delete(
-            synchronize_session="fetch"
-        )
+        delete_non_prereq_staff()
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -273,8 +242,7 @@ def handle_restore(params: dict[str, Any], report: Callable[[float, str], None])
         err = result.stderr.strip() or f"exit code {result.returncode}"
         raise RuntimeError(f"Restore failed: {err}")
     report(95, "Restore complete. Ensuring system users...")
-    _ensure_superuser()
-    _ensure_xendit_user()
+    ensure_prereq_staff()
     db.session.commit()
     report(100, f"Restored from {filename}")
 
@@ -283,8 +251,7 @@ def handle_clear(params: dict[str, Any], report: Callable[[float, str], None]) -
     report(0, "Clearing tables...")
     _clear_all_tables()
     report(50, "Recreating system users...")
-    _ensure_superuser()
-    _ensure_xendit_user()
+    ensure_prereq_staff()
     db.session.commit()
     report(100, "All tables cleared. System users preserved.")
 
@@ -296,8 +263,7 @@ def handle_seed(params: dict[str, Any], report: Callable[[float, str], None]) ->
     _clear_all_tables()
     report(2, f"Seeding {n_customers} customers \u00d7 {n_months} months...")
     _seed_data(n_customers, n_months, report)
-    _ensure_superuser()
-    _ensure_xendit_user()
+    ensure_prereq_staff()
     db.session.commit()
     report(100, f"Seeded {n_customers} customers \u00d7 {n_months} months")
 
@@ -831,9 +797,7 @@ def _seed_data(
     import secrets as _secrets
 
     _report_fn(2, "Clearing existing staff...")
-    Staff.query.filter(Staff.username != "superuser").delete(
-        synchronize_session="fetch"
-    )
+    delete_non_prereq_staff()
     db.session.flush()
 
     rng = random.Random(42)
