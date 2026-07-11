@@ -159,6 +159,22 @@ def _ensure_superuser() -> None:
     db.session.add(supper)
 
 
+def _ensure_xendit_user() -> None:
+    existing = Staff.query.filter_by(username="xendit").first()
+    if existing:
+        return
+    xendit_user = Staff(
+        username="xendit",
+        name="Xendit",
+        password=b"",
+        can_accept_payment=True,
+        can_manage_billing=True,
+        can_drop_payment=True,
+        is_active=True,
+    )
+    db.session.add(xendit_user)
+
+
 def _clear_all_tables() -> None:
     try:
         db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 0"))
@@ -256,16 +272,21 @@ def handle_restore(params: dict[str, Any], report: Callable[[float, str], None])
     if result.returncode != 0:
         err = result.stderr.strip() or f"exit code {result.returncode}"
         raise RuntimeError(f"Restore failed: {err}")
+    report(95, "Restore complete. Ensuring system users...")
+    _ensure_superuser()
+    _ensure_xendit_user()
+    db.session.commit()
     report(100, f"Restored from {filename}")
 
 
 def handle_clear(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     report(0, "Clearing tables...")
     _clear_all_tables()
-    report(50, "Recreating superuser...")
+    report(50, "Recreating system users...")
     _ensure_superuser()
+    _ensure_xendit_user()
     db.session.commit()
-    report(100, "All tables cleared. Superuser preserved.")
+    report(100, "All tables cleared. System users preserved.")
 
 
 def handle_seed(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
@@ -276,6 +297,7 @@ def handle_seed(params: dict[str, Any], report: Callable[[float, str], None]) ->
     report(2, f"Seeding {n_customers} customers \u00d7 {n_months} months...")
     _seed_data(n_customers, n_months, report)
     _ensure_superuser()
+    _ensure_xendit_user()
     db.session.commit()
     report(100, f"Seeded {n_customers} customers \u00d7 {n_months} months")
 
