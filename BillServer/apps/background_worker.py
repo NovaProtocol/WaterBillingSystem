@@ -54,6 +54,7 @@ def _claim_task() -> BackgroundTask | None:
         .one_or_none()
     )
     if task is None:
+        db.session.commit()
         return None
     task.status = "running"
     task.started_at = datetime.now(timezone.utc).replace(tzinfo=None)
