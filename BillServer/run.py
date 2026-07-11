@@ -24,9 +24,9 @@ from apps.config import config_dict
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-_debug_worker_proc: subprocess.Popen | None = None
-_debug_worker_lock = threading.Lock()
-_DEBUG_WORKER_PIDFILE = Path("/tmp/billserver-debug-worker.pid")
+_background_worker_proc: subprocess.Popen | None = None
+_background_worker_lock = threading.Lock()
+_BACKGROUND_WORKER_PIDFILE = Path("/tmp/billserver-background-worker.pid")
 
 parser = argparse.ArgumentParser(description="BillServer")
 parser.add_argument(
@@ -171,64 +171,56 @@ def _ensure_prerequisites(app: Flask) -> None:
 
         logger.info("All table columns verified")
 
-        from apps.billing import api as billing_api
-        billing_api.reconcile_xendit_payments(app)
 
-
-def _start_debug_worker() -> subprocess.Popen | None:
-    global _debug_worker_proc
-    with _debug_worker_lock:
-        if _debug_worker_proc is not None:
-            return _debug_worker_proc
+def _start_background_worker() -> subprocess.Popen | None:
+    global _background_worker_proc
+    with _background_worker_lock:
+        if _background_worker_proc is not None:
+            return _background_worker_proc
         try:
-            if _DEBUG_WORKER_PIDFILE.exists():
-                pid = int(_DEBUG_WORKER_PIDFILE.read_text().strip())
+            if _BACKGROUND_WORKER_PIDFILE.exists():
+                pid = int(_BACKGROUND_WORKER_PIDFILE.read_text().strip())
                 os.kill(pid, 0)
-                logger.warning("Debug worker already running (PID %d)", pid)
+                logger.warning("Background worker already running (PID %d)", pid)
                 return None
         except (ValueError, OSError):
-            _DEBUG_WORKER_PIDFILE.unlink(missing_ok=True)
-        worker_script = Path(__file__).resolve().parent / "apps" / "staff" / "debug_worker.py"
+            _BACKGROUND_WORKER_PIDFILE.unlink(missing_ok=True)
+        worker_script = Path(__file__).resolve().parent / "apps" / "background_worker.py"
         if not worker_script.exists():
-            logger.warning("Debug worker script not found: %s", worker_script)
+            logger.warning("Background worker script not found: %s", worker_script)
             return None
         proc = subprocess.Popen([sys.executable, str(worker_script)])
-        _debug_worker_proc = proc
-        _DEBUG_WORKER_PIDFILE.write_text(str(proc.pid))
-        logger.info("Debug worker started (PID %d)", proc.pid)
+        _background_worker_proc = proc
+        _BACKGROUND_WORKER_PIDFILE.write_text(str(proc.pid))
+        logger.info("Background worker started (PID %d)", proc.pid)
     return proc
 
 
-def _stop_debug_worker() -> None:
-    global _debug_worker_proc
-    with _debug_worker_lock:
-        if _debug_worker_proc is None:
+def _stop_background_worker() -> None:
+    global _background_worker_proc
+    with _background_worker_lock:
+        if _background_worker_proc is None:
             return
         try:
-            _debug_worker_proc.terminate()
-            _debug_worker_proc.wait(timeout=5)
+            _background_worker_proc.terminate()
+            _background_worker_proc.wait(timeout=5)
         except Exception:
             try:
-                _debug_worker_proc.kill()
-                _debug_worker_proc.wait(timeout=3)
+                _background_worker_proc.kill()
+                _background_worker_proc.wait(timeout=3)
             except Exception:
                 pass
-        _debug_worker_proc = None
-        _DEBUG_WORKER_PIDFILE.unlink(missing_ok=True)
+        _background_worker_proc = None
+        _BACKGROUND_WORKER_PIDFILE.unlink(missing_ok=True)
 
 
-# Start debug worker only in DEBUG mode.
-# In production, each Gunicorn worker process would try to start one,
-# causing duplicates. The debug dashboard is only available in DEBUG.
+# Start background worker in DEBUG mode to handle tasks like Xendit reconciliation.
 if DEBUG and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-    _start_debug_worker()
+    _start_background_worker()
 
 if __name__ == "__main__":
     _compile_scss(app)
     _ensure_prerequisites(app)
-
-    from apps.services.scheduler import start_scheduler
-    start_scheduler(app)
 
     try:
         if DEBUG:
@@ -265,4 +257,4 @@ if __name__ == "__main__":
             }
             StandaloneApplication(app, gunicorn_opts).run()
     finally:
-        _stop_debug_worker()
+        _stop_background_worker()

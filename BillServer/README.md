@@ -104,7 +104,7 @@ BillServer integrates **Xendit** for online payments via GCash, Maya, and credit
 | Webhook endpoint | `/billing/api/xendit-webhook` |
 | DB model | `XenditTransaction` tracks payment lifecycle (pending, completed, failed, expired) |
 | System user | A "xendit" staff user is auto-created at startup for automated payment processing |
-| Background reconciliation | APScheduler reconciles pending transactions every 5 minutes |
+| Background reconciliation | Background worker reconciles pending transactions every 5 minutes |
 | Env vars required | `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN` |
 
 ---

@@ -17,12 +17,7 @@ Authenticated admin interface at `/staff`.
 
 ## Background Worker
 
-Debug actions run in a **dedicated subprocess** (`debug_worker.py`, launched from `run.py`) to keep the page responsive. Tasks are processed sequentially through a file-based queue:
-
-- `db_backups/to_bg.json` — queue of pending job orders (written by Flask routes, popped by worker)
-- `db_backups/from_bg.json` — current job state + completed history (written by worker, read by routes)
-
-All file access uses `fcntl.flock` for cross-process safety across Gunicorn workers. On server restart, both files are cleared.
+Debug actions run in a **dedicated subprocess** (`background_worker.py`, launched from `run.py`) to keep the page responsive. Tasks are processed sequentially through the `background_tasks` database table:
 
 ## Permissions
 

@@ -73,7 +73,7 @@ The application is created by `apps/__init__.py:create_app(config)`. During init
 10. Template filters (`timestamp_to_date`, `datetimeformat`) are registered
 11. Before-request handler adds `X-Request-Id` to `g`
 12. A "xendit" system user is auto-created at startup (if not present) with `can_accept_payment` permission for automated Xendit payment processing
-13. APScheduler starts in the background to reconcile pending Xendit transactions every 5 minutes
+13. Background worker starts in a subprocess to handle tasks (Xendit reconciliation every 5 minutes, backup, restore, seed, etc.)
 
 ## Database Migrations
 
