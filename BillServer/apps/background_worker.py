@@ -18,11 +18,12 @@ from pathlib import Path
 from typing import Any
 
 _THIS_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(_THIS_DIR))
+_PROJECT_ROOT = _THIS_DIR.parent
+sys.path.insert(0, str(_PROJECT_ROOT))
 
 from dotenv import load_dotenv
 
-load_dotenv(_THIS_DIR.parent / ".env")
+load_dotenv(_PROJECT_ROOT.parent / ".env")
 
 from apps import create_app, db
 from apps.config import config_dict
