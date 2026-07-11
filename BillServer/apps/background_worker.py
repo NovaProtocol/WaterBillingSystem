@@ -13,7 +13,7 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +42,18 @@ os.environ.setdefault("DEPLOYMENT_TYPE", "DEBUG")
 
 
 def _claim_task() -> BackgroundTask | None:
+    # Clean stale running tasks (crashed worker, abandoned)
+    stale = BackgroundTask.query.filter(
+        BackgroundTask.status == "running",
+        BackgroundTask.started_at < datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
+    ).all()
+    for s in stale:
+        logger.warning("[background_worker] Found stale running task #%s (%s) — marking as failed", s.id, s.task_type)
+        s.status = "failed"
+        s.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    if stale:
+        db.session.commit()
+
     task = (
         BackgroundTask.query
         .filter(
