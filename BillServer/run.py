@@ -122,9 +122,6 @@ def _compile_scss(app: Flask) -> None:
 
 
 def _ensure_prerequisites(app: Flask) -> None:
-    from apps.models import Staff
-    from apps.authentication.util import hash_pass
-
     with app.app_context():
         logger.info("Checking database connectivity...")
         try:
@@ -152,48 +149,10 @@ def _ensure_prerequisites(app: Flask) -> None:
         else:
             logger.info("All %d tables present", len(expected_tables))
 
-        superuser = Staff.query.filter_by(username="superuser").first()
-        if not superuser:
-            superuser = Staff(
-                username="superuser",
-                name="Superuser",
-                password=hash_pass("superuser"),
-                can_read_meters=True,
-                can_accept_payment=True,
-                can_enroll_customer=True,
-                can_drop_reading=True,
-                can_drop_payment=True,
-                can_enroll_staff=True,
-                can_manage_billing=True,
-            )
-            db.session.add(superuser)
-            db.session.commit()
-            logger.info(
-                "Created superuser account (username: superuser, password: superuser)"
-            )
-        else:
-            logger.info("Superuser account verified")
-
-        xendit_user = Staff.query.filter_by(username="xendit").first()
-        if not xendit_user:
-            xendit_user = Staff(
-                username="xendit",
-                name="Xendit",
-                password=b"",
-                can_accept_payment=True,
-                can_manage_billing=True,
-                can_drop_payment=True,
-            )
-            db.session.add(xendit_user)
-            db.session.commit()
-            logger.info("Created system xendit user (automated payments)")
-        else:
-            xendit_user.password = b""
-            xendit_user.can_accept_payment = True
-            xendit_user.can_manage_billing = True
-            xendit_user.can_drop_payment = True
-            db.session.commit()
-            logger.info("Xendit system user verified")
+        from apps.services.staff_seeder import ensure_prereq_staff
+        ensure_prereq_staff()
+        db.session.commit()
+        logger.info("Prerequisite staff accounts verified")
 
         for table_name in sorted(expected_tables):
             existing_columns = {
