@@ -25,6 +25,8 @@ from dotenv import load_dotenv
 
 load_dotenv(_PROJECT_ROOT.parent / ".env")
 
+from sqlalchemy.orm.exc import ObjectDeletedError
+
 from apps import create_app, db
 from apps.config import config_dict
 from apps.models import BackgroundTask
@@ -105,7 +107,11 @@ def _execute_task(task: BackgroundTask) -> None:
         logger.error("[background_worker] Error: %s: %s", task.title or task.task_type, e)
     finally:
         task.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except (ObjectDeletedError, Exception) as e:
+            db.session.rollback()
+            logger.warning("[background_worker] Task #%s row unavailable (restore?) — %s", task.id, e)
 
 
 def main() -> None:

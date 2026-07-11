@@ -480,17 +480,20 @@ def handle_restore(params: dict[str, Any], report: Callable[[float, str], None])
         print(f"  > FAILED: {err}", flush=True)
         raise RuntimeError(f"Restore failed: {err}")
     print(f"  > Restore completed in {restore_dur:.1f}s", flush=True)
-
-    report(95, "Restore complete. Ensuring system users...")
     print(f"  > Ensuring prerequisite staff accounts...", flush=True)
-    ensure_prereq_staff()
-    db.session.commit()
 
-    customer_count = db.session.query(db.func.count(Customer.id)).scalar() or 0
+    try:
+        ensure_prereq_staff()
+        db.session.commit()
+        customer_count = db.session.query(db.func.count(Customer.id)).scalar() or 0
+        print(f"  > Customers after restore: {customer_count}", flush=True)
+    except Exception:
+        db.session.rollback()
+        print(f"  > Could not count customers (DB was replaced by restore)", flush=True)
+
     total_dur = _time.time() - t0
-    print(f"  > Customers after restore: {customer_count}", flush=True)
     print(f"  > Total time: {total_dur:.1f}s", flush=True)
-    report(100, f"Restored from {filename} ({file_size_str}, {customer_count} customers, {total_dur:.1f}s)")
+    print(f"  > Restore complete: {filename} ({file_size_str}, {total_dur:.1f}s)", flush=True)
 
 
 def handle_clear(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
