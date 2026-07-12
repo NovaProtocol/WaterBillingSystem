@@ -21,10 +21,14 @@
                         <div style="font-size: 1.6rem; font-weight: 800; color: #1a1a2e;">&#x20B1;<span id="pay-amount">{{ "%.2f" | format(total_due) }}</span></div>
                     </div>
 
-                    <div id="fee-breakdown" style="display:none;" class="mb-3">
+                    <div id="fee-breakdown" style="display:none;" class="mb-3 p-3" style="background: #f8f9fa; border-radius: 10px;">
                         <div class="d-flex justify-content-between mb-1" style="font-size: 0.85rem; color: #6c757d;">
-                            <span>Service Fee (<span id="fee-rate-display">0</span>%)</span>
-                            <span>+ &#x20B1;<span id="fee-amount-display">0.00</span></span>
+                            <span>Service Fee</span>
+                            <span>&#x20B1;<span id="fee-amount-display">0.00</span></span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1" style="font-size: 0.85rem; color: #6c757d;">
+                            <span>Xendit Processing Fee</span>
+                            <span>&#x20B1;<span id="xendit-fee-display">0.00</span></span>
                         </div>
                         <hr class="my-1">
                         <div class="d-flex justify-content-between" style="font-size: 1.1rem; font-weight: 700; color: #1a1a2e;">
@@ -35,86 +39,68 @@
 
                     <p style="font-weight: 600; font-size: 0.85rem; color: #1a1a2e; margin-bottom: 0.75rem;">Payment Method</p>
 
-                    <div class="payment-option" data-method="gcash" data-fee="{{ fee_rates.get('gcash', default_fee) }}" style="cursor: pointer; border: 2px solid #e9ecef; border-radius: 12px; padding: 0.85rem 1rem; margin-bottom: 0.5rem; transition: all 0.2s; display: flex; align-items: center;" onclick="selectPaymentMethod(this)">
-                        <div style="width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center; margin-right: 1rem; flex-shrink: 0; transition: all 0.2s;">
-                            <div style="width: 10px; height: 10px; border-radius: 50%; background: transparent; transition: all 0.2s;"></div>
-                        </div>
-                        <div style="width: 36px; height: 36px; background: #00a6ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 0.75rem; flex-shrink: 0; font-size: 0.9rem; font-weight: 700; color: #fff;">G</div>
-                        <div style="flex:1;">
-                            <div style="font-weight: 600; font-size: 0.9rem; color: #1a1a2e;">GCash</div>
-                            <div style="font-size: 0.75rem; color: #6c757d;">Pay using your GCash wallet</div>
-                        </div>
-                        <div style="font-size: 0.75rem; color: #6c757d; white-space: nowrap;">{{ "%.1f" | format(fee_rates.get('gcash', default_fee)) }}% fee</div>
-                    </div>
+                    {% set ns = namespace(last_category='') %}
+                    {% for m in payment_methods %}
+                        {% set category = m.code.split('_')[0] %}
+                        {% if category != ns.last_category %}
+                            {% set ns.last_category = category %}
+                            <div style="font-size: 0.7rem; font-weight: 700; color: #adb5bd; text-transform: uppercase; letter-spacing: 1px; margin: 1rem 0 0.5rem;">
+                                {% if category == 'gcash' %}E-Wallets
+                                {% elif category == 'maya' %}E-Wallets
+                                {% elif category == 'grabfpay' %}E-Wallets
+                                {% elif category == 'shopeepay' %}E-Wallets
+                                {% elif category == 'card' %}Cards
+                                {% elif category == 'bpi' %}Direct Debit
+                                {% elif category == 'ubp' %}Direct Debit
+                                {% elif category == 'rcbc' %}Direct Debit
+                                {% elif category == 'online' %}Online Banking
+                                {% elif category == '7eleven' %}Over-the-Counter
+                                {% elif category == 'cebuana' %}Over-the-Counter
+                                {% elif category == 'ecpay' %}Over-the-Counter
+                                {% elif category == 'lbc' %}Over-the-Counter
+                                {% elif category == 'mlhuillier' %}Over-the-Counter
+                                {% elif category == 'palawan' %}Over-the-Counter
+                                {% elif category == 'robinsons' %}Over-the-Counter
+                                {% elif category == 'sm' %}Over-the-Counter
+                                {% elif category == 'ussc' %}Over-the-Counter
+                                {% elif category == 'qrph' %}QR Code
+                                {% elif category == 'billease' %}Buy Now, Pay Later
+                                {% elif category == 'virtual' %}Virtual Accounts
+                                {% else %}{{ category }}
+                                {% endif %}
+                            </div>
+                        {% endif %}
 
-                    <div class="payment-option" data-method="maya" data-fee="{{ fee_rates.get('maya', default_fee) }}" style="cursor: pointer; border: 2px solid #e9ecef; border-radius: 12px; padding: 0.85rem 1rem; margin-bottom: 0.5rem; transition: all 0.2s; display: flex; align-items: center;" onclick="selectPaymentMethod(this)">
-                        <div style="width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center; margin-right: 1rem; flex-shrink: 0; transition: all 0.2s;">
-                            <div style="width: 10px; height: 10px; border-radius: 50%; background: transparent; transition: all 0.2s;"></div>
-                        </div>
-                        <div style="width: 36px; height: 36px; background: #ff6b35; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 0.75rem; flex-shrink: 0; font-size: 0.9rem; font-weight: 700; color: #fff;">M</div>
-                        <div style="flex:1;">
-                            <div style="font-weight: 600; font-size: 0.9rem; color: #1a1a2e;">Maya</div>
-                            <div style="font-size: 0.75rem; color: #6c757d;">Pay using your Maya wallet</div>
-                        </div>
-                        <div style="font-size: 0.75rem; color: #6c757d; white-space: nowrap;">{{ "%.1f" | format(fee_rates.get('maya', default_fee)) }}% fee</div>
-                    </div>
-
-                    <div class="payment-option" data-method="card" data-fee="{{ fee_rates.get('card', default_fee) }}" style="cursor: pointer; border: 2px solid #e9ecef; border-radius: 12px; padding: 0.85rem 1rem; margin-bottom: 0.5rem; transition: all 0.2s; display: flex; align-items: center;" onclick="selectPaymentMethod(this)">
-                        <div style="width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center; margin-right: 1rem; flex-shrink: 0; transition: all 0.2s;">
-                            <div style="width: 10px; height: 10px; border-radius: 50%; background: transparent; transition: all 0.2s;"></div>
-                        </div>
-                        <div style="width: 36px; height: 36px; background: #1a1a2e; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 0.75rem; flex-shrink: 0; font-size: 0.9rem; font-weight: 700; color: #fff;">C</div>
-                        <div style="flex:1;">
-                            <div style="font-weight: 600; font-size: 0.9rem; color: #1a1a2e;">Credit / Debit Card</div>
-                            <div style="font-size: 0.75rem; color: #6c757d;">Visa, Mastercard, JCB</div>
-                        </div>
-                        <div style="font-size: 0.75rem; color: #6c757d; white-space: nowrap;">{{ "%.1f" | format(fee_rates.get('card', default_fee)) }}% fee</div>
-                    </div>
-
-                    <div id="more-payment-methods" style="display:none;">
-                        <div class="payment-option" data-method="online_banking" data-fee="{{ fee_rates.get('online_banking', default_fee) }}" style="cursor: pointer; border: 2px solid #e9ecef; border-radius: 12px; padding: 0.85rem 1rem; margin-bottom: 0.5rem; transition: all 0.2s; display: flex; align-items: center;" onclick="selectPaymentMethod(this)">
+                        <div class="payment-option"
+                             data-method="{{ m.code }}"
+                             data-fee-percent="{{ m.fee_percent or 0 }}"
+                             data-fee-flat="{{ m.fee_flat or 0 }}"
+                             data-fee-minimum="{{ m.fee_minimum or 0 }}"
+                             data-xendit-fee="{{ m.xendit_fee or 0 }}"
+                             style="cursor: pointer; border: 2px solid #e9ecef; border-radius: 12px; padding: 0.85rem 1rem; margin-bottom: 0.5rem; transition: all 0.2s; display: flex; align-items: center;"
+                             onclick="selectPaymentMethod(this)">
                             <div style="width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center; margin-right: 1rem; flex-shrink: 0; transition: all 0.2s;">
                                 <div style="width: 10px; height: 10px; border-radius: 50%; background: transparent; transition: all 0.2s;"></div>
                             </div>
-                            <div style="width: 36px; height: 36px; background: #0d6efd; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 0.75rem; flex-shrink: 0; font-size: 0.9rem; font-weight: 700; color: #fff;">B</div>
+                            <div style="width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 0.75rem; flex-shrink: 0; font-size: 0.9rem; font-weight: 700; color: #fff; background: #00a6ff;">{{ m.label[:1] }}</div>
                             <div style="flex:1;">
-                                <div style="font-weight: 600; font-size: 0.9rem; color: #1a1a2e;">Online Banking</div>
-                                <div style="font-size: 0.75rem; color: #6c757d;">BPI, BDO, Metrobank, UnionBank</div>
+                                <div style="font-weight: 600; font-size: 0.9rem; color: #1a1a2e;">{{ m.label }}</div>
+                                <div style="font-size: 0.75rem; color: #6c757d;">
+                                    {%- if m.fee_percent and m.fee_flat -%}
+                                        {{ "%.1f" | format(m.fee_percent) }}% + &#x20B1;{{ "%.0f" | format(m.fee_flat) }}
+                                    {%- elif m.fee_percent and m.fee_minimum -%}
+                                        {{ "%.1f" | format(m.fee_percent) }}% (min &#x20B1;{{ "%.0f" | format(m.fee_minimum) }})
+                                    {%- elif m.fee_percent -%}
+                                        {{ "%.1f" | format(m.fee_percent) }}% fee
+                                    {%- elif m.fee_flat -%}
+                                        &#x20B1;{{ "%.0f" | format(m.fee_flat) }} flat
+                                    {%- else -%}
+                                        No fee
+                                    {%- endif -%}
+                                </div>
                             </div>
-                            <div style="font-size: 0.75rem; color: #6c757d; white-space: nowrap;">{{ "%.1f" | format(fee_rates.get('online_banking', default_fee)) }}% fee</div>
                         </div>
-
-                        <div class="payment-option" data-method="otc" data-fee="{{ fee_rates.get('otc', default_fee) }}" style="cursor: pointer; border: 2px solid #e9ecef; border-radius: 12px; padding: 0.85rem 1rem; margin-bottom: 0.5rem; transition: all 0.2s; display: flex; align-items: center;" onclick="selectPaymentMethod(this)">
-                            <div style="width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center; margin-right: 1rem; flex-shrink: 0; transition: all 0.2s;">
-                                <div style="width: 10px; height: 10px; border-radius: 50%; background: transparent; transition: all 0.2s;"></div>
-                            </div>
-                            <div style="width: 36px; height: 36px; background: #28a745; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 0.75rem; flex-shrink: 0; font-size: 0.9rem; font-weight: 700; color: #fff;">S</div>
-                            <div style="flex:1;">
-                                <div style="font-weight: 600; font-size: 0.9rem; color: #1a1a2e;">Over-the-Counter</div>
-                                <div style="font-size: 0.75rem; color: #6c757d;">7-Eleven, Bayad Center, LBC</div>
-                            </div>
-                            <div style="font-size: 0.75rem; color: #6c757d; white-space: nowrap;">{{ "%.1f" | format(fee_rates.get('otc', default_fee)) }}% fee</div>
-                        </div>
-
-                        <div class="payment-option" data-method="paylater" data-fee="{{ fee_rates.get('paylater', default_fee) }}" style="cursor: pointer; border: 2px solid #e9ecef; border-radius: 12px; padding: 0.85rem 1rem; transition: all 0.2s; display: flex; align-items: center;" onclick="selectPaymentMethod(this)">
-                            <div style="width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center; margin-right: 1rem; flex-shrink: 0; transition: all 0.2s;">
-                                <div style="width: 10px; height: 10px; border-radius: 50%; background: transparent; transition: all 0.2s;"></div>
-                            </div>
-                            <div style="width: 36px; height: 36px; background: #6f42c1; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 0.75rem; flex-shrink: 0; font-size: 0.9rem; font-weight: 700; color: #fff;">P</div>
-                            <div style="flex:1;">
-                                <div style="font-weight: 600; font-size: 0.9rem; color: #1a1a2e;">PayLater</div>
-                                <div style="font-size: 0.75rem; color: #6c757d;">BillEase, TendoPay, Home Credit</div>
-                            </div>
-                            <div style="font-size: 0.75rem; color: #6c757d; white-space: nowrap;">{{ "%.1f" | format(fee_rates.get('paylater', default_fee)) }}% fee</div>
-                        </div>
-                    </div>
-
-                    <div id="show-more-toggle" style="text-align: center; margin-top: 0.75rem;">
-                        <a href="javascript:void(0)" onclick="toggleMoreMethods()" style="font-size: 0.85rem; color: #e94560; font-weight: 600; text-decoration: none;">
-                            <i class="fas fa-chevron-down" id="more-chevron" style="font-size: 0.7rem; margin-right: 0.4rem;"></i>
-                            <span id="more-toggle-text">Show more options</span>
-                        </a>
-                    </div>
+                    {% endfor %}
                 </div>
                 <div class="modal-footer" style="border-top: none; padding: 0 1.5rem 1.5rem; flex-direction: column;">
                     <button type="button" class="btn btn-bill" id="pay-now-btn" style="width: 100%;" disabled>
@@ -191,34 +177,24 @@ function selectPaymentMethod(el) {
     $(el).find('> div:first-child > div').css('background', '#e94560');
     selectedMethod = $(el).data('method');
 
-    var feeRate = parseFloat($(el).data('fee')) || 0;
-    var feeAmount = Math.round(BASE_AMOUNT * feeRate) / 100;
-    var totalWithFee = BASE_AMOUNT + feeAmount;
+    var feePercent = parseFloat($(el).data('fee-percent')) || 0;
+    var feeFlat = parseFloat($(el).data('fee-flat')) || 0;
+    var feeMin = parseFloat($(el).data('fee-minimum')) || 0;
+    var xenditFee = parseFloat($(el).data('xendit-fee')) || 0;
 
-    if (feeRate > 0) {
-        $('#fee-rate-display').text(feeRate.toFixed(1));
-        $('#fee-amount-display').text(feeAmount.toFixed(2));
-        $('#fee-breakdown').show();
-    } else {
-        $('#fee-breakdown').hide();
+    var feeAmount = Math.round(BASE_AMOUNT * feePercent) / 100 + feeFlat;
+    if (feeMin > 0 && feeAmount < feeMin) {
+        feeAmount = feeMin;
     }
+    feeAmount = Math.round(feeAmount * 100) / 100;
+    var totalWithFee = BASE_AMOUNT + feeAmount + xenditFee;
 
+    $('#fee-amount-display').text(feeAmount.toFixed(2));
+    $('#xendit-fee-display').text(xenditFee.toFixed(2));
     $('#total-with-fee').text(totalWithFee.toFixed(2));
+    $('#fee-breakdown').show();
     $('#pay-amount-btn').text(totalWithFee.toFixed(2));
     $('#pay-now-btn').prop('disabled', false);
-}
-
-function toggleMoreMethods() {
-    var expanded = $('#more-payment-methods').is(':visible');
-    if (expanded) {
-        $('#more-payment-methods').slideUp();
-        $('#more-chevron').removeClass('fa-chevron-up').addClass('fa-chevron-down');
-        $('#more-toggle-text').text('Show more options');
-    } else {
-        $('#more-payment-methods').slideDown();
-        $('#more-chevron').removeClass('fa-chevron-down').addClass('fa-chevron-up');
-        $('#more-toggle-text').text('Show fewer options');
-    }
 }
 
 $('#pay-now-btn').on('click', function() {
@@ -265,11 +241,6 @@ function resetModal() {
         $(this).find('> div:first-child').css('border-color', '#e9ecef');
         $(this).find('> div:first-child > div').css('background', 'transparent');
     });
-    if ($('#more-payment-methods').is(':visible')) {
-        $('#more-payment-methods').hide();
-        $('#more-chevron').removeClass('fa-chevron-up').addClass('fa-chevron-down');
-        $('#more-toggle-text').text('Show more options');
-    }
     $('#pay-online-error').hide();
     $('#pay-online-success').hide();
     $('#pay-online-loading').hide();

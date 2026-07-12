@@ -252,6 +252,37 @@ class Config(db.Model):
         return f"<Config {self.key}={self.value!r}>"
 
 
+class PaymentMethod(db.Model):
+
+    __tablename__ = "payment_methods"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    label = db.Column(db.String(128), nullable=False)
+    provider = db.Column(db.String(32), nullable=True)
+    channel_code = db.Column(db.String(64), nullable=True)
+    fee_percent = db.Column(db.Numeric(5, 2), nullable=True)
+    fee_flat = db.Column(db.Numeric(10, 2), nullable=True)
+    fee_minimum = db.Column(db.Numeric(10, 2), nullable=True)
+    xendit_fee = db.Column(db.Numeric(10, 2), nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    date_created = db.Column(db.DateTime, default=dt.datetime.utcnow)
+
+    def fee_for(self, amount: float) -> float:
+        fee = 0.0
+        if self.fee_percent:
+            fee += amount * float(self.fee_percent) / 100
+        if self.fee_flat:
+            fee += float(self.fee_flat)
+        if self.fee_minimum and fee < float(self.fee_minimum):
+            fee = float(self.fee_minimum)
+        return round(fee, 2)
+
+    def __repr__(self) -> str:
+        return f"<PaymentMethod {self.code} ({self.label})>"
+
+
 class XenditTransaction(db.Model):
 
     __tablename__ = "xendit_transactions"
