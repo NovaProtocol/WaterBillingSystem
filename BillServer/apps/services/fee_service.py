@@ -77,5 +77,5 @@ def seed_payment_methods() -> None:
                 sort_order=data.get("sort_order", 0),
             )
             db.session.add(method)
-    if db.session.dirty:
+    if db.session.new or db.session.dirty:
         db.session.commit()
