@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Tuple
 
+from sqlalchemy.exc import IntegrityError
+
 from apps import db
 from apps.models import PaymentMethod
 
@@ -77,5 +79,7 @@ def seed_payment_methods() -> None:
                 sort_order=data.get("sort_order", 0),
             )
             db.session.add(method)
-    if db.session.new or db.session.dirty:
+    try:
         db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
