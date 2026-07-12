@@ -169,6 +169,10 @@ def _ensure_prerequisites(app: Flask) -> None:
                     ", ".join(sorted(missing_cols)),
                 )
 
+        from apps.services.fee_service import seed_payment_methods
+        seed_payment_methods()
+        logger.info("Payment methods seeded")
+
         logger.info("All table columns verified")
 
 

@@ -10,7 +10,7 @@ from apps.billing import (
     api,  # noqa: F401
     blueprint,
 )
-from apps.models import Billing, Config, Customer, MeterReading, XenditTransaction
+from apps.models import Billing, Customer, MeterReading, XenditTransaction
 from apps.pricing import PRICING_TIERS, compute_water_bill
 from apps.services.billing_service import ensure_penalty
 
@@ -120,16 +120,8 @@ def billing_page(customer_number: str) -> Response | str:
         .first()
     )
 
-    fee_rates: dict[str, float] = {}
-    for method in ("gcash", "maya", "card", "online_banking", "otc", "paylater"):
-        cfg = Config.query.filter_by(key=f"payment_fee_{method}").first()
-        if cfg and cfg.value:
-            try:
-                fee_rates[method] = float(cfg.value)
-            except (ValueError, TypeError):
-                pass
-    default_fee_cfg = Config.query.filter_by(key="payment_fee_default").first()
-    default_fee = float(default_fee_cfg.value) if default_fee_cfg and default_fee_cfg.value else 0.0
+    from apps.models import PaymentMethod
+    payment_methods = PaymentMethod.query.filter_by(is_active=True).order_by(PaymentMethod.sort_order).all()
 
     return render_template(
         "billing/billing.html",
@@ -152,6 +144,5 @@ def billing_page(customer_number: str) -> Response | str:
         recent_payments=payments,
         latest_unpaid=latest_unpaid,
         pending_xendit=pending_xendit,
-        fee_rates=fee_rates,
-        default_fee=default_fee,
+        payment_methods=payment_methods,
     )
