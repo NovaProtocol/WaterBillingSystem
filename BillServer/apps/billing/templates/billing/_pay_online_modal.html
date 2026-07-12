@@ -39,62 +39,57 @@
 
                     <p style="font-weight: 600; font-size: 0.85rem; color: #1a1a2e; margin-bottom: 0.75rem;">Payment Method</p>
 
-                    {% set ns = namespace(last_category='') %}
-                    {% for m in payment_methods %}
-                        {% set category = m.code.split('_')[0] %}
-                        {% if category != ns.last_category %}
-                            {% set ns.last_category = category %}
-                            <div style="font-size: 0.7rem; font-weight: 700; color: #adb5bd; text-transform: uppercase; letter-spacing: 1px; margin: 1rem 0 0.5rem;">
-                                {% if category in ('gcash', 'maya', 'grabfpay', 'shopeepay') %}E-Wallets
-                                {% elif category == 'card' %}Cards
-                                {% elif category == 'bpi' %}Direct Debit
-                                {% elif category == 'ubp' %}Direct Debit
-                                {% elif category == 'rcbc' %}Direct Debit
-                                {% elif category == 'online' %}Online Banking
-                                {% elif category == '7eleven' %}Over-the-Counter
-                                {% elif category == 'cebuana' %}Over-the-Counter
-                                {% elif category == 'ecpay' %}Over-the-Counter
-                                {% elif category == 'lbc' %}Over-the-Counter
-                                {% elif category == 'mlhuillier' %}Over-the-Counter
-                                {% elif category == 'palawan' %}Over-the-Counter
-                                {% elif category == 'robinsons' %}Over-the-Counter
-                                {% elif category == 'sm' %}Over-the-Counter
-                                {% elif category == 'ussc' %}Over-the-Counter
-                                {% elif category == 'qrph' %}QR Code
-                                {% elif category == 'billease' %}Buy Now, Pay Later
-                                {% elif category == 'virtual' %}Virtual Accounts
-                                {% else %}{{ category }}
-                                {% endif %}
-                            </div>
-                        {% endif %}
+                    {% set groups = {
+                        'E-Wallets': ['gcash_ewallet', 'gcash_autodebit', 'maya_ewallet', 'maya_autodebit', 'grabfpay', 'shopeepay'],
+                        'Cards': ['card_domestic', 'card_international'],
+                        'Direct Debit': ['bpi_autodebit', 'bpi_directdebit', 'ubp_autodebit', 'ubp_directdebit', 'rcbc_directdebit'],
+                        'Over-the-Counter': ['7eleven_otc', 'cebuana_otc', 'ecpay_otc', 'ecpay_loan', 'ecpay_school', 'ecpay_other', 'lbc_otc', 'mlhuillier_otc', 'palawan_otc', 'robinsons_otc', 'sm_otc', 'ussc_otc'],
+                        'Others': ['online_banking', 'qrph', 'billease', 'virtual_account'],
+                    } %}
+                    {% set expanded_groups = ['E-Wallets', 'Cards'] %}
 
-                        <div class="payment-option"
-                             data-method="{{ m.code }}"
-                             data-fee-percent="{{ m.fee_percent or 0 }}"
-                             data-fee-flat="{{ m.fee_flat or 0 }}"
-                             data-fee-minimum="{{ m.fee_minimum or 0 }}"
-                             data-xendit-fee="{{ m.xendit_fee or 0 }}"
-                             style="cursor: pointer; border: 2px solid #e9ecef; border-radius: 12px; padding: 0.85rem 1rem; margin-bottom: 0.5rem; transition: all 0.2s; display: flex; align-items: center;"
-                             onclick="selectPaymentMethod(this)">
-                            <div style="width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center; margin-right: 1rem; flex-shrink: 0; transition: all 0.2s;">
-                                <div style="width: 10px; height: 10px; border-radius: 50%; background: transparent; transition: all 0.2s;"></div>
+                    {% for gname, codes in groups.items() %}
+                        {% set is_expanded = gname in expanded_groups %}
+                        <div class="payment-group mb-1" style="border: 1px solid #e9ecef; border-radius: 10px; overflow: hidden;">
+                            <div class="payment-group-header" style="display: flex; align-items: center; justify-content: space-between; padding: 0.7rem 1rem; cursor: pointer; user-select: none; {% if is_expanded %}border-bottom: 1px solid #e9ecef;{% endif %}"
+                                 onclick="toggleGroup(this)">
+                                <span style="font-weight: 700; font-size: 0.75rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px;">{{ gname }}</span>
+                                <i class="fas {% if is_expanded %}fa-chevron-up{% else %}fa-chevron-down{% endif %}" style="font-size: 0.7rem; color: #adb5bd; transition: transform 0.2s;"></i>
                             </div>
-                            <div style="width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 0.75rem; flex-shrink: 0; font-size: 0.9rem; font-weight: 700; color: #fff; background: #00a6ff;">{{ m.label[:1] }}</div>
-                            <div style="flex:1;">
-                                <div style="font-weight: 600; font-size: 0.9rem; color: #1a1a2e;">{{ m.label }}</div>
-                                <div style="font-size: 0.75rem; color: #6c757d;">
-                                    {%- if m.fee_percent and m.fee_flat -%}
-                                        {{ "%.1f" | format(m.fee_percent) }}% + &#x20B1;{{ "%.0f" | format(m.fee_flat) }}
-                                    {%- elif m.fee_percent and m.fee_minimum -%}
-                                        {{ "%.1f" | format(m.fee_percent) }}% (min &#x20B1;{{ "%.0f" | format(m.fee_minimum) }})
-                                    {%- elif m.fee_percent -%}
-                                        {{ "%.1f" | format(m.fee_percent) }}% fee
-                                    {%- elif m.fee_flat -%}
-                                        &#x20B1;{{ "%.0f" | format(m.fee_flat) }} flat
-                                    {%- else -%}
-                                        No fee
-                                    {%- endif -%}
-                                </div>
+                            <div class="payment-group-body" style="{% if not is_expanded %}display:none;{% endif %} padding: 0.5rem 0.5rem 0;">
+                                {% for code in codes %}
+                                    {% set m = payment_methods | selectattr('code', 'equalto', code) | first %}
+                                    {% if m %}
+                                    <div class="payment-option"
+                                         data-method="{{ m.code }}"
+                                         data-fee-percent="{{ m.fee_percent or 0 }}"
+                                         data-fee-flat="{{ m.fee_flat or 0 }}"
+                                         data-fee-minimum="{{ m.fee_minimum or 0 }}"
+                                         data-xendit-fee="{{ m.xendit_fee or 0 }}"
+                                         style="cursor: pointer; border: 2px solid #e9ecef; border-radius: 12px; padding: 0.7rem 1rem; margin-bottom: 0.4rem; transition: all 0.2s; display: flex; align-items: center;"
+                                         onclick="selectPaymentMethod(this)">
+                                        <div style="width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center; margin-right: 0.75rem; flex-shrink: 0; transition: all 0.2s;">
+                                            <div style="width: 10px; height: 10px; border-radius: 50%; background: transparent; transition: all 0.2s;"></div>
+                                        </div>
+                                        <div style="flex:1;">
+                                            <div style="font-weight: 600; font-size: 0.85rem; color: #1a1a2e;">{{ m.label }}</div>
+                                            <div style="font-size: 0.7rem; color: #6c757d;">
+                                                {%- if m.fee_percent and m.fee_flat -%}
+                                                    {{ "%.1f" | format(m.fee_percent) }}% + &#x20B1;{{ "%.0f" | format(m.fee_flat) }}
+                                                {%- elif m.fee_percent and m.fee_minimum -%}
+                                                    {{ "%.1f" | format(m.fee_percent) }}% (min &#x20B1;{{ "%.0f" | format(m.fee_minimum) }})
+                                                {%- elif m.fee_percent -%}
+                                                    {{ "%.1f" | format(m.fee_percent) }}% fee
+                                                {%- elif m.fee_flat -%}
+                                                    &#x20B1;{{ "%.0f" | format(m.fee_flat) }} flat
+                                                {%- else -%}
+                                                    No fee
+                                                {%- endif -%}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
                             </div>
                         </div>
                     {% endfor %}
@@ -160,6 +155,14 @@
 </div>
 
 <script>
+function toggleGroup(header) {
+    var body = $(header).next('.payment-group-body');
+    var chevron = $(header).find('i');
+    body.slideToggle(150);
+    chevron.toggleClass('fa-chevron-down fa-chevron-up');
+    $(header).toggleClass('border-bottom-0');
+}
+
 var selectedMethod = null;
 var BASE_AMOUNT = {{ total_due }};
 
@@ -237,6 +240,16 @@ function resetModal() {
         $(this).css('border-color', '#e9ecef');
         $(this).find('> div:first-child').css('border-color', '#e9ecef');
         $(this).find('> div:first-child > div').css('background', 'transparent');
+    });
+    $('.payment-group-body').each(function() {
+        var isExpanded = ['E-Wallets', 'Cards'].includes($(this).closest('.payment-group').find('.payment-group-header span').text().trim());
+        if (!isExpanded) $(this).hide();
+        if (isExpanded) $(this).show();
+    });
+    $('.payment-group-header i').each(function() {
+        var isExpanded = ['E-Wallets', 'Cards'].includes($(this).closest('.payment-group').find('.payment-group-header span').text().trim());
+        $(this).toggleClass('fa-chevron-down', !isExpanded);
+        $(this).toggleClass('fa-chevron-up', isExpanded);
     });
     $('#pay-online-error').hide();
     $('#pay-online-success').hide();
