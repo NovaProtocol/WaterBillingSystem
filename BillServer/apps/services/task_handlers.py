@@ -761,11 +761,10 @@ def handle_remove_payment_this_month(params: dict[str, Any], report: Callable[[f
 
 def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     from apps.models import BackgroundTask
+    import base64, json, urllib.request, urllib.error
     t0 = _time.time()
 
     report(0, "Starting Xendit reconciliation...")
-    import xendit
-    from xendit.apis import PaymentRequestApi
 
     key = os.environ.get("XENDIT_API_KEY", "")
     if not key or key == "your-xendit-secret-api-key":
@@ -773,7 +772,16 @@ def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str
         report(100, "Reconciliation skipped: Xendit not configured")
         return
 
-    xendit.set_api_key(key)
+    def _get_session(session_id: str) -> dict:
+        auth = base64.b64encode(f"{key}:".encode()).decode()
+        req = urllib.request.Request(
+            f"https://api.xendit.co/sessions/{session_id}",
+            headers={"Authorization": f"Basic {auth}"},
+            method="GET",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode())
+
     print(f"  > Connected to Xendit API", flush=True)
 
     threshold = datetime.now(timezone.utc).replace(tzinfo=None).timestamp() - 300
@@ -795,9 +803,6 @@ def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str
     print(f"  > Found {total} pending transactions to reconcile", flush=True)
     report(5, f"Found {total} pending transactions")
 
-    client = xendit.ApiClient()
-    api_instance = PaymentRequestApi(client)
-
     succeeded = 0
     failed = 0
     expired = 0
@@ -808,32 +813,65 @@ def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str
         report(5 + round(85 * (i + 1) / total, 1), f"Reconciling {i+1}/{total}: {txn.xendit_pr_id[:16]}... ({txn.customer_number}, PHP {txn.amount})")
         print(f"  > [{i+1}/{total}] {txn.xendit_pr_id[:20]}... ({txn.customer_number}, PHP {txn.amount})", flush=True)
         try:
-            response = api_instance.get_payment_request_by_id(txn.xendit_pr_id)
-            status = getattr(response, "status", None)
-            if status and str(status) in ("SUCCEEDED", "PAID", "SETTLED"):
-                print(f"    → Xendit status: {status} — processing payment...", flush=True)
-                payment_id = getattr(response, "id", "")
-                if payment_id:
-                    txn.xendit_payment_id = str(payment_id)
-                if _process_xendit_payment(txn):
-                    succeeded += 1
-                    print(f"    → Payment processed successfully", flush=True)
+            session_id = txn.xendit_pr_id if txn.xendit_pr_id and txn.xendit_pr_id.startswith("ps-") else None
+
+            if session_id:
+                response = _get_session(session_id)
+                status = response.get("status", "")
+                print(f"    → Session status: {status}", flush=True)
+                if status == "COMPLETED":
+                    pr_id = response.get("payment_request_id", "")
+                    if pr_id:
+                        txn.xendit_pr_id = pr_id
+                    payment_id = response.get("payment_id", "")
+                    if payment_id:
+                        txn.xendit_payment_id = payment_id
+                    if _process_xendit_payment(txn):
+                        succeeded += 1
+                        print(f"    → Payment processed successfully", flush=True)
+                    else:
+                        errored += 1
+                        print(f"    → Payment processing failed", flush=True)
+                elif status in ("EXPIRED", "CANCELED"):
+                    print(f"    → Session {status.lower()} — marking as failed", flush=True)
+                    txn.status = "FAILED"
+                    txn.error_message = f"Session {status.lower()} (reconciled)"
+                    db.session.commit()
+                    failed += 1
                 else:
-                    errored += 1
-                    print(f"    → Payment processing failed", flush=True)
-            elif status and str(status) in ("FAILED", "EXPIRED"):
-                print(f"    → Xendit status: {status} — marking as failed", flush=True)
-                txn.status = "FAILED"
-                txn.error_message = f"Payment failed (reconciled: {status})"
-                db.session.commit()
-                failed += 1
-            elif status and str(status) == "REVERSED":
-                print(f"    → Xendit status: REVERSED — reversing payment...", flush=True)
-                _reverse_xendit_payment(txn)
-                reversed_txns += 1
-                print(f"    → Payment reversed", flush=True)
+                    print(f"    → Unknown Session status: {status} — skipping", flush=True)
             else:
-                print(f"    → Unknown Xendit status: {status} — skipping", flush=True)
+                import xendit
+                from xendit.apis import PaymentRequestApi
+                xendit.set_api_key(key)
+                client = xendit.ApiClient()
+                api_instance = PaymentRequestApi(client)
+                response = api_instance.get_payment_request_by_id(txn.xendit_pr_id)
+                status = getattr(response, "status", None)
+                if status and str(status) in ("SUCCEEDED", "PAID", "SETTLED"):
+                    print(f"    → Xendit status: {status} — processing payment...", flush=True)
+                    payment_id = getattr(response, "id", "")
+                    if payment_id:
+                        txn.xendit_payment_id = str(payment_id)
+                    if _process_xendit_payment(txn):
+                        succeeded += 1
+                        print(f"    → Payment processed successfully", flush=True)
+                    else:
+                        errored += 1
+                        print(f"    → Payment processing failed", flush=True)
+                elif status and str(status) in ("FAILED", "EXPIRED"):
+                    print(f"    → Xendit status: {status} — marking as failed", flush=True)
+                    txn.status = "FAILED"
+                    txn.error_message = f"Payment failed (reconciled: {status})"
+                    db.session.commit()
+                    failed += 1
+                elif status and str(status) == "REVERSED":
+                    print(f"    → Xendit status: REVERSED — reversing payment...", flush=True)
+                    _reverse_xendit_payment(txn)
+                    reversed_txns += 1
+                    print(f"    → Payment reversed", flush=True)
+                else:
+                    print(f"    → Unknown Xendit status: {status} — skipping", flush=True)
         except Exception as e:
             errored += 1
             print(f"    → ERROR: {e}", flush=True)

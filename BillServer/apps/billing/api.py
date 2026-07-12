@@ -1,33 +1,25 @@
 from __future__ import annotations
 
+import base64
+import json
 import os
 import secrets
-import threading
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime
 
-import xendit
 from flask import Response, current_app, jsonify, make_response, request, url_for
 from itsdangerous import URLSafeTimedSerializer
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
-from xendit.apis import InvoiceApi, PaymentRequestApi
-from xendit.invoice.model.create_invoice_request import CreateInvoiceRequest
-from xendit.payment_request.model.payment_request_currency import PaymentRequestCurrency
-from xendit.payment_request.model.payment_request_country import PaymentRequestCountry
-from xendit.payment_request.model.payment_method_type import PaymentMethodType
-from xendit.payment_request.model.payment_method_reusability import PaymentMethodReusability
-from xendit.payment_request.model.e_wallet_channel_code import EWalletChannelCode
-from xendit.payment_request.model.e_wallet_channel_properties import EWalletChannelProperties
-from xendit.payment_request.model.e_wallet_parameters import EWalletParameters
-from xendit.payment_request.model.payment_method_parameters import PaymentMethodParameters
-from xendit.payment_request.model.payment_request_parameters import PaymentRequestParameters
 
 from apps import cache, cache_lock, csrf, db
 from apps.billing import blueprint
 from apps.models import ApiKey, Billing, Customer, MeterReading, Staff, XenditTransaction
 from apps.pricing import compute_water_bill
 from apps.services.billing_service import ensure_penalty
+from apps.services.fee_service import calculate_fee
 from apps.services.payment_service import recalc_cumulative_balance, submit_payment
 
 _RATE_LIMIT = 10
@@ -299,18 +291,102 @@ def billing_history(customer_number: str) -> Response:
     )
 
 
-_xendit_initialized = False
-_xendit_init_lock = threading.Lock()
+def _xendit_api_key() -> str:
+    key = os.environ.get("XENDIT_API_KEY", "")
+    if not key or key == "your-xendit-secret-api-key":
+        return ""
+    return key
 
 
-def _init_xendit():
-    global _xendit_initialized
-    with _xendit_init_lock:
-        if not _xendit_initialized:
-            key = os.environ.get("XENDIT_API_KEY", "")
-            if key and key != "your-xendit-secret-api-key":
-                xendit.set_api_key(key)
-                _xendit_initialized = True
+PAYMENT_CHANNEL_MAP: dict[str, list[str]] = {
+    "gcash": ["GCASH"],
+    "maya": ["PAYMAYA"],
+    "card": ["CARDS"],
+    "online_banking": ["BPI", "BDO_EPAY", "UBP"],
+    "otc": ["OTC"],
+    "paylater": ["BILLEASE", "TENDO_PAY", "BLESS_INSTALLMENTS"],
+}
+
+
+_XENDIT_TIMEOUT = 30
+
+
+def _create_xendit_session(
+    amount: float,
+    reference_id: str,
+    description: str,
+    success_url: str,
+    cancel_url: str,
+    channels: list[str],
+    customer_number: str,
+    customer_name: str,
+    customer_email: str = "",
+    customer_phone: str = "",
+) -> dict:
+    api_key = _xendit_api_key()
+    if not api_key:
+        raise RuntimeError("Xendit API key not configured")
+
+    names = (customer_name or customer_number).strip().split(" ", 1)
+    given_names = names[0] or customer_number
+    surname = names[1] if len(names) > 1 else ""
+
+    payload = {
+        "reference_id": reference_id,
+        "session_type": "PAY",
+        "mode": "PAYMENT_LINK",
+        "amount": amount,
+        "currency": "PHP",
+        "country": "PH",
+        "allowed_payment_channels": channels,
+        "success_return_url": success_url,
+        "cancel_return_url": cancel_url,
+        "description": description,
+        "customer": {
+            "reference_id": customer_number,
+            "type": "INDIVIDUAL",
+            "individual_detail": {
+                "given_names": given_names,
+            },
+        },
+    }
+
+    if surname:
+        payload["customer"]["individual_detail"]["surname"] = surname
+    if customer_email:
+        payload["customer"]["email"] = customer_email
+    if customer_phone:
+        payload["customer"]["mobile_number"] = customer_phone
+
+    auth = base64.b64encode(f"{api_key}:".encode()).decode()
+    req = urllib.request.Request(
+        "https://api.xendit.co/sessions",
+        data=json.dumps(payload).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Basic {auth}",
+        },
+        method="POST",
+    )
+
+    with urllib.request.urlopen(req, timeout=_XENDIT_TIMEOUT) as resp:
+        return json.loads(resp.read().decode())
+
+
+def _get_xendit_session(session_id: str) -> dict:
+    api_key = _xendit_api_key()
+    if not api_key:
+        raise RuntimeError("Xendit API key not configured")
+
+    auth = base64.b64encode(f"{api_key}:".encode()).decode()
+    req = urllib.request.Request(
+        f"https://api.xendit.co/sessions/{session_id}",
+        headers={"Authorization": f"Basic {auth}"},
+        method="GET",
+    )
+
+    with urllib.request.urlopen(req, timeout=_XENDIT_TIMEOUT) as resp:
+        return json.loads(resp.read().decode())
 
 
 @blueprint.route("/api/<customer_number>/create-invoice", methods=["POST"])
@@ -319,14 +395,8 @@ def create_xendit_invoice(customer_number: str) -> Response:
     if not _verify_billing_cookie(customer_number):
         return jsonify({"error": "Unauthorized"}), 403
 
-    _init_xendit()
-
-    key = os.environ.get("XENDIT_API_KEY", "")
-    if not key or key == "your-xendit-secret-api-key":
-        return jsonify({"error": "Xendit is not configured. Set XENDIT_API_KEY in .env"}), 503
-
-    key = os.environ.get("XENDIT_API_KEY", "")
-    if not key or key == "your-xendit-secret-api-key":
+    key = _xendit_api_key()
+    if not key:
         return jsonify({"error": "Xendit is not configured. Set XENDIT_API_KEY in .env"}), 503
 
     stale = XenditTransaction.query.filter_by(
@@ -353,6 +423,12 @@ def create_xendit_invoice(customer_number: str) -> Response:
         return jsonify({"error": "Invalid amount"}), 400
 
     payment_method = data.get("payment_method", "")
+    if not payment_method:
+        return jsonify({"error": "Payment method is required"}), 400
+
+    fee_rate, fee_amount = calculate_fee(float(amount), payment_method)
+    total_amount = round(float(amount) + fee_amount, 2)
+
     external_id = f"wbs-{customer_number}-{int(datetime.utcnow().timestamp())}-{secrets.token_hex(4)}"
 
     success_url = url_for(
@@ -366,103 +442,56 @@ def create_xendit_invoice(customer_number: str) -> Response:
         _external=True,
     )
 
-    api_client = xendit.ApiClient()
+    channels = PAYMENT_CHANNEL_MAP.get(payment_method, [])
+    if not channels:
+        return jsonify({"error": f"Unknown payment method: {payment_method}"}), 400
 
     try:
-        if payment_method in ("gcash", "maya"):
-            channel_code = "GCASH" if payment_method == "gcash" else "PAYMAYA"
-            channel_props = EWalletChannelProperties(
-                success_return_url=success_url,
-                failure_return_url=failure_url,
-            )
-            ewallet = EWalletParameters(
-                channel_code=EWalletChannelCode(channel_code),
-                channel_properties=channel_props,
-            )
-            payment_method_params = PaymentMethodParameters(
-                type=PaymentMethodType("EWALLET"),
-                ewallet=ewallet,
-                reusability=PaymentMethodReusability("ONE_TIME_USE"),
-            )
-            params = PaymentRequestParameters(
-                reference_id=external_id,
-                amount=float(amount),
-                currency=PaymentRequestCurrency("PHP"),
-                country=PaymentRequestCountry("PH"),
-                payment_method=payment_method_params,
-            )
-            api_instance = PaymentRequestApi(api_client)
-            response = api_instance.create_payment_request(
-                payment_request_parameters=params,
-                idempotency_key=external_id,
-            )
-            action_url = None
-            if response.actions:
-                for a in response.actions:
-                    action_url = getattr(a, 'url', None) or a.action
-                    if action_url and action_url.startswith("http"):
-                        break
-            if not action_url:
-                return jsonify({"error": "No redirect URL from Xendit"}), 502
+        session = _create_xendit_session(
+            amount=total_amount,
+            reference_id=external_id,
+            description=f"Water bill payment - {customer.name}",
+            success_url=success_url,
+            cancel_url=failure_url,
+            channels=channels,
+            customer_number=customer_number,
+            customer_name=customer.name or customer_number,
+            customer_email=customer.email or "",
+            customer_phone=customer.contact_number or "",
+        )
 
-            txn = XenditTransaction(
-                customer_number=customer_number,
-                xendit_pr_id=response.id,
-                external_id=external_id,
-                amount=amount,
-                payment_method=payment_method,
-                status="PENDING",
-            )
-            db.session.add(txn)
-            db.session.commit()
+        session_id = session.get("payment_session_id", "")
+        payment_link_url = session.get("payment_link_url", "")
 
-            return jsonify({
-                "redirect_url": action_url,
-                "external_id": external_id,
-                "id": response.id,
-            })
+        if not payment_link_url:
+            return jsonify({"error": "No redirect URL from Xendit"}), 502
 
-        else:
-            method_map = {
-                "card": ["CREDIT_CARD"],
-            }
-            payment_methods = method_map.get(payment_method)
+        txn = XenditTransaction(
+            customer_number=customer_number,
+            xendit_pr_id=session_id,
+            external_id=external_id,
+            amount=total_amount,
+            base_amount=amount,
+            fee_amount=fee_amount,
+            fee_rate=fee_rate,
+            payment_method=payment_method,
+            status="PENDING",
+        )
+        db.session.add(txn)
+        db.session.commit()
 
-            invoice_kwargs = {
-                "external_id": external_id,
-                "amount": float(amount),
-                "description": f"Water bill payment - {customer.name}",
-                "payer_email": customer.email or "",
-                "success_redirect_url": success_url,
-                "failure_redirect_url": failure_url,
-                "currency": "PHP",
-            }
-            if payment_methods is not None:
-                invoice_kwargs["payment_methods"] = payment_methods
+        return jsonify({
+            "redirect_url": payment_link_url,
+            "external_id": external_id,
+            "id": session_id,
+            "base_amount": float(amount),
+            "fee_amount": fee_amount,
+            "fee_rate": fee_rate,
+        })
 
-            invoice_request = CreateInvoiceRequest(**invoice_kwargs)
-            api_instance = InvoiceApi(api_client)
-            response = api_instance.create_invoice(invoice_request)
-
-            txn = XenditTransaction(
-                customer_number=customer_number,
-                xendit_pr_id=response.id,
-                external_id=external_id,
-                amount=amount,
-                payment_method=payment_method,
-                status="PENDING",
-            )
-            db.session.add(txn)
-            db.session.commit()
-
-            return jsonify({
-                "redirect_url": response.invoice_url,
-                "external_id": external_id,
-                "id": response.id,
-            })
-
-    except xendit.XenditSdkException as e:
-        return jsonify({"error": f"Xendit error: {str(e)}"}), 502
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        return jsonify({"error": f"Xendit error: {error_body}"}), 502
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
@@ -575,6 +604,35 @@ def xendit_webhook() -> Response:
 
     event = data.get("event", "")
     payload = data.get("data", {})
+
+    # Handle Sessions webhook
+    if event == "payment_session.completed":
+        session_id = payload.get("payment_session_id", "")
+        if not session_id:
+            return jsonify({"error": "No session ID"}), 400
+
+        txn = XenditTransaction.query.filter_by(xendit_pr_id=session_id).with_for_update().first()
+        if not txn:
+            return jsonify({"error": "Transaction not found"}), 404
+
+        pr_id = payload.get("payment_request_id", "")
+        if pr_id:
+            txn.xendit_pr_id = pr_id
+
+        current_app.logger.info(
+            "Xendit webhook: event=%s session_id=%s pr_id=%s status=%s",
+            event, session_id, pr_id, txn.status,
+        )
+
+        if txn.status != "PAID":
+            payment_id = payload.get("payment_id", "")
+            if payment_id:
+                txn.xendit_payment_id = payment_id
+            _process_xendit_payment(txn)
+
+        return jsonify({"status": "ok"})
+
+    # Legacy webhooks (Payment Request / Invoice)
     pr_id = payload.get("payment_request_id") or payload.get("id")
 
     if not pr_id:
@@ -621,33 +679,59 @@ def reconcile_xendit_payments(app) -> None:
     if not pending:
         return
 
-    _init_xendit()
-    key = os.environ.get("XENDIT_API_KEY", "")
-    if not key or key == "your-xendit-secret-api-key":
+    key = _xendit_api_key()
+    if not key:
         current_app.logger.warning("Reconciliation skipped: Xendit not configured")
         return
 
-    client = xendit.ApiClient()
-    api_instance = PaymentRequestApi(client)
-
     for txn in pending:
         try:
-            response = api_instance.get_payment_request_by_id(txn.xendit_pr_id)
-            status = getattr(response, 'status', None)
-            current_app.logger.info(
-                "Reconciliation: %s -> Xendit status=%s", txn.xendit_pr_id, status
-            )
-            if status and str(status) in ("SUCCEEDED", "PAID", "SETTLED"):
-                payment_id = getattr(response, 'id', '')
-                if payment_id:
-                    txn.xendit_payment_id = str(payment_id)
-                _process_xendit_payment(txn)
-            elif status and str(status) in ("FAILED", "EXPIRED"):
-                txn.status = "FAILED"
-                txn.error_message = f"Payment failed (reconciled: {status})"
-                db.session.commit()
-            elif status and str(status) == "REVERSED":
-                _reverse_xendit_payment(txn)
+            session_id = txn.xendit_pr_id if txn.xendit_pr_id and txn.xendit_pr_id.startswith("ps-") else None
+            if session_id:
+                response = _get_xendit_session(session_id)
+                status = response.get("status", "")
+                current_app.logger.info(
+                    "Reconciliation (session): %s -> status=%s", session_id, status
+                )
+                if status == "COMPLETED":
+                    pr_id = response.get("payment_request_id", "")
+                    if pr_id:
+                        txn.xendit_pr_id = pr_id
+                    payment_id = response.get("payment_id", "")
+                    if payment_id:
+                        txn.xendit_payment_id = payment_id
+                    _process_xendit_payment(txn)
+                elif status in ("EXPIRED", "CANCELED"):
+                    txn.status = "FAILED"
+                    txn.error_message = f"Session {status.lower()} (reconciled)"
+                    db.session.commit()
+            else:
+                try:
+                    import xendit
+                    from xendit.apis import PaymentRequestApi
+                    xendit.set_api_key(key)
+                    client = xendit.ApiClient()
+                    api_instance = PaymentRequestApi(client)
+                    response = api_instance.get_payment_request_by_id(txn.xendit_pr_id)
+                    status = getattr(response, 'status', None)
+                    current_app.logger.info(
+                        "Reconciliation: %s -> Xendit status=%s", txn.xendit_pr_id, status
+                    )
+                    if status and str(status) in ("SUCCEEDED", "PAID", "SETTLED"):
+                        payment_id = getattr(response, 'id', '')
+                        if payment_id:
+                            txn.xendit_payment_id = str(payment_id)
+                        _process_xendit_payment(txn)
+                    elif status and str(status) in ("FAILED", "EXPIRED"):
+                        txn.status = "FAILED"
+                        txn.error_message = f"Payment failed (reconciled: {status})"
+                        db.session.commit()
+                    elif status and str(status) == "REVERSED":
+                        _reverse_xendit_payment(txn)
+                except Exception as inner_e:
+                    current_app.logger.error(
+                        "PR reconciliation error for %s: %s", txn.xendit_pr_id, inner_e
+                    )
         except Exception as e:
             current_app.logger.error(
                 "Reconciliation error for %s: %s", txn.xendit_pr_id, str(e)
