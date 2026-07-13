@@ -1,0 +1,35 @@
+<section id="offerings" style="background: #fff;">
+    <div class="container">
+        <div class="section-title">
+            <a href="{{ url_for('landing_blueprint.offerings') }}" style="text-decoration: none; color: inherit; display: block;">
+                <h2>What We Are Offering</h2>
+                <p>Quality house-and-lot packages designed for Filipino families.</p>
+            </a>
+        </div>
+
+        <div class="row">
+            {% for slug, m in models.items() %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <a href="{{ url_for('landing_blueprint.model_detail', slug=slug) }}" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="model-card">
+                        <img src="{{ url_for('static', filename='assets/img/landing/' + m.image) }}" alt="{{ m.name }}">
+                        <div class="body">
+                            <span class="badge">{{ m.type }}</span>
+                            <h5>{{ m.name }}</h5>
+                            <div class="type">{{ m.bedrooms }} Bedrooms</div>
+                            <ul>
+                                {% for feature in m.features %}
+                                <li><i class="fas fa-check"></i> {{ feature }}</li>
+                                {% endfor %}
+                                {% if m.garage %}
+                                <li><i class="fas fa-check"></i> {{ m.garage }}</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>

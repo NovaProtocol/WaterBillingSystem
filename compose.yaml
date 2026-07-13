@@ -1,118 +1,189 @@
 services:
-  waterbillingsystem_db:
+
+  nginx-gateway:
+    build:
+      context: .
+      dockerfile: nginx-gateway/Dockerfile
+    container_name: waterbillingsystem_nginx
+    restart: unless-stopped
+    networks:
+      - net-landing
+      - net-customer
+      - net-staff
+      - net-debug
+      - net-api-ext
+      - reverse-proxy_proxy
+    environment:
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+
+  landing-page:
+    build:
+      context: .
+      dockerfile: landing-page/Dockerfile
+    container_name: waterbillingsystem_landing
+    restart: unless-stopped
+    networks:
+      - net-landing
+    environment:
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+      REVERSE_PROXY_PUBLIC_PREFIX: ${REVERSE_PROXY_PUBLIC_PREFIX}
+
+  customer-portal:
+    build:
+      context: .
+      dockerfile: customer-portal/Dockerfile
+    container_name: waterbillingsystem_customerportal
+    restart: unless-stopped
+    networks:
+      - net-customer
+      - net-api-cust
+    environment:
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+      SECRET_KEY: ${SECRET_KEY}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      API_BASE_URL: ${API_BASE_URL}
+      REVERSE_PROXY_PUBLIC_PREFIX: ${REVERSE_PROXY_PUBLIC_PREFIX}
+      DEBUG: ${DEBUG}
+
+  staff-portal:
+    build:
+      context: .
+      dockerfile: staff-portal/Dockerfile
+    container_name: waterbillingsystem_staffportal
+    restart: unless-stopped
+    networks:
+      - net-staff
+      - net-api-staff
+    environment:
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+      SECRET_KEY: ${SECRET_KEY}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      API_BASE_URL: ${API_BASE_URL}
+      CACHE_TYPE: ${CACHE_TYPE}
+      REVERSE_PROXY_PRIVATE_PREFIX: ${REVERSE_PROXY_PRIVATE_PREFIX}
+
+  developer-portal:
+    build:
+      context: .
+      dockerfile: developer-portal/Dockerfile
+    container_name: waterbillingsystem_devportal
+    restart: unless-stopped
+    networks:
+      - net-debug
+      - net-api-debug
+      - net-data
+    environment:
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+      SECRET_KEY: ${SECRET_KEY}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      API_BASE_URL: ${API_BASE_URL}
+      PMA_URL: ${PMA_URL}
+      REVERSE_PROXY_PRIVATE_PREFIX: ${REVERSE_PROXY_PRIVATE_PREFIX}
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    networks:
+      - net-api-ext
+      - net-api-cust
+      - net-api-staff
+      - net-api-debug
+      - net-data
+    volumes:
+      - db_backups:/app/db_backups
+    environment:
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+      DB_ENGINE: ${DB_ENGINE}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASS: ${DB_PASS}
+      SECRET_KEY: ${SECRET_KEY}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      NFC_PWD_SECRET: ${NFC_PWD_SECRET}
+      XENDIT_API_KEY: ${XENDIT_API_KEY}
+      XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
+      CACHE_TYPE: ${CACHE_TYPE}
+      PYTHON_GIL: ${PYTHON_GIL}
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    deploy:
+      replicas: 1
+
+  background-worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    container_name: waterbillingsystem_worker
+    restart: unless-stopped
+    networks:
+      - net-data
+    volumes:
+      - db_backups:/app/db_backups
+    environment:
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+      DB_ENGINE: ${DB_ENGINE}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASS: ${DB_PASS}
+      XENDIT_API_KEY: ${XENDIT_API_KEY}
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: waterbillingsystem_phpmyadmin
+    restart: unless-stopped
+    networks:
+      - net-data
+    environment:
+      PMA_HOST: ${PMA_HOST}
+      PMA_PORT: ${PMA_PORT}
+      PMA_ARBITRARY: ${PMA_ARBITRARY}
+      UPLOAD_LIMIT: ${UPLOAD_LIMIT}
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+  mysql-db:
     image: mysql:8.4
     container_name: waterbillingsystem_db
     restart: unless-stopped
+    networks:
+      - net-data
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASS}
       MYSQL_DATABASE: ${DB_NAME}
     volumes:
       - mysql_data:/var/lib/mysql
+    command: --max_connections=200
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  waterbillingsystem_main:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: waterbillingsystem_main
-    restart: unless-stopped
-    ports:
-      - "7000:5005"
-    networks:
-      - default
-      - proxy
-    environment:
-      DEPLOYMENT_TYPE: PRODUCTION
-      DB_ENGINE: ${DB_ENGINE}
-      DB_HOST: waterbillingsystem_db
-      DB_PORT: 3306
-      CACHE_TYPE: SimpleCache
-      DB_NAME: ${DB_NAME}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASS: ${DB_PASS}
-      SECRET_KEY: ${SECRET_KEY}
-      NFC_PWD_SECRET: ${NFC_PWD_SECRET}
-      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
-      DEBUG: ${DEBUG}
-      XENDIT_API_KEY: ${XENDIT_API_KEY}
-      XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE}
-      PYTHON_GIL: 0
-    volumes:
-      - db_backups:/app/db_backups
-    depends_on:
-      waterbillingsystem_db:
-        condition: service_healthy
-
-  waterbillingsystem_worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: waterbillingsystem_worker
-    restart: unless-stopped
-    networks:
-      - default
-    environment:
-      DEPLOYMENT_TYPE: DEBUG
-      DB_ENGINE: ${DB_ENGINE}
-      DB_HOST: waterbillingsystem_db
-      DB_PORT: 3306
-      CACHE_TYPE: SimpleCache
-      DB_NAME: ${DB_NAME}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASS: ${DB_PASS}
-      SECRET_KEY: ${SECRET_KEY}
-      NFC_PWD_SECRET: ${NFC_PWD_SECRET}
-      XENDIT_API_KEY: ${XENDIT_API_KEY}
-      XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
-      PYTHON_GIL: 0
-    volumes:
-      - db_backups:/app/db_backups
-    command: ["python", "apps/background_worker.py"]
-    depends_on:
-      waterbillingsystem_db:
-        condition: service_healthy
-
-  waterbillingsystem_phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: waterbillingsystem_phpmyadmin
-    restart: unless-stopped
-    ports:
-      - "7002:80"
-    environment:
-      PMA_HOST: waterbillingsystem_db
-    depends_on:
-      - waterbillingsystem_db
-
-  waterbillingsystem_documentation:
-    image: python:3.14-slim
-    container_name: waterbillingsystem_documentation
-    restart: unless-stopped
-    working_dir: /app
-    command: >
-      sh -c "
-        pip install -r requirements.txt --quiet &&
-        mkdocs build --site-dir /app/_site &&
-        exec python -m http.server 8000 --directory /app/_site
-      "
-    ports:
-      - "7001:8000"
-    networks:
-      - default
-      - proxy
-    volumes:
-      - ./documentations:/app
+networks:
+  net-landing:        { internal: true }
+  net-customer:       { internal: true }
+  net-staff:          { internal: true }
+  net-debug:          { internal: true }
+  net-api-ext:        { internal: true }
+  net-api-cust:       { internal: true }
+  net-api-staff:      { internal: true }
+  net-api-debug:      { internal: true }
+  net-data:           { internal: true }
+  reverse-proxy_proxy:
+    external: true
+    name: reverse-proxy_proxy
 
 volumes:
   mysql_data:
   db_backups:
-
-networks:
-  default:
-  proxy:
-    external: true
-    name: reverse-proxy_proxy
