@@ -1,0 +1,135 @@
+<div class="modal fade" id="customerModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="border-bottom: none; padding: 1.5rem 1.5rem 0;">
+                <h5 class="modal-title" style="font-weight: 700; color: #1a1a2e;">
+                    <i class="fas fa-file-invoice" style="color: #e94560;"></i> <span id="modal-title-text">Check Your Bill</span>
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" style="font-size: 1.5rem; color: #6c757d;">
+                    <span>&times;</span>
+                </button>
+            </div>
+
+            <div id="modal-lookup">
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <p style="color: #6c757d; font-size: 0.9rem; margin-bottom: 1.25rem;">Enter your customer number and last receipt number to verify your account.</p>
+                    <div class="form-group">
+                        <label style="font-weight: 600; font-size: 0.85rem; color: #1a1a2e;">Customer Number</label>
+                        <input type="text" id="lookup-customer-number" class="form-control" required
+                               style="border-radius: 10px; padding: 0.7rem 1rem; border: 2px solid #e9ecef; font-size: 0.95rem;"
+                               placeholder="e.g. CRDC-0001">
+                    </div>
+                    <div class="form-group mb-0">
+                        <label style="font-weight: 600; font-size: 0.85rem; color: #1a1a2e;">Last Receipt Number</label>
+                        <input type="text" id="lookup-receipt-number" class="form-control"
+                               style="border-radius: 10px; padding: 0.7rem 1rem; border: 2px solid #e9ecef; font-size: 0.95rem;{% if config.get('DEBUG_ENABLED') %} background: #f0f0f0;{% endif %}"
+                               placeholder="{% if config.get('DEBUG_ENABLED') %}(optional in DEBUG mode){% else %}e.g. RCP-2026-001{% endif %}"
+                               {% if config.get('DEBUG_ENABLED') %}readonly{% else %}required{% endif %}>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: none; padding: 0 1.5rem 1.5rem;">
+                    <button type="button" class="btn btn-bill" id="lookup-btn" style="width: 100%;">
+                        <i class="fas fa-search mr-2"></i>Look Up
+                    </button>
+                </div>
+            </div>
+
+            <div id="modal-confirm" style="display:none;">
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <p style="color: #6c757d; font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Is this you?</p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm" style="font-size: 0.85rem;">
+                                <tr><th style="border-top: none; color: #6c757d; padding-left: 0;">Customer #</th><td style="border-top: none;" id="confirm-customer-number"></td></tr>
+                                <tr><th style="color: #6c757d; padding-left: 0;">Name</th><td id="confirm-name"></td></tr>
+                                <tr><th style="color: #6c757d; padding-left: 0;">Address</th><td id="confirm-address"></td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <div id="confirm-map" style="height: 200px; width: 100%; border-radius: 8px;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: none; padding: 0 1.5rem 1.5rem; justify-content: space-between;">
+                    <button type="button" class="btn btn-outline" id="back-btn">
+                        <i class="fas fa-arrow-left mr-2"></i>No, go back
+                    </button>
+                    <button type="button" class="btn btn-bill" id="confirm-btn">
+                        <i class="fas fa-check mr-2"></i>Yes, this is my account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    var customerData = null;
+
+    function doLookup() {
+        var num = $('#lookup-customer-number').val().trim();
+        var receipt = $('#lookup-receipt-number').val().trim();
+        if (!num) { alert('Please enter a customer number.'); return; }
+        {% if not config.get('DEBUG_ENABLED') %}
+        if (!receipt) { alert('Please enter your last receipt number for verification.'); return; }
+        {% endif %}
+        $.ajax({
+            url: '{{ "/customer/check" }}',
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+            contentType: 'application/json',
+            data: JSON.stringify({ customer_number: num, last_receipt: receipt }),
+            success: function(data) {
+                customerData = data;
+                $('#confirm-customer-number').text(data.customer_number);
+                $('#confirm-name').text(data.name || '-');
+                $('#confirm-address').text(data.address || '-');
+                $('#modal-lookup').hide();
+                $('#modal-confirm').show();
+                if (data.x_coordinate && data.y_coordinate) {
+                    setTimeout(function() {
+                        var el = document.getElementById('confirm-map');
+                        if (el) {
+                            var map = L.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, keyboard: false }).setView([data.x_coordinate, data.y_coordinate], 15);
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+                            L.marker([data.x_coordinate, data.y_coordinate]).addTo(map);
+                        }
+                    }, 400);
+                }
+            },
+            error: function(xhr) {
+                var msg = 'Verification failed. Check your customer number and receipt number.';
+                try { var r = JSON.parse(xhr.responseText); msg = r.error; } catch(e) {}
+                alert(msg);
+            }
+        });
+    }
+
+    $('#lookup-btn').on('click', doLookup);
+    $('#lookup-customer-number, #lookup-receipt-number').on('keypress', function(e) {
+        if (e.which === 13) doLookup();
+    });
+
+    $('#back-btn').on('click', function() {
+        $('#modal-confirm').hide();
+        $('#modal-lookup').show();
+    });
+
+    $('#confirm-btn').on('click', function() {
+        if (!customerData) return;
+        $.ajax({
+            url: '{{ "/customer/check" }}',
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+            contentType: 'application/json',
+            data: JSON.stringify({ customer_number: customerData.customer_number }),
+            success: function(data) {
+                $('#customerModal').modal('hide');
+                window.location.href = data.redirect;
+            },
+            error: function() {
+                alert('Failed to confirm. Please try again.');
+            }
+        });
+    });
+</script>

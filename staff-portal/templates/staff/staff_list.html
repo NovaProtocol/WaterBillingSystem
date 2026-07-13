@@ -1,0 +1,360 @@
+{% extends "staff/base.html" %}
+
+{% block title %}Staff Management{% endblock %}
+
+{% block content %}
+
+<div class="page-title">Staff Management</div>
+
+<div class="card card-cotta mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Create Staff</span>
+    </div>
+    <div class="card-body">
+        <form id="create-staff-form">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="staff-name" class="form-control" placeholder="Full Name" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="staff-username" class="form-control" placeholder="Username" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="staff-password" class="form-control" placeholder="Password" required>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="staff-email" class="form-control" placeholder="Email (optional)">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Contact Number</label>
+                        <input type="text" id="staff-contact" class="form-control" placeholder="Contact # (optional)">
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="d-block mb-2">Permissions</label>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="custom-control custom-checkbox mb-2">
+                            <input type="checkbox" class="custom-control-input" id="perm-read" value="can_read_meters">
+                            <label class="custom-control-label" for="perm-read">Read Meters</label>
+                        </div>
+                        <div class="custom-control custom-checkbox mb-2">
+                            <input type="checkbox" class="custom-control-input" id="perm-payment" value="can_accept_payment">
+                            <label class="custom-control-label" for="perm-payment">Accept Payment</label>
+                        </div>
+                        <div class="custom-control custom-checkbox mb-2">
+                            <input type="checkbox" class="custom-control-input" id="perm-enroll" value="can_enroll_customer">
+                            <label class="custom-control-label" for="perm-enroll">Enroll Customer</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="custom-control custom-checkbox mb-2">
+                            <input type="checkbox" class="custom-control-input" id="perm-drop-read" value="can_drop_reading">
+                            <label class="custom-control-label" for="perm-drop-read">Drop Reading</label>
+                        </div>
+                        <div class="custom-control custom-checkbox mb-2">
+                            <input type="checkbox" class="custom-control-input" id="perm-drop-pay" value="can_drop_payment">
+                            <label class="custom-control-label" for="perm-drop-pay">Drop Payment</label>
+                        </div>
+                        <div class="custom-control custom-checkbox mb-2">
+                            <input type="checkbox" class="custom-control-input" id="perm-billing" value="can_manage_billing">
+                            <label class="custom-control-label" for="perm-billing">Manage Billing</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="custom-control custom-checkbox mb-2">
+                            <input type="checkbox" class="custom-control-input" id="perm-staff" value="can_enroll_staff">
+                            <label class="custom-control-label" for="perm-staff">Manage Staff</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-cotta">
+                <i class="fas fa-plus mr-2"></i>Create Staff
+            </button>
+        </form>
+        <div id="staff-result" class="mt-3"></div>
+    </div>
+</div>
+
+<div class="card card-cotta">
+    <div class="card-header">Current Staff</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm history-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Contact</th>
+                        <th>Status</th>
+                        <th>Read Meters</th>
+                        <th>Accept Payment</th>
+                        <th>Enroll Customer</th>
+                        <th>Drop Reading</th>
+                        <th>Drop Payment</th>
+                        <th>Manage Billing</th>
+                        <th>Manage Staff</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in staff %}
+                    <tr class="{{ 'text-muted' if not s.is_active }}">
+                        <td style="font-weight: 600;">{{ s.name or s.username }}</td>
+                        <td>{{ s.username }}</td>
+                        <td>{{ s.email or '—' }}</td>
+                        <td>{{ s.contact_number or '—' }}</td>
+                        <td>
+                            {% if s.is_active %}
+                            <span class="badge badge-success">Active</span>
+                            {% else %}
+                            <span class="badge badge-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>{% if s.can_read_meters %}<i class="fas fa-check" style="color: #28a745;"></i>{% endif %}</td>
+                        <td>{% if s.can_accept_payment %}<i class="fas fa-check" style="color: #28a745;"></i>{% endif %}</td>
+                        <td>{% if s.can_enroll_customer %}<i class="fas fa-check" style="color: #28a745;"></i>{% endif %}</td>
+                        <td>{% if s.can_drop_reading %}<i class="fas fa-check" style="color: #28a745;"></i>{% endif %}</td>
+                        <td>{% if s.can_drop_payment %}<i class="fas fa-check" style="color: #28a745;"></i>{% endif %}</td>
+                        <td>{% if s.can_manage_billing %}<i class="fas fa-check" style="color: #28a745;"></i>{% endif %}</td>
+                        <td>{% if s.can_enroll_staff %}<i class="fas fa-check" style="color: #28a745;"></i>{% endif %}</td>
+                        <td>
+                            <button class="btn btn-outline-sm edit-staff" data-id="{{ s.id }}" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editStaffModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content" style="border-radius: 16px;">
+            <div class="modal-header" style="border: none; padding-bottom: 0;">
+                <h5 class="modal-title font-weight-bold">Edit Staff</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-staff-form">
+                    <input type="hidden" id="edit-staff-id">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" id="edit-staff-name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" id="edit-staff-username" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Password <small class="text-muted">(leave blank to keep)</small></label>
+                                <input type="password" id="edit-staff-password" class="form-control" placeholder="New password">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="edit-staff-email" class="form-control" placeholder="Email (optional)">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Contact Number</label>
+                                <input type="text" id="edit-staff-contact" class="form-control" placeholder="Contact # (optional)">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="d-block mb-2">Permissions</label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-read" value="can_read_meters">
+                                    <label class="custom-control-label" for="edit-perm-read">Read Meters</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-payment" value="can_accept_payment">
+                                    <label class="custom-control-label" for="edit-perm-payment">Accept Payment</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-enroll" value="can_enroll_customer">
+                                    <label class="custom-control-label" for="edit-perm-enroll">Enroll Customer</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-drop-read" value="can_drop_reading">
+                                    <label class="custom-control-label" for="edit-perm-drop-read">Drop Reading</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-drop-pay" value="can_drop_payment">
+                                    <label class="custom-control-label" for="edit-perm-drop-pay">Drop Payment</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-billing" value="can_manage_billing">
+                                    <label class="custom-control-label" for="edit-perm-billing">Manage Billing</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-staff" value="can_enroll_staff">
+                                    <label class="custom-control-label" for="edit-perm-staff">Manage Staff</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" id="edit-perm-active" value="is_active" checked>
+                                    <label class="custom-control-label" for="edit-perm-active">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-cotta btn-block">
+                        <i class="fas fa-save mr-2"></i>Save Changes
+                    </button>
+                </form>
+                <div id="edit-staff-result" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block javascripts %}
+<script>
+    function buildPerms(prefix) {
+        var perms = {};
+        $(prefix + ' .custom-control-input:checked').each(function() {
+            perms[$(this).val()] = true;
+        });
+        return perms;
+    }
+
+    $('#create-staff-form').on('submit', function(e) {
+        e.preventDefault();
+        var perms = buildPerms(this);
+        $.ajax({
+            url: '{{ url_for("staff_blueprint.staff_create") }}',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                name: $('#staff-name').val().trim(),
+                username: $('#staff-username').val().trim(),
+                password: $('#staff-password').val(),
+                email: $('#staff-email').val().trim(),
+                contact_number: $('#staff-contact').val().trim(),
+                can_read_meters: perms.can_read_meters || false,
+                can_accept_payment: perms.can_accept_payment || false,
+                can_enroll_customer: perms.can_enroll_customer || false,
+                can_drop_reading: perms.can_drop_reading || false,
+                can_drop_payment: perms.can_drop_payment || false,
+                can_enroll_staff: perms.can_enroll_staff || false,
+                can_manage_billing: perms.can_manage_billing || false,
+            }),
+            success: function(data) {
+                $('#staff-result').html('<div class="alert alert-success py-2" style="border-radius: 10px;">Staff <strong>' + data.name + '</strong> created.</div>');
+                setTimeout(function() { location.reload(); }, 1000);
+            },
+            error: function(xhr) {
+                var msg = 'Failed to create staff.';
+                try { var r = JSON.parse(xhr.responseText); msg = r.error; } catch(e) {}
+                $('#staff-result').html('<div class="alert alert-danger py-2" style="border-radius: 10px;">' + msg + '</div>');
+            }
+        });
+    });
+
+    var permIdMap = {
+        can_read_meters: 'edit-perm-read',
+        can_accept_payment: 'edit-perm-payment',
+        can_enroll_customer: 'edit-perm-enroll',
+        can_drop_reading: 'edit-perm-drop-read',
+        can_drop_payment: 'edit-perm-drop-pay',
+        can_manage_billing: 'edit-perm-billing',
+        can_enroll_staff: 'edit-perm-staff',
+    };
+
+    $('.edit-staff').on('click', function() {
+        var id = $(this).data('id');
+        $.get('{{ url_for("staff_blueprint.staff_edit", staff_id=0) }}'.replace('0', id), function(data) {
+            $('#edit-staff-id').val(data.id);
+            $('#edit-staff-name').val(data.name);
+            $('#edit-staff-username').val(data.username);
+            $('#edit-staff-password').val('');
+            $('#edit-staff-email').val(data.email || '');
+            $('#edit-staff-contact').val(data.contact_number || '');
+            $('.edit-perm').prop('checked', false);
+            $.each(permIdMap, function(perm, id) {
+                if (data[perm]) $('#' + id).prop('checked', true);
+            });
+            $('#edit-perm-active').prop('checked', data.is_active);
+            $('#edit-staff-result').empty();
+            $('#editStaffModal').modal('show');
+        });
+    });
+
+    $('#edit-staff-form').on('submit', function(e) {
+        e.preventDefault();
+        var perms = buildPerms('#editStaffModal');
+        var id = $('#edit-staff-id').val();
+        $.ajax({
+            url: '{{ url_for("staff_blueprint.staff_edit", staff_id=0) }}'.replace('0', id),
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                name: $('#edit-staff-name').val().trim(),
+                username: $('#edit-staff-username').val().trim(),
+                password: $('#edit-staff-password').val(),
+                email: $('#edit-staff-email').val().trim(),
+                contact_number: $('#edit-staff-contact').val().trim(),
+                can_read_meters: perms.can_read_meters || false,
+                can_accept_payment: perms.can_accept_payment || false,
+                can_enroll_customer: perms.can_enroll_customer || false,
+                can_drop_reading: perms.can_drop_reading || false,
+                can_drop_payment: perms.can_drop_payment || false,
+                can_enroll_staff: perms.can_enroll_staff || false,
+                can_manage_billing: perms.can_manage_billing || false,
+                is_active: perms.is_active || false,
+            }),
+            success: function(data) {
+                $('#edit-staff-result').html('<div class="alert alert-success py-2" style="border-radius: 10px;">Staff <strong>' + data.name + '</strong> updated.</div>');
+                setTimeout(function() { location.reload(); }, 1000);
+            },
+            error: function(xhr) {
+                var msg = 'Failed to update staff.';
+                try { var r = JSON.parse(xhr.responseText); msg = r.error; } catch(e) {}
+                $('#edit-staff-result').html('<div class="alert alert-danger py-2" style="border-radius: 10px;">' + msg + '</div>');
+            }
+        });
+    });
+</script>
+{% endblock javascripts %}

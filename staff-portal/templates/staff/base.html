@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Cotta Realty — {% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/font-awesome/6.5.0/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta.css') }}">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #1a1a2e; background: #f8f9fa; }
+        .sidebar { position: fixed; top: 56px; left: 0; bottom: 0; width: 220px; background: #fff; border-right: 1px solid #f0f0f0; padding: 1rem 0; overflow-y: auto; z-index: 100; }
+        .sidebar .nav-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1.25rem; color: #6c757d; font-size: 0.88rem; font-weight: 500; border-radius: 0; transition: all 0.2s; border-left: 3px solid transparent; }
+        .sidebar .nav-link:hover { color: #1a1a2e; background: #f8f9fa; border-left-color: #e94560; }
+        .sidebar .nav-link.active { color: #e94560; background: #fff5f7; border-left-color: #e94560; font-weight: 600; }
+        .sidebar .nav-link i { width: 18px; text-align: center; font-size: 1rem; }
+        .sidebar .sidebar-header { padding: 0.5rem 1.25rem 0.75rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #adb5bd; }
+        .main-content { margin-left: 220px; padding-top: 56px; min-height: 100vh; }
+        .main-content > .container-fluid { padding: 1.5rem; }
+        label { font-weight: 600; font-size: 0.85rem; color: #1a1a2e; }
+    </style>
+    {% block stylesheets %}{% endblock stylesheets %}
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-cotta fixed-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="{{ url_for('staff_blueprint.dashboard') if current_user.is_authenticated else url_for('staff_blueprint.index') }}">COTTA <span>REALTY</span></a>
+            {% if current_user.is_authenticated %}
+            <div class="ml-auto d-flex align-items-center" style="gap: 1rem;">
+                <span class="text-white-50" style="font-size: 0.85rem;">
+                    <i class="fas fa-user mr-1"></i>{{ current_user.name or current_user.username }}
+                </span>
+                <a href="{{ url_for('staff_blueprint.logout') }}" class="btn btn-outline-light btn-sm" style="border-radius: 50px; font-size: 0.8rem;">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </nav>
+
+    {% if current_user.is_authenticated %}
+    <div class="sidebar">
+        <div class="sidebar-header">Navigation</div>
+        <a href="{{ url_for('staff_blueprint.dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'staff_blueprint.dashboard' }}">
+            <i class="fas fa-th-large"></i>Dashboard
+        </a>
+        {% if current_user.can_read_meters %}
+        <a href="{{ url_for('staff_blueprint.meter_reading') }}" class="nav-link {{ 'active' if request.endpoint in ('staff_blueprint.meter_reading',) }}">
+            <i class="fas fa-tachometer-alt"></i>Meter Reading
+        </a>
+        {% endif %}
+        {% if current_user.can_accept_payment %}
+        <a href="{{ url_for('staff_blueprint.payments') }}" class="nav-link {{ 'active' if request.endpoint == 'staff_blueprint.payments' }}">
+            <i class="fas fa-credit-card"></i>Payments
+        </a>
+        {% endif %}
+        {% if current_user.can_accept_payment or current_user.can_manage_billing %}
+        <a href="{{ url_for('staff_blueprint.cashier_tally') }}" class="nav-link {{ 'active' if request.endpoint == 'staff_blueprint.cashier_tally' }}">
+            <i class="fas fa-cash-register"></i>Cashier Tally
+        </a>
+        {% endif %}
+        {% if current_user.can_enroll_customer %}
+        <a href="{{ url_for('staff_blueprint.customers') }}" class="nav-link {{ 'active' if request.endpoint == 'staff_blueprint.customers' }}">
+            <i class="fas fa-user-plus"></i>Enroll Customer
+        </a>
+        {% endif %}
+        {% if current_user.can_manage_billing or current_user.can_drop_payment or current_user.can_drop_reading or current_user.can_enroll_customer or current_user.can_enroll_staff %}
+        <div class="sidebar-header mt-3">Administration</div>
+        {% endif %}
+        {% if current_user.can_enroll_customer %}
+        <a href="{{ url_for('staff_blueprint.manage_customers') }}" class="nav-link {{ 'active' if request.endpoint in ('staff_blueprint.manage_customers', 'staff_blueprint.edit_customer') }}">
+            <i class="fas fa-users-cog"></i>Manage Customers
+        </a>
+        {% endif %}
+        {% if current_user.can_manage_billing or current_user.can_drop_payment %}
+        <a href="{{ url_for('staff_blueprint.manage_billing') }}" class="nav-link {{ 'active' if request.endpoint == 'staff_blueprint.manage_billing' }}">
+            <i class="fas fa-file-invoice"></i>Manage Billing
+        </a>
+        {% endif %}
+        {% if current_user.can_drop_reading or current_user.can_manage_billing %}
+        <a href="{{ url_for('staff_blueprint.manage_reading') }}" class="nav-link {{ 'active' if request.endpoint == 'staff_blueprint.manage_reading' }}">
+            <i class="fas fa-edit"></i>Manage Reading
+        </a>
+        {% endif %}
+        {% if current_user.can_enroll_staff %}
+        <a href="{{ url_for('staff_blueprint.staff_list') }}" class="nav-link {{ 'active' if request.endpoint in ('staff_blueprint.staff_list', 'staff_blueprint.staff_edit') }}">
+            <i class="fas fa-users-cog"></i>Staff
+        </a>
+        {% endif %}
+        {% if current_user.username == "superuser" and config.get("DEBUG_ENABLED") %}
+        <div class="sidebar-header mt-3">Development</div>
+        <a href="{{ REVERSE_PROXY_PRIVATE_PREFIX }}/developer/" class="nav-link {{ 'active' if request.path.startswith('/developer') }}">
+            <i class="fas fa-bug"></i>DEBUG
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="main-content">
+        {% block content %}{% endblock content %}
+    </div>
+
+    <script src="{{ url_for('static', filename='assets/vendor/jquery/3.5.1/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/common.js') }}"></script>
+    {% block javascripts %}{% endblock javascripts %}
+</body>
+</html>

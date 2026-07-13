@@ -1,0 +1,127 @@
+{% extends "staff/base.html" %}
+
+{% block title %}Cashier Tally{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="page-title mb-0"><i class="fas fa-cash-register mr-2 text-cotta"></i>Cashier Tally</h4>
+    </div>
+
+    <div class="card card-cotta mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center mb-3" style="gap: 0.5rem;">
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="?period=daily{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-cotta' if period == 'daily' else 'btn-outline-cotta' }}">Daily</a>
+                    <a href="?period=weekly{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-cotta' if period == 'weekly' else 'btn-outline-cotta' }}">Weekly</a>
+                    <a href="?period=monthly{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-cotta' if period == 'monthly' else 'btn-outline-cotta' }}">Monthly</a>
+                    <a href="?period=yearly{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-cotta' if period == 'yearly' else 'btn-outline-cotta' }}">Yearly</a>
+                    <a href="?period=custom" class="btn {{ 'btn-cotta' if period == 'custom' else 'btn-outline-cotta' }}">Custom</a>
+                </div>
+
+                {% if period == 'custom' %}
+                <form id="customRangeForm" class="form-inline ml-2" style="gap: 0.5rem;" method="get">
+                    <input type="hidden" name="period" value="custom">
+                    <div class="input-group input-group-sm">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">From</span>
+                        </div>
+                        <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" style="max-width: 150px;">
+                    </div>
+                    <div class="input-group input-group-sm">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">To</span>
+                        </div>
+                        <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" style="max-width: 150px;">
+                    </div>
+                    <div class="input-group input-group-sm" style="max-width: 120px;">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Group</span>
+                        </div>
+                        <select name="group_days" class="form-control form-control-sm">
+                            <option value="1" {% if group_days == 1 %}selected{% endif %}>1 day</option>
+                            <option value="7" {% if group_days == 7 %}selected{% endif %}>7 days</option>
+                            <option value="15" {% if group_days == 15 %}selected{% endif %}>15 days</option>
+                            <option value="30" {% if group_days == 30 %}selected{% endif %}>30 days</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-sm-cotta">Apply</button>
+                </form>
+                {% endif %}
+            </div>
+
+            {% if period != 'custom' %}
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                {% if prev_date %}
+                <a href="?period={{ period }}&date={{ prev_date }}&group_days={{ group_days }}" class="btn btn-outline-cotta btn-sm">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                {% else %}
+                <span></span>
+                {% endif %}
+                <div class="text-center">
+                    <h5 class="mb-0 font-weight-bold">{{ display }}</h5>
+                    {% if is_today and period == 'daily' %}
+                    <small class="text-muted">Today</small>
+                    {% endif %}
+                </div>
+                <a href="?period={{ period }}&date={{ next_date }}&group_days={{ group_days }}" class="btn btn-outline-cotta btn-sm">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+            {% else %}
+            <div class="text-center mb-3">
+                <h5 class="mb-0 font-weight-bold">{{ display }}</h5>
+            </div>
+            {% endif %}
+
+            {% if tally %}
+            <div class="table-responsive">
+                <table class="table table-hover" style="font-size: 0.9rem;">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Cashier</th>
+                            {% if use_matrix and tally[0].interval_list %}
+                            {% for interval in tally[0].interval_list %}
+                            <th class="text-right">{{ interval }}</th>
+                            {% endfor %}
+                            {% endif %}
+                            <th class="text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in tally %}
+                        <tr>
+                            <td>{{ row.username }}</td>
+                            {% if use_matrix and row.interval_list %}
+                            {% for interval in row.interval_list %}
+                            <td class="text-right">&#x20B1;{{ "%.2f" | format(row.intervals[interval]) }}</td>
+                            {% endfor %}
+                            {% endif %}
+                            <td class="text-right font-weight-bold">&#x20B1;{{ "%.2f" | format(row.total) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="font-weight-bold" style="border-top: 2px solid #1a1a2e;">
+                            <td>Total</td>
+                            {% if use_matrix and tally[0].interval_list %}
+                            {% for interval in tally[0].interval_list %}
+                            {% set col_total = tally | map(attribute='intervals') | map(attribute=interval) | sum %}
+                            <td class="text-right">&#x20B1;{{ "%.2f" | format(col_total) }}</td>
+                            {% endfor %}
+                            {% endif %}
+                            <td class="text-right">&#x20B1;{{ "%.2f" | format(tally | map(attribute='total') | sum) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center mb-0 py-3">No collections recorded for this period.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock content %}

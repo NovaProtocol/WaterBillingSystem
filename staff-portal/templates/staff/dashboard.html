@@ -1,0 +1,51 @@
+{% extends "staff/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="page-title">Dashboard</div>
+
+<div class="row">
+    <div class="col-md-3 mb-4">
+        <div class="card card-cotta text-center">
+            <div class="card-body py-4">
+                <div style="font-size: 2rem; color: #e94560;" class="mb-2"><i class="fas fa-tachometer-alt"></i></div>
+                <div class="text-muted" style="font-size: 0.85rem;">Meter Readings</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card card-cotta text-center">
+            <div class="card-body py-4">
+                <div style="font-size: 2rem; color: #e94560;" class="mb-2"><i class="fas fa-credit-card"></i></div>
+                <div class="text-muted" style="font-size: 0.85rem;">Payments</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card card-cotta text-center">
+            <div class="card-body py-4">
+                <div style="font-size: 2rem; color: #e94560;" class="mb-2"><i class="fas fa-users"></i></div>
+                <div class="text-muted" style="font-size: 0.85rem;">Customers</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card card-cotta text-center">
+            <div class="card-body py-4">
+                <div style="font-size: 2rem; color: #e94560;" class="mb-2"><i class="fas fa-file-invoice"></i></div>
+                <div class="text-muted" style="font-size: 0.85rem;">Billing</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card card-cotta">
+    <div class="card-header">Welcome</div>
+    <div class="card-body">
+        <p class="mb-0">Welcome, <strong>{{ current_user.name or current_user.username }}</strong>. Use the sidebar to navigate to your available modules.</p>
+    </div>
+</div>
+
+{% endblock content %}
