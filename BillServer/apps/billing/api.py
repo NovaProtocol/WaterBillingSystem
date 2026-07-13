@@ -342,10 +342,13 @@ def _void_xendit_session(session_id: str) -> None:
             },
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=_XENDIT_TIMEOUT):
-            pass
-    except Exception:
-        pass
+        with urllib.request.urlopen(req, timeout=_XENDIT_TIMEOUT) as resp:
+            current_app.logger.info("Voided stale session %s: %s", session_id[:16], resp.status)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        current_app.logger.warning("Failed to void session %s: %s %s", session_id[:16], e.code, body)
+    except Exception as e:
+        current_app.logger.warning("Failed to void session %s: %s", session_id[:16], e)
 
 
 def _create_xendit_session(
@@ -380,7 +383,7 @@ def _create_xendit_session(
         "cancel_return_url": cancel_url,
         "description": description,
         "customer": {
-            "reference_id": customer_number,
+            "reference_id": reference_id,
             "type": "INDIVIDUAL",
             "individual_detail": {
                 "given_names": given_names,
