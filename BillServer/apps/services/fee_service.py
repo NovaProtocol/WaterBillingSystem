@@ -22,9 +22,7 @@ def calculate_fee(amount: float, method_code: str) -> Tuple[float, float]:
 PAYMENT_METHODS: list[dict] = [
     # ── E-Wallets ──
     {"code": "gcash_ewallet",     "label": "GCash E-Wallet",           "channel_code": "GCASH",   "fee_percent": 3.00, "xendit_fee": 11.00, "sort_order": 1},
-    {"code": "gcash_autodebit",   "label": "GCash Auto Debit",         "channel_code": "GCASH",   "fee_percent": 3.20, "xendit_fee": 11.00, "sort_order": 2},
     {"code": "maya_ewallet",      "label": "Maya E-Wallet",            "channel_code": "PAYMAYA", "fee_percent": 2.00, "xendit_fee": 11.00, "sort_order": 3},
-    {"code": "maya_autodebit",    "label": "Maya Auto Debit",          "channel_code": "PAYMAYA", "fee_percent": 1.30, "fee_minimum": 25.00, "xendit_fee": 11.00, "sort_order": 4},
     {"code": "grabfpay",          "label": "GrabPay",                  "channel_code": "GRABPAY", "fee_percent": 2.00, "xendit_fee": 11.00, "sort_order": 5},
     {"code": "shopeepay",         "label": "ShopeePay",                "channel_code": "SHOPEEPAY","fee_percent": 2.50, "xendit_fee": 11.00, "sort_order": 6},
 
@@ -33,9 +31,7 @@ PAYMENT_METHODS: list[dict] = [
     {"code": "card_international","label": "Card (International PHP)",  "channel_code": "CARDS",   "fee_percent": 4.50, "fee_flat": 10.00,   "xendit_fee": 11.00, "sort_order": 11},
 
     # ── Direct Debit ──
-    {"code": "bpi_autodebit",     "label": "BPI Auto Debit",           "channel_code": "BPI",     "fee_percent": 1.30, "fee_minimum": 25.00, "xendit_fee": 11.00, "sort_order": 20},
     {"code": "bpi_directdebit",   "label": "BPI Direct Debit",         "channel_code": "BPI",     "fee_percent": 1.30, "fee_minimum": 15.00, "xendit_fee": 11.00, "sort_order": 21},
-    {"code": "ubp_autodebit",     "label": "UBP Auto Debit",           "channel_code": "UBP",     "fee_percent": 1.30, "fee_minimum": 25.00, "xendit_fee": 11.00, "sort_order": 22},
     {"code": "ubp_directdebit",   "label": "UBP Direct Debit",         "channel_code": "UBP",     "fee_percent": 1.30, "fee_minimum": 15.00, "xendit_fee": 11.00, "sort_order": 23},
     {"code": "rcbc_directdebit",  "label": "RCBC Direct Debit",        "channel_code": "RCBC",    "fee_percent": 1.30, "fee_minimum": 15.00, "xendit_fee": 11.00, "sort_order": 24},
 
