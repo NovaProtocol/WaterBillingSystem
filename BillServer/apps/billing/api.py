@@ -562,7 +562,7 @@ def _process_xendit_payment(txn: XenditTransaction) -> bool:
         return False
 
     try:
-        amount = float(txn.amount)
+        amount = float(txn.base_amount or txn.amount)
         result, error, status = submit_payment(
             txn.customer_number, amount, staff.id
         )
