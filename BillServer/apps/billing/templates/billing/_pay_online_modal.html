@@ -42,7 +42,7 @@
                         'Over-the-Counter': ['7eleven_otc', 'cebuana_otc', 'ecpay_otc', 'lbc_otc', 'mlhuillier_otc', 'palawan_otc', 'robinsons_otc', 'sm_otc', 'ussc_otc'],
                         'Others': ['online_banking', 'billease', 'virtual_account'],
                     } %}
-                    {% set expanded_groups = ['Recommended', 'E-Wallets'] %}
+                    {% set expanded_groups = ['Recommended'] %}
 
                     {% for gname, codes in groups.items() %}
                         {% set is_expanded = gname in expanded_groups %}
