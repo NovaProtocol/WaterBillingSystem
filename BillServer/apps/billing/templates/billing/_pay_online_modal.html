@@ -35,13 +35,14 @@
                     <p style="font-weight: 600; font-size: 0.85rem; color: #1a1a2e; margin-bottom: 0.75rem;">Payment Method</p>
 
                     {% set groups = {
+                        'Recommended': ['gcash_ewallet', 'maya_ewallet', 'qrph', 'card_domestic'],
                         'E-Wallets': ['gcash_ewallet', 'maya_ewallet', 'grabfpay', 'shopeepay'],
                         'Cards': ['card_domestic', 'card_international'],
                         'Direct Debit': ['bpi_directdebit', 'ubp_directdebit', 'rcbc_directdebit'],
-                        'Over-the-Counter': ['7eleven_otc', 'cebuana_otc', 'ecpay_otc', 'ecpay_loan', 'ecpay_school', 'ecpay_other', 'lbc_otc', 'mlhuillier_otc', 'palawan_otc', 'robinsons_otc', 'sm_otc', 'ussc_otc'],
-                        'Others': ['online_banking', 'qrph', 'billease', 'virtual_account'],
+                        'Over-the-Counter': ['7eleven_otc', 'cebuana_otc', 'ecpay_otc', 'lbc_otc', 'mlhuillier_otc', 'palawan_otc', 'robinsons_otc', 'sm_otc', 'ussc_otc'],
+                        'Others': ['online_banking', 'billease', 'virtual_account'],
                     } %}
-                    {% set expanded_groups = ['E-Wallets', 'Cards'] %}
+                    {% set expanded_groups = ['Recommended', 'E-Wallets'] %}
 
                     {% for gname, codes in groups.items() %}
                         {% set is_expanded = gname in expanded_groups %}
