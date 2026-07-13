@@ -648,48 +648,29 @@ def xendit_webhook() -> Response:
     event = data.get("event", "")
     payload = data.get("data", {})
 
-    # Handle Sessions webhook
-    if event == "payment_session.completed":
-        session_id = payload.get("payment_session_id", "")
-        if not session_id:
-            return jsonify({"error": "No session ID"}), 400
+    # Try to find the transaction — Sessions API webhooks use reference_id (our external_id)
+    ref_id = payload.get("reference_id", "")
+    pr_id = payload.get("payment_request_id") or payload.get("id") or ""
 
-        txn = XenditTransaction.query.filter_by(xendit_pr_id=session_id).with_for_update().first()
-        if not txn:
-            return jsonify({"error": "Transaction not found"}), 404
-
-        pr_id = payload.get("payment_request_id", "")
-        if pr_id:
-            txn.xendit_pr_id = pr_id
-
-        current_app.logger.info(
-            "Xendit webhook: event=%s session_id=%s pr_id=%s status=%s",
-            event, session_id, pr_id, txn.status,
-        )
-
-        if txn.status != "PAID":
-            payment_id = payload.get("payment_id", "")
-            if payment_id:
-                txn.xendit_payment_id = payment_id
-            _process_xendit_payment(txn)
-
-        return jsonify({"status": "ok"})
-
-    # Legacy webhooks (Payment Request / Invoice)
-    pr_id = payload.get("payment_request_id") or payload.get("id")
-
-    if not pr_id:
-        return jsonify({"error": "No payment request ID"}), 400
-
-    txn = XenditTransaction.query.filter_by(xendit_pr_id=pr_id).with_for_update().first()
+    txn = None
+    if ref_id:
+        txn = XenditTransaction.query.filter_by(external_id=ref_id).with_for_update().first()
+    if not txn and pr_id:
+        txn = XenditTransaction.query.filter_by(xendit_pr_id=pr_id).with_for_update().first()
     if not txn:
+        current_app.logger.warning("Xendit webhook: transaction not found for ref=%s pr=%s", ref_id[:20] if ref_id else "", pr_id[:20] if pr_id else "")
         return jsonify({"error": "Transaction not found"}), 404
 
-    current_app.logger.info("Xendit webhook: event=%s pr_id=%s status=%s", event, pr_id, txn.status)
+    # Store the payment_request_id if we got it from Sessions API
+    if pr_id and ref_id and txn.xendit_pr_id != pr_id:
+        txn.xendit_pr_id = pr_id
 
-    if event in ("payment.succeeded", "invoice.paid"):
+    current_app.logger.info("Xendit webhook: event=%s ref=%s pr=%s status=%s", event, ref_id[:16] if ref_id else "", pr_id[:16] if pr_id else "", txn.status)
+
+    # Sessions completion (payment.capture)
+    if event in ("payment.capture", "payment_session.completed", "payment.succeeded", "invoice.paid"):
         if txn.status != "PAID":
-            payment_id = payload.get("id", "")
+            payment_id = payload.get("payment_id") or payload.get("id", "")
             if payment_id:
                 txn.xendit_payment_id = payment_id
             _process_xendit_payment(txn)
