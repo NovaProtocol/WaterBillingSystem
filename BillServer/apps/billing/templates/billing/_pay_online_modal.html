@@ -21,17 +21,12 @@
                         <div style="font-size: 1.6rem; font-weight: 800; color: #1a1a2e;">&#x20B1;<span id="pay-amount">{{ "%.2f" | format(total_due) }}</span></div>
                     </div>
 
-                    <div id="fee-breakdown" style="display:none;" class="mb-3 p-3" style="background: #f8f9fa; border-radius: 10px;">
-                        <div class="d-flex justify-content-between mb-1" style="font-size: 0.85rem; color: #6c757d;">
-                            <span>Service Fee</span>
-                            <span>&#x20B1;<span id="fee-amount-display">0.00</span></span>
+                    <div id="fee-breakdown" style="display:none;" class="mb-3 p-3" style="background: #f8f9fa; border-radius: 10px; font-size: 0.9rem;">
+                        <div class="d-flex justify-content-between" style="color: #6c757d;">
+                            <span>Convenience Fee</span>
+                            <span>&#x20B1;<span id="convenience-fee-display">0.00</span></span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1" style="font-size: 0.85rem; color: #6c757d;">
-                            <span>Xendit Processing Fee</span>
-                            <span>&#x20B1;<span id="xendit-fee-display">0.00</span></span>
-                        </div>
-                        <hr class="my-1">
-                        <div class="d-flex justify-content-between" style="font-size: 1.1rem; font-weight: 700; color: #1a1a2e;">
+                        <div class="d-flex justify-content-between mt-2" style="font-weight: 700; color: #1a1a2e;">
                             <span>Total to Pay</span>
                             <span>&#x20B1;<span id="total-with-fee">0.00</span></span>
                         </div>
@@ -74,17 +69,12 @@
                                         <div style="flex:1;">
                                             <div style="font-weight: 600; font-size: 0.85rem; color: #1a1a2e;">{{ m.label }}</div>
                                             <div style="font-size: 0.7rem; color: #6c757d;">
-                                                {%- if m.fee_percent and m.fee_flat -%}
-                                                    {{ "%.1f" | format(m.fee_percent) }}% + &#x20B1;{{ "%.0f" | format(m.fee_flat) }}
-                                                {%- elif m.fee_percent and m.fee_minimum -%}
-                                                    {{ "%.1f" | format(m.fee_percent) }}% (min &#x20B1;{{ "%.0f" | format(m.fee_minimum) }})
-                                                {%- elif m.fee_percent -%}
-                                                    {{ "%.1f" | format(m.fee_percent) }}% fee
-                                                {%- elif m.fee_flat -%}
-                                                    &#x20B1;{{ "%.0f" | format(m.fee_flat) }} flat
-                                                {%- else -%}
-                                                    No fee
-                                                {%- endif -%}
+                                                {%- if m.fee_percent %}{{ "%.1f" | format(m.fee_percent) }}%{% endif -%}
+                                                {%- if m.fee_minimum %} (min &#x20B1;{{ "%.0f" | format(m.fee_minimum) }}){% endif -%}
+                                                {%- if m.fee_flat %}&#x20B1;{{ "%.0f" | format(m.fee_flat) }} flat{% endif -%}
+                                                {%- if m.xendit_fee and (m.fee_percent or m.fee_flat) %} + {% endif -%}
+                                                {%- if m.xendit_fee %}&#x20B1;{{ "%.0f" | format(m.xendit_fee) }} fee{% endif -%}
+                                                {%- if not m.fee_percent and not m.fee_flat and not m.xendit_fee %}No fee{% endif -%}
                                             </div>
                                         </div>
                                     </div>
@@ -187,10 +177,10 @@ function selectPaymentMethod(el) {
         feeAmount = feeMin;
     }
     feeAmount = Math.round(feeAmount * 100) / 100;
-    var totalWithFee = BASE_AMOUNT + feeAmount + xenditFee;
+    var convenienceFee = feeAmount + xenditFee;
+    var totalWithFee = BASE_AMOUNT + convenienceFee;
 
-    $('#fee-amount-display').text(feeAmount.toFixed(2));
-    $('#xendit-fee-display').text(xenditFee.toFixed(2));
+    $('#convenience-fee-display').text(convenienceFee.toFixed(2));
     $('#total-with-fee').text(totalWithFee.toFixed(2));
     $('#fee-breakdown').show();
     $('#pay-amount-btn').text(totalWithFee.toFixed(2));
