@@ -148,10 +148,13 @@
 <script>
 function toggleGroup(header) {
     var body = $(header).next('.payment-group-body');
-    var chevron = $(header).find('i');
-    body.slideToggle(150);
-    chevron.toggleClass('fa-chevron-down fa-chevron-up');
-    $(header).toggleClass('border-bottom-0');
+    var isOpening = !body.is(':visible');
+    $('.payment-group-body').slideUp(150);
+    $('.payment-group-header i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+    if (isOpening) {
+        body.slideDown(150);
+        $(header).find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+    }
 }
 
 var selectedMethod = null;
