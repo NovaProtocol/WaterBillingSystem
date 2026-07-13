@@ -300,16 +300,12 @@ def _xendit_api_key() -> str:
 
 PAYMENT_CHANNEL_MAP: dict[str, list[str]] = {
     "gcash_ewallet": ["GCASH"],
-    "gcash_autodebit": ["GCASH"],
     "maya_ewallet": ["PAYMAYA"],
-    "maya_autodebit": ["PAYMAYA"],
     "grabfpay": ["GRABPAY"],
     "shopeepay": ["SHOPEEPAY"],
     "card_domestic": ["CARDS"],
     "card_international": ["CARDS"],
-    "bpi_autodebit": ["BPI"],
     "bpi_directdebit": ["BPI"],
-    "ubp_autodebit": ["UBP"],
     "ubp_directdebit": ["UBP"],
     "rcbc_directdebit": ["RCBC"],
     "online_banking": ["BPI", "BDO_EPAY", "UBP"],
