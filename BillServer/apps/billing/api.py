@@ -327,6 +327,27 @@ PAYMENT_CHANNEL_MAP: dict[str, list[str]] = {
 _XENDIT_TIMEOUT = 30
 
 
+def _void_xendit_session(session_id: str) -> None:
+    api_key = _xendit_api_key()
+    if not api_key:
+        return
+    try:
+        auth = base64.b64encode(f"{api_key}:".encode()).decode()
+        req = urllib.request.Request(
+            f"https://api.xendit.co/sessions/{session_id}/void",
+            data=b"{}",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Basic {auth}",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=_XENDIT_TIMEOUT):
+            pass
+    except Exception:
+        pass
+
+
 def _create_xendit_session(
     amount: float,
     reference_id: str,
@@ -419,6 +440,7 @@ def create_xendit_invoice(customer_number: str) -> Response:
         customer_number=customer_number, status="PENDING"
     ).all()
     for s in stale:
+        _void_xendit_session(s.xendit_pr_id)
         s.status = "EXPIRED"
         s.error_message = "Superseded by new payment link"
     if stale:
