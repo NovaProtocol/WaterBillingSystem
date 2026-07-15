@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from flask import Response, jsonify
+from flask import Response, jsonify, request
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
 
@@ -16,6 +16,14 @@ from services.billing_service import ensure_penalty
 @blueprint.route("/customer/<customer_number>")
 def customer_info(customer_number: str) -> Response:
     """Get full billing details for a specific customer."""
+    from utils import resolve_api_key
+
+    api_key = resolve_api_key()
+    if not api_key:
+        return jsonify({"error": "Authentication required"}), 401
+    if not api_key.staff or not api_key.staff.can_read_meters:
+        return jsonify({"error": "Permission denied"}), 403
+
     customer = Customer.query.filter_by(customer_number=customer_number).first()
     if not customer:
         return jsonify({"error": "Customer not found"}), 404
