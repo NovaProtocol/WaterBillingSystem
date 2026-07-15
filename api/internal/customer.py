@@ -29,6 +29,7 @@ def customer_verify() -> Response:
             "address": customer.address or "",
             "contact_number": customer.contact_number or "",
             "email": customer.email or "",
+            "meter_serial_number": customer.meter_serial_number or "",
             "x_coordinate": customer.x_coordinate,
             "y_coordinate": customer.y_coordinate,
         }
@@ -117,6 +118,7 @@ def customer_billing(customer_number: str) -> Response:
             "address": customer.address or "",
             "contact_number": customer.contact_number or "",
             "email": customer.email or "",
+            "meter_serial_number": customer.meter_serial_number or "",
             "x_coordinate": customer.x_coordinate,
             "y_coordinate": customer.y_coordinate,
         },

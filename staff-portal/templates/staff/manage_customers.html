@@ -93,6 +93,7 @@
                                     data-email="{{ c.email or '' }}"
                                     data-phase="{{ c.phase or '' }}"
                                     data-block="{{ c.block or '' }}"
+                                    data-meter-sn="{{ c.meter_serial_number or  }}"
                                     data-street="{{ c.street or '' }}"
                                     data-x="{{ c.x_coordinate or '' }}"
                                     data-y="{{ c.y_coordinate or '' }}"
@@ -199,6 +200,12 @@
                             <div class="form-group">
                                 <label style="font-size:0.8rem;font-weight:600;">Email</label>
                                 <input type="email" id="editCustEmail" class="form-control" placeholder="email@example.com">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label style="font-size:0.8rem;font-weight:600;">Meter Serial Number</label>
+                                <input type="text" id="editCustMeterSn" class="form-control" placeholder="e.g. SN-2401-001">
                             </div>
                         </div>
                         <div class="col-md-3">
