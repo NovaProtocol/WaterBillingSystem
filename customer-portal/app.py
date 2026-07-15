@@ -59,8 +59,9 @@ def create_app():
     @app.template_filter('timestamp_to_date')
     def timestamp_to_date(ts):
         if ts:
+            s = str(ts).replace('T', ' ')[:19]
             from datetime import datetime
-            return datetime.strptime(str(ts)[:19], '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%d %H:%M')
+            return datetime.strptime(s, '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%d %H:%M')
         return ''
 
     @app.route('/health')
