@@ -26,8 +26,8 @@ from models import (
     XenditTransaction,
 )
 from pricing import PRICING_TIERS, compute_water_bill
-from services.billing_service import ensure_penalty
-from services.customer_service import (
+from billing_service import ensure_penalty
+from customer_service import (
     create_customer,
     get_customer_by_number,
     get_customer_or_404,
@@ -43,7 +43,7 @@ from services.payment_service import (
     recalc_cumulative_balance,
     submit_payment as service_submit_payment,
 )
-from services.reading_service import (
+from reading_service import (
     drop_reading as service_drop_reading,
     edit_reading as service_edit_reading,
 )

@@ -287,7 +287,7 @@ def customer_invoice(customer_number: str) -> Response:
     if not payment_method:
         return jsonify({"error": "Payment method is required"}), 400
 
-    from services.fee_service import calculate_fee
+    from fee_service import calculate_fee
     fee_rate, fee_amount = calculate_fee(float(amount), payment_method)
     total_amount = round(float(amount) + fee_amount, 2)
 
