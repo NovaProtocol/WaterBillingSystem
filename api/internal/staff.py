@@ -196,7 +196,7 @@ def staff_payment_submit() -> Response:
     return jsonify(result), status
 
 
-@api_internal_bp.route("/staff/cashier-tally")
+@api_internal_bp.route("/staff/<int:staff_id>/cashier-tally")
 def staff_cashier_tally() -> Response:
     staff_id = request.args.get("staff_id", type=int)
     period = request.args.get("period", "daily")
@@ -291,7 +291,7 @@ def staff_api_key_revoke(key_id: int) -> Response:
     return jsonify({"message": "Key revoked"})
 
 
-@api_internal_bp.route("/staff/api-keys")
+@api_internal_bp.route("/staff/<int:staff_id>/api-keys")
 def staff_api_key_list() -> Response:
     keys = (
         ApiKey.query
@@ -315,7 +315,7 @@ def staff_api_key_list() -> Response:
     })
 
 
-@api_internal_bp.route("/staff/reading-logs")
+@api_internal_bp.route("/staff/<int:staff_id>/reading-logs")
 def staff_reading_logs() -> Response:
     logs = (
         ManagementLog.query.filter_by(target_type="reading")
@@ -340,7 +340,7 @@ def staff_reading_logs() -> Response:
     })
 
 
-@api_internal_bp.route("/staff/staff")
+@api_internal_bp.route("/staff/all")
 def staff_staff_list() -> Response:
     staff_list = Staff.query.all()
     return jsonify({
@@ -365,7 +365,7 @@ def staff_staff_list() -> Response:
     })
 
 
-@api_internal_bp.route("/staff/staff/create", methods=["POST"])
+@api_internal_bp.route("/staff/new", methods=["POST"])
 def staff_staff_create() -> Response:
     data = request.get_json() or {}
     username = data.get("username", "").strip()
@@ -393,13 +393,13 @@ def staff_staff_create() -> Response:
     return jsonify({"message": "Staff created", "username": staff.username, "name": staff.name}), 201
 
 
-@api_internal_bp.route("/staff/staff/<int:staff_id>")
+@api_internal_bp.route("/staff/<int:staff_id>")
 def staff_staff_get(staff_id: int) -> Response:
     staff = Staff.query.get_or_404(staff_id)
     return jsonify(staff.to_dict())
 
 
-@api_internal_bp.route("/staff/staff/<int:staff_id>/edit", methods=["POST"])
+@api_internal_bp.route("/staff/<int:staff_id>/edit", methods=["POST"])
 def staff_staff_edit(staff_id: int) -> Response:
     data = request.get_json() or {}
     staff = Staff.query.get_or_404(staff_id)
