@@ -79,14 +79,14 @@ def customer_verify() -> Response:
     last_receipt = data.get("last_receipt", "").strip()
 
     if not account_number:
-        return jsonify({"error": "Customer number is required"}), 400
+        return jsonify({"error": "Customer number is required", "error_code": "CUS400"}), 400
 
     customer = Customer.query.filter_by(customer_number=account_number, is_active=True).first()
     if not customer:
-        return jsonify({"error": "Customer not found"}), 404
+        return jsonify({"error": "Customer not found", "error_code": "CUS404"}), 404
 
     if registered_name and customer.name.lower().strip() != registered_name.lower().strip():
-        return jsonify({"error": "Name does not match"}), 403
+        return jsonify({"error": "Name does not match", "error_code": "CUS403"}), 403
 
     return jsonify({
         "customer_number": customer.customer_number,

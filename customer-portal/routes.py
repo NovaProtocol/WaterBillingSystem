@@ -2,9 +2,10 @@ from flask import request, render_template, redirect, url_for, make_response, js
 from itsdangerous import URLSafeTimedSerializer
 from __init__ import customer_bp
 import api_client
-import os
+import os, logging
 
 DEBUG = os.environ.get('DEBUG', '').lower() in ('true', '1', 'yes')
+logger = logging.getLogger('customer-portal')
 serializer = URLSafeTimedSerializer(os.environ['SECRET_KEY'], salt='billing-session')
 
 @customer_bp.route('/customer/', methods=['GET', 'POST'])
@@ -15,28 +16,33 @@ def identify():
         name = request.form.get('name', '')
         last_receipt = request.form.get('last_receipt', '').strip()
         if not account_number:
-            ctx['error'] = 'Account number is required.'
+            ctx['error'] = 'ERR1001: Account number is required.'
             return render_template('customer/identify.html', **ctx)
         if DEBUG:
             name = ''
             last_receipt = ''
         else:
             if not name:
-                ctx['error'] = 'Registered name is required.'
+                ctx['error'] = 'ERR1002: Registered name is required.'
                 return render_template('customer/identify.html', **ctx)
             if not last_receipt:
-                ctx['error'] = 'Last receipt number is required.'
+                ctx['error'] = 'ERR1003: Last receipt number is required.'
                 return render_template('customer/identify.html', **ctx)
         try:
             result = api_client.verify_identity(account_number, name, last_receipt)
         except Exception as e:
-            msg = str(e)
+            error_code = 'ERR0001'
+            error_msg = str(e)
             try:
-                import json as _json
-                msg = _json.loads(getattr(e, 'response', None).text if hasattr(e, 'response') else '{}').get('error', msg)
+                resp = getattr(e, 'response', None)
+                if resp is not None:
+                    body = resp.json()
+                    error_code = body.get('error_code', error_code)
+                    error_msg = body.get('error', error_msg)
             except Exception:
                 pass
-            ctx['error'] = msg or 'Verification failed. Please try again.'
+            logger.error(f"[{error_code}] {error_msg}")
+            ctx['error'] = f'{error_code}: Verification failed. Please contact support with this code.'
             return render_template('customer/identify.html', **ctx)
         customer_number = result.get('customer_number')
         customer_data = result.get('customer', {})
