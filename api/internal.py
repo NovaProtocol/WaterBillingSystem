@@ -91,26 +91,123 @@ def customer_billing(customer_number: str) -> Response:
     if not customer:
         return jsonify({"error": "Customer not found"}), 404
 
-    unpaid_bills = Billing.query.filter_by(customer_number=customer_number, is_paid=False).order_by(Billing.date_created.asc()).all()
-    for b in unpaid_bills:
-        ensure_penalty(b)
-
-    total_unpaid = sum(float(b.billed_amount or 0) for b in unpaid_bills)
-    total_penalties = sum(float(b.penalty or 0) for b in unpaid_bills)
-    total_carryover = float(
-        db.session.query(db.func.sum(Billing.carryover_offset))
-        .filter_by(customer_number=customer_number)
-        .scalar() or 0
+    readings = (
+        MeterReading.query.filter_by(customer_number=customer_number)
+        .options(joinedload(MeterReading.token).joinedload(ApiKey.staff))
+        .order_by(desc(MeterReading.timestamp))
+        .all()
     )
-    total_due = max(0, total_unpaid + total_penalties - total_carryover)
+
+    payments = (
+        Billing.query.filter_by(customer_number=customer_number)
+        .order_by(desc(Billing.payment_timestamp))
+        .limit(10)
+        .all()
+    )
+
+    latest_reading = readings[0] if readings else None
+    last_reading = readings[1] if len(readings) > 1 else None
+
+    consumption = float(latest_reading.reading_value) - float(last_reading.reading_value) if latest_reading and last_reading else 0
+    water_bill, bill_breakdown = compute_water_bill(consumption) if consumption > 0 else (0.0, [])
+
+    def rd(d):
+        return round(float(d), 2) if d is not None else 0.0
+
+    unpaid_bills = []
+    for b in Billing.query.filter_by(customer_number=customer_number, is_paid=False).order_by(Billing.date_created.asc()).all():
+        ensure_penalty(b)
+        reading = MeterReading.query.get(b.reading_id) if b.reading_id else None
+        month_label = reading.timestamp.strftime("%B %Y") if reading else "Unknown"
+        unpaid_bills.append({
+            "month": month_label,
+            "amount": rd(b.billed_amount),
+            "penalty": rd(b.penalty),
+            "timestamp": reading.timestamp.isoformat() if reading else (b.created_at.isoformat() if b.created_at else None),
+        })
+
+    total_unpaid = sum(b["amount"] for b in unpaid_bills)
+    total_penalties = sum(b["penalty"] for b in unpaid_bills)
+    total_carryover = float(db.session.query(db.func.sum(Billing.carryover_offset)).filter_by(customer_number=customer_number).scalar() or 0)
+    carryover = abs(total_carryover)
+    balance = total_carryover
+    total_due = max(0, total_unpaid + total_penalties - balance)
+
+    due_date = None
+    days_remaining = None
+    if unpaid_bills:
+        ts = unpaid_bills[0].get("timestamp")
+        if ts:
+            due_dt = datetime.fromisoformat(ts) + timedelta(days=7)
+            due_date = due_dt.strftime("%m-%d-%Y")
+            days_remaining = max(0, (due_dt - datetime.utcnow()).days)
+
+    pending_xendit = XenditTransaction.query.filter_by(customer_number=customer_number, status="PENDING").order_by(XenditTransaction.date_created.desc()).first()
+
+    from models import PaymentMethod
+    payment_methods = PaymentMethod.query.filter_by(is_active=True).order_by(PaymentMethod.sort_order).all()
+
+    def reading_to_dict(r):
+        if not r:
+            return None
+        return {
+            "reading_value": float(r.reading_value),
+            "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+            "token": {
+                "staff": {
+                    "name": r.token.staff.name if r.token and r.token.staff else "Unknown"
+                }
+            } if r.token else {"staff": {"name": "Unknown"}},
+        }
 
     return jsonify({
-        "customer_number": customer.customer_number,
-        "name": customer.name,
+        "customer": {
+            "customer_number": customer.customer_number,
+            "name": customer.name,
+            "address": customer.address or "",
+            "contact_number": customer.contact_number or "",
+            "email": customer.email or "",
+            "x_coordinate": customer.x_coordinate,
+            "y_coordinate": customer.y_coordinate,
+        },
+        "latest_reading": reading_to_dict(latest_reading),
+        "last_reading": reading_to_dict(last_reading),
+        "consumption": round(consumption, 2),
+        "bill_breakdown": bill_breakdown,
+        "original_water_bill": rd(water_bill),
+        "unpaid_bills": unpaid_bills,
         "total_unpaid": round(total_unpaid, 2),
         "total_penalties": round(total_penalties, 2),
+        "carryover": round(carryover, 2),
+        "balance": round(balance, 2),
         "total_due": round(total_due, 2),
-        "cumulative_balance": float(customer.cumulative_balance or 0),
+        "due_date": due_date,
+        "days_remaining": days_remaining,
+        "PRICING_TIERS": PRICING_TIERS,
+        "recent_readings": [reading_to_dict(r) for r in readings[:5]],
+        "recent_payments": [
+            {
+                "receipt_number": p.receipt_number,
+                "paid_amount": rd(p.paid_amount),
+                "timestamp": p.payment_timestamp.isoformat() if p.payment_timestamp else None,
+            } for p in payments
+        ],
+        "latest_unpaid": unpaid_bills[0] if unpaid_bills else None,
+        "pending_xendit": {
+            "status": pending_xendit.status,
+            "amount": rd(pending_xendit.amount),
+        } if pending_xendit else None,
+        "payment_methods": [
+            {
+                "code": pm.code,
+                "name": pm.name,
+                "sort_order": pm.sort_order,
+                "fee_percent": rd(pm.fee_percent),
+                "fee_fixed": rd(pm.fee_fixed),
+                "min_amount": rd(pm.min_amount),
+                "max_amount": rd(pm.max_amount),
+            } for pm in payment_methods
+        ],
     })
 
 

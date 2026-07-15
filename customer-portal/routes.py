@@ -71,25 +71,9 @@ def billing(customer_number):
     except Exception as e:
         return render_template('customer/error.html', error='Unable to load billing information.')
     customer_data = data.get('customer_data', {})
-    ctx = {'billing': billing, 'customer': customer_data, 'customer_number': customer_number}
-    if isinstance(billing, dict):
-        ctx.update(billing)
-    ctx.setdefault('PRICING_TIERS', [])
-    ctx.setdefault('payment_methods', [])
-    ctx.setdefault('pending_xendit', None)
-    ctx.setdefault('recent_payments', [])
-    ctx.setdefault('recent_readings', [])
-    ctx.setdefault('unpaid_bills', [])
-    ctx.setdefault('latest_reading', {})
-    ctx.setdefault('last_reading', {})
-    ctx.setdefault('bill_breakdown', [])
-    ctx.setdefault('balance', 0)
-    ctx.setdefault('total_due', 0)
-    ctx.setdefault('due_date', '')
-    ctx.setdefault('days_remaining', '')
-    ctx.setdefault('consumption', 0)
-    ctx.setdefault('original_water_bill', 0.0)
-    ctx.setdefault('carryover', 0)
+    ctx = dict(billing or {})
+    ctx.setdefault('customer', customer_data)
+    ctx.setdefault('customer_number', customer_number)
     return render_template('customer/billing.html', **ctx)
 
 @customer_bp.route('/customer/billing/<customer_number>/readings')
