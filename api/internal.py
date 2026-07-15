@@ -59,9 +59,9 @@ BACKUP_DIR = Path("/app/db_backups")
 def require_internal_key(f: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(f)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        auth = request.headers.get("Authorization", "")
+        key = request.headers.get("X-Internal-Key", "")
         expected = os.environ.get("INTERNAL_API_KEY", "")
-        if not auth.startswith("Bearer ") or auth[7:] != expected:
+        if not key or key != expected:
             return jsonify({"error": "Unauthorized"}), 401
         return f(*args, **kwargs)
     return wrapper
