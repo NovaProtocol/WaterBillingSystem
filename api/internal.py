@@ -54,6 +54,7 @@ api_internal_bp = Blueprint("api_internal", __name__, url_prefix="/api/internal"
 BACKUP_DIR = Path("/app/db_backups")
 
 
+@api_internal_bp.route("/customer/verify", methods=["POST"])
 def customer_verify() -> Response:
     data = request.get_json() or {}
     account_number = data.get("account_number", "").strip()
