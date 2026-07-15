@@ -23,7 +23,7 @@ from sqlalchemy.orm.exc import ObjectDeletedError
 from apps import db
 from config import config_dict
 from models import BackgroundTask
-from services.task_handlers import HANDLERS
+from task_handlers import HANDLERS
 
 
 

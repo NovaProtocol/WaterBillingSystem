@@ -10,7 +10,7 @@ from app import db
 from __init__ import blueprint
 from models import Billing, Customer, MeterReading
 from pricing import PRICING_TIERS
-from services.billing_service import ensure_penalty
+from billing_service import ensure_penalty
 
 
 @blueprint.route("/customer/<customer_number>")

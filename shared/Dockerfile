@@ -6,7 +6,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 COPY config.py models.py pricing.py /shared/
-COPY authentication/ /shared/authentication/
 COPY services/ /shared/services/
 
 RUN python -m compileall -q /shared 2>/dev/null || true

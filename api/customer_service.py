@@ -8,7 +8,7 @@ from sqlalchemy import Integer, func
 
 from apps import db
 from models import Billing, Customer
-from services.billing_service import ensure_penalty
+from billing_service import ensure_penalty
 
 
 def get_customer_or_404(customer_id: int) -> Customer:

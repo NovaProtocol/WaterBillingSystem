@@ -11,7 +11,7 @@ from __init__ import blueprint
 from utils import resolve_api_key
 from models import ApiKey, Customer, ManagementLog, MeterReading, NfcTag
 from pricing import DUE_DAYS, LATE_PENALTY, PRICING_TIERS
-from services.reading_service import sync_readings, upload_reading
+from reading_service import sync_readings, upload_reading
 
 
 @blueprint.route("/readings/customer/<customer_number>")
