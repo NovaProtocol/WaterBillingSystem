@@ -3,7 +3,7 @@ import os
 
 webhook_bp = Blueprint('xendit_webhook', __name__)
 
-@webhook_bp.route('/api/xendit-payment', methods=['POST'])
+@webhook_bp.route('/api/webhook/xendit-payment', methods=['POST'])
 def xendit_webhook():
     token = request.headers.get('X-Callback-Token')
     if token != os.environ.get('XENDIT_WEBHOOK_TOKEN'):
