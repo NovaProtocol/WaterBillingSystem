@@ -4,8 +4,8 @@ from . import PRICING_TIERS, compute_water_bill
 from . import ensure_penalty
 from . import datetime, timedelta, desc, joinedload
 
-@api_internal_bp.route("/customer/verify", methods=["POST"])
-def customer_verify() -> Response:
+@api_internal_bp.route("/customer/login", methods=["POST"])
+def customer_login() -> Response:
     data = request.get_json() or {}
     account_number = data.get("account_number", "").strip()
     registered_name = data.get("registered_name", "").strip()

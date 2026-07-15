@@ -29,7 +29,7 @@ def identify():
                 ctx['error'] = 'ERR1003: Last receipt number is required.'
                 return render_template('customer/identify.html', **ctx)
         try:
-            result = api_client.verify_identity(account_number, name, last_receipt)
+            result = api_client.customer_login(account_number, name, last_receipt)
         except Exception as e:
             error_code = 'ERR0001'
             error_msg = str(e)
