@@ -40,6 +40,7 @@ def create_app():
     app.register_blueprint(webhook_bp)
 
     from internal import api_internal_bp
+    csrf.exempt(api_internal_bp)
     app.register_blueprint(api_internal_bp)
 
     with app.app_context():
