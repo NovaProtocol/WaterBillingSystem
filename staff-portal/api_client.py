@@ -2,18 +2,14 @@ import os
 import requests
 
 API_BASE = os.environ['API_BASE_URL']
-INTERNAL_KEY = os.environ['INTERNAL_API_KEY']
-
-def _headers():
-    return {'X-Internal-Key': INTERNAL_KEY}
 
 def _post(path, data=None):
-    r = requests.post(f'{API_BASE}{path}', json=data or {}, headers=_headers(), timeout=15)
+    r = requests.post(f'{API_BASE}{path}', json=data or {}, headers={}, timeout=15)
     r.raise_for_status()
     return r.json()
 
 def _get(path, params=None):
-    r = requests.get(f'{API_BASE}{path}', params=params or {}, headers=_headers(), timeout=15)
+    r = requests.get(f'{API_BASE}{path}', params=params or {}, headers={}, timeout=15)
     r.raise_for_status()
     return r.json()
 

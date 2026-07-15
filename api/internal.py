@@ -5,9 +5,7 @@ import secrets
 import threading
 import time
 from datetime import datetime, timedelta
-from functools import wraps
 from pathlib import Path
-from typing import Any, Callable
 
 from flask import Blueprint, Response, jsonify, request
 from sqlalchemy import desc
@@ -56,22 +54,6 @@ api_internal_bp = Blueprint("api_internal", __name__, url_prefix="/api/internal"
 BACKUP_DIR = Path("/app/db_backups")
 
 
-def require_internal_key(f: Callable[..., Any]) -> Callable[..., Any]:
-    @wraps(f)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        key = request.headers.get("X-Internal-Key", "")
-        expected = os.environ.get("INTERNAL_API_KEY", "")
-        if not key or key != expected:
-            return jsonify({"error": "Unauthorized"}), 401
-        return f(*args, **kwargs)
-    return wrapper
-
-
-# ── Customer endpoints ──────────────────────────────────────────────────
-
-
-@api_internal_bp.route("/customer/verify", methods=["POST"])
-@require_internal_key
 def customer_verify() -> Response:
     data = request.get_json() or {}
     account_number = data.get("account_number", "").strip()
@@ -103,7 +85,6 @@ def customer_verify() -> Response:
 
 
 @api_internal_bp.route("/customer/<customer_number>/billing")
-@require_internal_key
 def customer_billing(customer_number: str) -> Response:
     customer = Customer.query.filter_by(customer_number=customer_number).first()
     if not customer:
@@ -133,7 +114,6 @@ def customer_billing(customer_number: str) -> Response:
 
 
 @api_internal_bp.route("/customer/<customer_number>/readings")
-@require_internal_key
 def customer_readings(customer_number: str) -> Response:
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 10, type=int)
@@ -163,7 +143,6 @@ def customer_readings(customer_number: str) -> Response:
 
 
 @api_internal_bp.route("/customer/<customer_number>/payments")
-@require_internal_key
 def customer_payments(customer_number: str) -> Response:
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 10, type=int)
@@ -195,7 +174,6 @@ def customer_payments(customer_number: str) -> Response:
 
 
 @api_internal_bp.route("/customer/<customer_number>/history")
-@require_internal_key
 def customer_history(customer_number: str) -> Response:
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 12, type=int)
@@ -247,7 +225,6 @@ def customer_history(customer_number: str) -> Response:
 
 
 @api_internal_bp.route("/customer/<customer_number>/invoice", methods=["POST"])
-@require_internal_key
 def customer_invoice(customer_number: str) -> Response:
     customer = Customer.query.filter_by(customer_number=customer_number).first()
     if not customer:
@@ -358,7 +335,6 @@ def customer_invoice(customer_number: str) -> Response:
 
 
 @api_internal_bp.route("/staff/login", methods=["POST"])
-@require_internal_key
 def staff_login() -> Response:
     data = request.get_json()
     username = (data or {}).get("username", "").strip()
@@ -396,7 +372,6 @@ def staff_login() -> Response:
 
 
 @api_internal_bp.route("/staff/customer-lookup")
-@require_internal_key
 def staff_customer_lookup() -> Response:
     q = request.args.get("q", "").strip()
     if not q:
@@ -415,7 +390,6 @@ def staff_customer_lookup() -> Response:
 
 
 @api_internal_bp.route("/staff/customers")
-@require_internal_key
 def staff_customers() -> Response:
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 50, type=int)
@@ -450,7 +424,6 @@ def staff_customers() -> Response:
 
 
 @api_internal_bp.route("/staff/dashboard")
-@require_internal_key
 def staff_dashboard() -> Response:
     total_customers = Customer.query.filter_by(is_active=True).count()
     total_unpaid = Billing.query.filter_by(is_paid=False).count()
@@ -485,7 +458,6 @@ def staff_dashboard() -> Response:
 
 
 @api_internal_bp.route("/staff/customer", methods=["POST"])
-@require_internal_key
 def staff_customer_create() -> Response:
     data = request.get_json()
     customer, error = create_customer(data or {})
@@ -496,7 +468,6 @@ def staff_customer_create() -> Response:
 
 
 @api_internal_bp.route("/staff/customer/<int:customer_id>/edit", methods=["POST"])
-@require_internal_key
 def staff_customer_edit(customer_id: int) -> Response:
     customer = get_customer_or_404(customer_id)
     data = request.get_json()
@@ -505,7 +476,6 @@ def staff_customer_edit(customer_id: int) -> Response:
 
 
 @api_internal_bp.route("/staff/customer/<int:customer_id>/toggle-active", methods=["POST"])
-@require_internal_key
 def staff_customer_toggle_active(customer_id: int) -> Response:
     customer = get_customer_or_404(customer_id)
     toggle_active(customer)
@@ -516,7 +486,6 @@ def staff_customer_toggle_active(customer_id: int) -> Response:
 
 
 @api_internal_bp.route("/staff/customer/<int:customer_id>/clear-nfc", methods=["POST"])
-@require_internal_key
 def staff_customer_clear_nfc(customer_id: int) -> Response:
     customer = get_customer_or_404(customer_id)
     NfcTag.query.filter_by(customer_number=customer.customer_number).delete()
@@ -531,7 +500,6 @@ def staff_customer_clear_nfc(customer_id: int) -> Response:
 
 
 @api_internal_bp.route("/staff/payment/submit", methods=["POST"])
-@require_internal_key
 def staff_payment_submit() -> Response:
     data = request.get_json()
     customer_number = (data or {}).get("customer_number", "").strip()
@@ -551,7 +519,6 @@ def staff_payment_submit() -> Response:
 
 
 @api_internal_bp.route("/staff/cashier-tally")
-@require_internal_key
 def staff_cashier_tally() -> Response:
     staff_id = request.args.get("staff_id", type=int)
     period = request.args.get("period", "daily")
@@ -574,7 +541,6 @@ def staff_cashier_tally() -> Response:
 
 
 @api_internal_bp.route("/staff/reading/<int:reading_id>/drop", methods=["POST"])
-@require_internal_key
 def staff_reading_drop(reading_id: int) -> Response:
     data = request.get_json()
     staff_id = (data or {}).get("staff_id", 0)
@@ -591,7 +557,6 @@ def staff_reading_drop(reading_id: int) -> Response:
 
 
 @api_internal_bp.route("/staff/reading/<int:reading_id>/edit", methods=["POST"])
-@require_internal_key
 def staff_reading_edit(reading_id: int) -> Response:
     data = request.get_json()
     staff_id = (data or {}).get("staff_id", 0)
@@ -606,7 +571,6 @@ def staff_reading_edit(reading_id: int) -> Response:
 
 
 @api_internal_bp.route("/staff/billing/<int:payment_id>/undo", methods=["POST"])
-@require_internal_key
 def staff_billing_undo(payment_id: int) -> Response:
     data = request.get_json()
     staff_id = (data or {}).get("staff_id", 0)
@@ -625,7 +589,6 @@ def staff_billing_undo(payment_id: int) -> Response:
 
 
 @api_internal_bp.route("/staff/api-key/generate", methods=["POST"])
-@require_internal_key
 def staff_api_key_generate() -> Response:
     data = request.get_json()
     label = ((data or {}).get("label", "") or "").strip() or None
@@ -643,7 +606,6 @@ def staff_api_key_generate() -> Response:
 
 
 @api_internal_bp.route("/staff/api-key/<int:key_id>/revoke", methods=["POST"])
-@require_internal_key
 def staff_api_key_revoke(key_id: int) -> Response:
     api_key = ApiKey.query.get_or_404(key_id)
     api_key.is_active = False
@@ -652,7 +614,6 @@ def staff_api_key_revoke(key_id: int) -> Response:
 
 
 @api_internal_bp.route("/staff/api-keys")
-@require_internal_key
 def staff_api_key_list() -> Response:
     keys = (
         ApiKey.query
@@ -677,7 +638,6 @@ def staff_api_key_list() -> Response:
 
 
 @api_internal_bp.route("/staff/reading-logs")
-@require_internal_key
 def staff_reading_logs() -> Response:
     logs = (
         ManagementLog.query.filter_by(target_type="reading")
@@ -703,7 +663,6 @@ def staff_reading_logs() -> Response:
 
 
 @api_internal_bp.route("/staff/staff")
-@require_internal_key
 def staff_staff_list() -> Response:
     staff_list = Staff.query.all()
     return jsonify({
@@ -729,7 +688,6 @@ def staff_staff_list() -> Response:
 
 
 @api_internal_bp.route("/staff/staff/create", methods=["POST"])
-@require_internal_key
 def staff_staff_create() -> Response:
     data = request.get_json() or {}
     username = data.get("username", "").strip()
@@ -758,14 +716,12 @@ def staff_staff_create() -> Response:
 
 
 @api_internal_bp.route("/staff/staff/<int:staff_id>")
-@require_internal_key
 def staff_staff_get(staff_id: int) -> Response:
     staff = Staff.query.get_or_404(staff_id)
     return jsonify(staff.to_dict())
 
 
 @api_internal_bp.route("/staff/staff/<int:staff_id>/edit", methods=["POST"])
-@require_internal_key
 def staff_staff_edit(staff_id: int) -> Response:
     data = request.get_json() or {}
     staff = Staff.query.get_or_404(staff_id)
@@ -808,14 +764,12 @@ def _superuser_only() -> Response | None:
 
 
 @api_internal_bp.route("/debug/backup", methods=["POST"])
-@require_internal_key
 def debug_backup() -> Response:
     task = BackgroundTask.enqueue(task_type="backup", params={}, title="Backup Database")
     return jsonify({"ok": True, "order_id": task.id, "message": "Backup queued."})
 
 
 @api_internal_bp.route("/debug/backups")
-@require_internal_key
 def debug_backups() -> Response:
     _superuser_only()
     if not BACKUP_DIR.exists():
@@ -834,7 +788,6 @@ def debug_backups() -> Response:
 
 
 @api_internal_bp.route("/debug/restore", methods=["POST"])
-@require_internal_key
 def debug_restore() -> Response:
     filename = (request.get_json() or {}).get("filename", "").strip()
     if not filename:
@@ -849,7 +802,6 @@ def debug_restore() -> Response:
 
 
 @api_internal_bp.route("/debug/restore-newest")
-@require_internal_key
 def debug_restore_newest() -> Response:
     global _last_restore_newest_time
     with _restore_newest_lock:
@@ -869,14 +821,12 @@ def debug_restore_newest() -> Response:
 
 
 @api_internal_bp.route("/debug/clear", methods=["POST"])
-@require_internal_key
 def debug_clear() -> Response:
     task = BackgroundTask.enqueue(task_type="clear", params={}, title="Clear Database")
     return jsonify({"ok": True, "order_id": task.id, "message": "Clear queued."})
 
 
 @api_internal_bp.route("/debug/seed", methods=["POST"])
-@require_internal_key
 def debug_seed() -> Response:
     data = request.get_json() or {}
     try:
@@ -897,7 +847,6 @@ def debug_seed() -> Response:
 
 
 @api_internal_bp.route("/debug/read-this-month", methods=["POST"])
-@require_internal_key
 def debug_read_month() -> Response:
     task = BackgroundTask.enqueue(
         task_type="read-this-month", params={}, title="Read This Month"
@@ -906,7 +855,6 @@ def debug_read_month() -> Response:
 
 
 @api_internal_bp.route("/debug/unread-this-month", methods=["POST"])
-@require_internal_key
 def debug_unread_month() -> Response:
     task = BackgroundTask.enqueue(
         task_type="unread-this-month", params={}, title="Unread This Month"
@@ -915,7 +863,6 @@ def debug_unread_month() -> Response:
 
 
 @api_internal_bp.route("/debug/pay-this-month", methods=["POST"])
-@require_internal_key
 def debug_pay_month() -> Response:
     task = BackgroundTask.enqueue(
         task_type="pay-this-month", params={}, title="Pay This Month"
@@ -924,7 +871,6 @@ def debug_pay_month() -> Response:
 
 
 @api_internal_bp.route("/debug/remove-payment-this-month", methods=["POST"])
-@require_internal_key
 def debug_remove_pay_month() -> Response:
     task = BackgroundTask.enqueue(
         task_type="remove-payment-this-month", params={}, title="Remove Payment This Month"
@@ -933,7 +879,6 @@ def debug_remove_pay_month() -> Response:
 
 
 @api_internal_bp.route("/debug/tasks")
-@require_internal_key
 def debug_tasks() -> Response:
     current_task = BackgroundTask.query.filter_by(status="running").first()
     queue = BackgroundTask.query.filter_by(status="queued").order_by(BackgroundTask.created_at.asc()).all()
@@ -965,7 +910,6 @@ def debug_tasks() -> Response:
 
 
 @api_internal_bp.route("/debug/tasks/<int:task_id>")
-@require_internal_key
 def debug_task(task_id: int) -> Response:
     task = BackgroundTask.query.get(task_id)
     if not task:
