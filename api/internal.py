@@ -200,12 +200,12 @@ def customer_billing(customer_number: str) -> Response:
         "payment_methods": [
             {
                 "code": pm.code,
-                "name": pm.name,
+                "label": pm.label,
                 "sort_order": pm.sort_order,
                 "fee_percent": rd(pm.fee_percent),
-                "fee_fixed": rd(pm.fee_fixed),
-                "min_amount": rd(pm.min_amount),
-                "max_amount": rd(pm.max_amount),
+                "fee_flat": rd(pm.fee_flat),
+                "fee_minimum": rd(pm.fee_minimum),
+                "xendit_fee": rd(pm.xendit_fee),
             } for pm in payment_methods
         ],
     })
