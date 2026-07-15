@@ -56,6 +56,13 @@ def create_app():
     def inject_prefix():
         return {'REVERSE_PROXY_PUBLIC_PREFIX': prefix}
 
+    @app.template_filter('timestamp_to_date')
+    def timestamp_to_date(ts):
+        if ts:
+            from datetime import datetime
+            return datetime.strptime(str(ts)[:19], '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%d %H:%M')
+        return ''
+
     @app.route('/health')
     def health():
         return {'status': 'ok'}
