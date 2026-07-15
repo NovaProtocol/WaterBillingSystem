@@ -2,42 +2,20 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from flask import Response, jsonify, request
-from flask_login import current_user
+from flask import Response, jsonify
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
 
 from app import db
 from __init__ import blueprint
-from models import ApiKey, Billing, Customer, MeterReading
+from models import Billing, Customer, MeterReading
 from pricing import PRICING_TIERS
 from services.billing_service import ensure_penalty
 
 
 @blueprint.route("/customer/<customer_number>")
 def customer_info(customer_number: str) -> Response:
-    """Get full billing details for a specific customer.
-
-    Accepts session auth (Flask-Login), Bearer token, or ?api_key= query param.
-    Returns customer profile, latest reading, consumption, water bill breakdown,
-    pricing tiers, penalties, due date, recent billing items, and payments.
-    ---
-    Auth: session OR API key
-    """
-    auth_header = request.headers.get("Authorization", "")
-    api_key = request.args.get("api_key", "")
-    api_key_obj = None
-    if not current_user.is_authenticated:
-        if auth_header.startswith("Bearer "):
-            key = auth_header[7:]
-            api_key_obj = ApiKey.query.filter_by(key=key, is_active=True).first()
-        if not api_key_obj and api_key:
-            api_key_obj = ApiKey.query.filter_by(key=api_key, is_active=True).first()
-        if not api_key_obj or not api_key_obj.staff.can_read_meters:
-            return jsonify({"error": "Authentication required"}), 401
-    elif not current_user.can_read_meters:
-        return jsonify({"error": "Permission denied"}), 403
-
+    """Get full billing details for a specific customer."""
     customer = Customer.query.filter_by(customer_number=customer_number).first()
     if not customer:
         return jsonify({"error": "Customer not found"}), 404

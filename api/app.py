@@ -1,6 +1,6 @@
 import os, sys
 from flask import Flask
-from apps import db, cache, csrf
+from apps import db, cache
 
 def require_env(*names):
     for name in names:
@@ -26,21 +26,16 @@ def create_app():
 
     db.init_app(app)
     cache.init_app(app, config={'CACHE_TYPE': os.environ['CACHE_TYPE']})
-    csrf.init_app(app)
 
     app.config['NFC_PWD_SECRET'] = os.environ['NFC_PWD_SECRET']
 
     from __init__ import blueprint as api_bp
     from webhooks import webhook_bp
 
-    for bp in [api_bp, webhook_bp]:
-        csrf.exempt(bp)
-
     app.register_blueprint(api_bp)
     app.register_blueprint(webhook_bp)
 
     from internal import api_internal_bp
-    csrf.exempt(api_internal_bp)
     app.register_blueprint(api_internal_bp)
 
     with app.app_context():
