@@ -12,6 +12,7 @@ $(function() {
         $('#editCustPhase').val($btn.data('phase'));
         $('#editCustBlock').val($btn.data('block'));
         $('#editCustStreet').val($btn.data('street'));
+        $('#editCustMeterSn').val($btn.data('meter-sn'));
         $('#editCustX').val($btn.data('x'));
         $('#editCustY').val($btn.data('y'));
 
@@ -45,7 +46,9 @@ $(function() {
                 email: $('#editCustEmail').val().trim(),
                 phase: $('#editCustPhase').val().trim(),
                 block: $('#editCustBlock').val().trim(),
+                meter_serial_number: $'#editCustMeterSn'.val().trim(),
                 street: $('#editCustStreet').val().trim(),
+        $('#editCustMeterSn').val($btn.data('meter-sn'));
                 x_coordinate: parseFloat($('#editCustX').val()) || null,
                 y_coordinate: parseFloat($('#editCustY').val()) || null,
             }),

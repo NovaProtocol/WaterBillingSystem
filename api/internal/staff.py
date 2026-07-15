@@ -60,7 +60,8 @@ def staff_customer_lookup() -> Response:
         .all()
     )
     return jsonify([
-        {"customer_number": c.customer_number, "name": c.name, "address": c.address}
+        {"customer_number": c.customer_number, "name": c.name, "address": c.address,
+            "meter_serial_number": c.meter_serial_number or ""}
         for c in customers
     ])
 
@@ -83,6 +84,7 @@ def staff_customers() -> Response:
             "customer_number": c.customer_number,
             "name": c.name,
             "address": c.address,
+            "meter_serial_number": c.meter_serial_number or "",
             "contact_number": c.contact_number,
             "phase": c.phase,
             "block": c.block,

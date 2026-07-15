@@ -45,6 +45,12 @@
                         <input type="email" id="cust-email" class="form-control" placeholder="email@example.com">
                     </div>
                 </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Meter Serial Number</label>
+                        <input type="text" id="cust-meter-sn" class="form-control" placeholder="e.g. SN-2401-001">
+                    </div>
+                </div>
             </div>
             <div class="row">
                 <div class="col-md-2">
@@ -167,6 +173,7 @@
                 address: $('#cust-address').val().trim(),
                 contact_number: $('#cust-contact').val().trim(),
                 email: $('#cust-email').val().trim(),
+                meter_serial_number: $('#cust-meter-sn').val().trim(),
                 x_coordinate: parseFloat($('#cust-x').val()) || null,
                 y_coordinate: parseFloat($('#cust-y').val()) || null,
                 phase: $('#cust-phase').val().trim() || null,

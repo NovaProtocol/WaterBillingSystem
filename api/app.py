@@ -44,6 +44,11 @@ def create_app():
     with app.app_context():
         db.create_all()
         try:
+            from migrate import run_migrations
+            run_migrations()
+        except Exception:
+            pass
+        try:
             from services.staff_seeder import ensure_prereq_staff
             ensure_prereq_staff()
         except Exception:
