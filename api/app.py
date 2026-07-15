@@ -9,7 +9,7 @@ def require_env(*names):
             sys.exit(1)
 
 def create_app():
-    require_env('SECRET_KEY', 'INTERNAL_API_KEY',
+    require_env('SECRET_KEY',
                 'DB_ENGINE', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USERNAME', 'DB_PASS',
                 'NFC_PWD_SECRET', 'XENDIT_API_KEY', 'XENDIT_WEBHOOK_TOKEN',
                 'CACHE_TYPE', 'PYTHON_GIL', 'DEPLOYMENT_TYPE')
