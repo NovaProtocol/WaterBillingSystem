@@ -84,17 +84,6 @@ expo-env.d.ts
 # === TypeScript ===
 *.tsbuildinfo
 
-# === BillServer-specific (non-dot) ===
-BillServer/instance/
-BillServer/migrations/versions/*.pyc
-BillServer/static/assets/js/*.min.js
-BillServer/apps/static/assets/node_modules
-BillServer/apps/static/assets/yarn.lock
-BillServer/apps/static/assets/.temp
-BillServer/README_bk.md
-BillServer/db_backups/
-BillServer/certificates/
-
 # === MeterReadingApp-specific ===
 MeterReadingApp/android/
 MeterReadingApp/ios/

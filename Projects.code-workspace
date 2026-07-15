@@ -1,7 +1,6 @@
 {
   "folders": [
     { "name": "Root", "path": "." },
-    { "name": "BillServer", "path": "BillServer" },
     { "name": "MeterReadingApp", "path": "MeterReadingApp" },
     { "name": "Documentation", "path": "documentations" }
   ],

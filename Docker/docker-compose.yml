@@ -14,25 +14,6 @@ services:
       timeout: 5s
       retries: 10
 
-  billserver:
-    image: ghcr.io/novaprotocol/waterbillingsystem:latest
-    container_name: ws_app
-    restart: unless-stopped
-    ports:
-      - "7000:5005"
-    environment:
-      - DEPLOYMENT_TYPE=PRODUCTION
-      - DB_HOST=db
-      - DB_PORT=3306
-      - CACHE_TYPE=SimpleCache
-    env_file:
-      - ../.env
-    volumes:
-      - db_backups:/app/db_backups
-    depends_on:
-      db:
-        condition: service_healthy
-
   phpmyadmin:
     image: phpmyadmin:latest
     container_name: ws_pma
