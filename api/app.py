@@ -13,19 +13,22 @@ def require_env(*names):
 
 def create_app():
     require_env('SECRET_KEY',
-                'DB_ENGINE', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USERNAME', 'DB_PASS',
                 'NFC_PWD_SECRET', 'XENDIT_API_KEY', 'XENDIT_WEBHOOK_TOKEN',
                 'CACHE_TYPE', 'PYTHON_GIL', 'DEPLOYMENT_TYPE')
+    if not os.environ.get('SQLALCHEMY_DATABASE_URI'):
+        require_env('DB_ENGINE', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USERNAME', 'DB_PASS')
 
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
-    app.config['SQLALCHEMY_DATABASE_URI'] = (
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+        'SQLALCHEMY_DATABASE_URI',
         f"{os.environ['DB_ENGINE']}://{os.environ['DB_USERNAME']}:{os.environ['DB_PASS']}"
         f"@{os.environ['DB_HOST']}:{os.environ['DB_PORT']}/{os.environ['DB_NAME']}"
     )
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_size': 30, 'max_overflow': 30, 'pool_recycle': 3600,
-    }
+    if 'sqlite' not in app.config['SQLALCHEMY_DATABASE_URI']:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_size': 30, 'max_overflow': 30, 'pool_recycle': 3600,
+        }
 
     db.init_app(app)
     cache.init_app(app, config={'CACHE_TYPE': os.environ['CACHE_TYPE']})
