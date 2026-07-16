@@ -114,7 +114,6 @@ def index() -> Response | str:
                 "landing/index.html", models=MODELS, modal_error="Customer number is required."
             )
 
-        prefix = os.environ.get('REVERSE_PROXY_PUBLIC_PREFIX', '').rstrip('/')
-        return redirect(prefix + f"/customer/check?number={customer_number}")
+        return redirect(f"/customer/check?number={customer_number}")
 
     return render_template("landing/index.html", models=MODELS)

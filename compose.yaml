@@ -1,10 +1,10 @@
 services:
 
-  nginx-gateway:
+  caddy-gateway:
     build:
       context: .
-      dockerfile: nginx-gateway/Dockerfile
-    container_name: waterbillingsystem_nginx
+      dockerfile: caddy-gateway/Dockerfile
+    container_name: waterbillingsystem_gateway
     restart: unless-stopped
     networks:
       - net-landing
@@ -12,9 +12,11 @@ services:
       - net-staff
       - net-debug
       - net-api-ext
-      - reverse-proxy_proxy
+      - tailscale-network_proxy_network
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+      CADDY_PORT_PUBLIC: ${CADDY_PORT_PUBLIC:-8001}
+      CADDY_PORT_PRIVATE: ${CADDY_PORT_PRIVATE:-8001}
 
   landing-page:
     build:
@@ -26,7 +28,7 @@ services:
       - net-landing
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-      REVERSE_PROXY_PUBLIC_PREFIX: ${REVERSE_PROXY_PUBLIC_PREFIX}
+      SECRET_KEY: ${SECRET_KEY}
 
   customer-portal:
     build:
@@ -42,8 +44,6 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       API_BASE_URL: ${API_BASE_URL}
-      REVERSE_PROXY_PUBLIC_PREFIX: ${REVERSE_PROXY_PUBLIC_PREFIX}
-      DEBUG: ${DEBUG}
 
   staff-portal:
     build:
@@ -60,7 +60,6 @@ services:
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       API_BASE_URL: ${API_BASE_URL}
       CACHE_TYPE: ${CACHE_TYPE}
-      REVERSE_PROXY_PRIVATE_PREFIX: ${REVERSE_PROXY_PRIVATE_PREFIX}
 
   developer-portal:
     build:
@@ -78,7 +77,6 @@ services:
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       API_BASE_URL: ${API_BASE_URL}
       PMA_URL: ${PMA_URL}
-      REVERSE_PROXY_PRIVATE_PREFIX: ${REVERSE_PROXY_PRIVATE_PREFIX}
 
   api:
     build:
@@ -180,9 +178,8 @@ networks:
   net-api-staff:      { internal: true }
   net-api-debug:      { internal: true }
   net-data:           { internal: true }
-  reverse-proxy_proxy:
+  tailscale-network_proxy_network:
     external: true
-    name: reverse-proxy_proxy
 
 volumes:
   mysql_data:
