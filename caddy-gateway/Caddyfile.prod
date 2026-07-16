@@ -6,7 +6,7 @@
         reverse_proxy api:8008
     }
     handle {
-        reverse_proxy landing:8001
+        reverse_proxy landing-page:8001
     }
 }
 
