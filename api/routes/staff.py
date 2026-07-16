@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
-from __init__ import blueprint
+from blueprint import blueprint
 from models import ApiKey, Billing, Config, Customer, ManagementLog, MeterReading, NfcTag, Staff
 from billing_service import ensure_penalty
 from customer_service import (

@@ -7,7 +7,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
 
 from app import db
-from __init__ import blueprint
+from blueprint import blueprint
 from models import ApiKey, Billing, Config, Customer, ManagementLog, MeterReading, NfcTag, PaymentMethod, XenditTransaction
 from pricing import PRICING_TIERS
 from billing_service import ensure_penalty
