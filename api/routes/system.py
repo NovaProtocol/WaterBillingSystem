@@ -3,7 +3,7 @@ from __future__ import annotations
 from flask import Response, jsonify
 
 from app import db
-from __init__ import blueprint
+from .. import blueprint
 
 
 @blueprint.route("/health")
