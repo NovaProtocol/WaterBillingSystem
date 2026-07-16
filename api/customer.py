@@ -12,6 +12,11 @@ from models import ApiKey, Billing, Customer, MeterReading, NfcTag, PaymentMetho
 from pricing import PRICING_TIERS
 from billing_service import ensure_penalty
 from fee_service import calculate_fee
+from reading_service import (
+    drop_reading as service_drop_reading,
+    edit_reading as service_edit_reading,
+    upload_reading as service_upload_reading,
+)
 from customer_service import (
     create_customer,
     get_customer_by_number,
@@ -596,3 +601,114 @@ def customer_invoice(customer_number: str) -> Response:
         "fee_amount": fee_amount,
         "fee_rate": fee_rate,
     })
+
+
+# ── Reading CRUD ────────────────────────────────────────────────────────
+
+
+@blueprint.route("/customer/<customer_number>/reading")
+def customer_readings(customer_number: str) -> Response:
+    api_key, err = _staff_perm("can_read_meters")
+    if err:
+        return err
+
+    page = request.args.get("page", 1, type=int)
+    size = request.args.get("size", 50, type=int)
+    pagination = (
+        MeterReading.query
+        .options(joinedload(MeterReading.token).joinedload(ApiKey.staff))
+        .filter_by(customer_number=customer_number)
+        .order_by(desc(MeterReading.timestamp))
+        .paginate(page=page, per_page=size, error_out=False)
+    )
+    items = [
+        {
+            "id": r.id,
+            "reading_value": float(r.reading_value),
+            "reader": r.token.staff.name if r.token and r.token.staff else None,
+            "timestamp": int(r.timestamp.timestamp()),
+        }
+        for r in pagination.items
+    ]
+    return jsonify({
+        "data": items,
+        "meta": {
+            "current_page": pagination.page,
+            "page_size": pagination.per_page,
+            "total_items": pagination.total,
+            "total_pages": pagination.pages,
+        },
+    })
+
+
+@blueprint.route("/customer/<customer_number>/reading/new", methods=["POST"])
+def customer_reading_new(customer_number: str) -> Response:
+    api_key, err = _staff_perm("can_read_meters")
+    if err:
+        return err
+
+    data = request.get_json() or {}
+    reading_value = data.get("reading_value")
+    timestamp = data.get("timestamp", datetime.utcnow().timestamp())
+
+    if reading_value is None:
+        return jsonify({"error": "reading_value is required"}), 400
+
+    try:
+        reading_float = float(reading_value)
+        ts_float = float(timestamp)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid reading_value or timestamp"}), 400
+
+    reading, error, status = service_upload_reading(
+        customer_number, reading_float, ts_float, api_key.id, api_key.staff.id, api_key.staff.name
+    )
+    if error:
+        return jsonify({"error": error}), status
+
+    return jsonify({
+        "success": True,
+        "reading_id": reading.id,
+        "customer_number": customer_number,
+        "reading_value": float(reading_value),
+        "timestamp": int(timestamp),
+        "reader": api_key.staff.name,
+    }), 201
+
+
+@blueprint.route("/customer/<customer_number>/reading/drop", methods=["POST"])
+def customer_reading_drop(customer_number: str) -> Response:
+    api_key, err = _staff_perm("can_drop_reading")
+    if err:
+        return err
+
+    data = request.get_json() or {}
+    reading_id = data.get("reading_id")
+    reason = data.get("reason", "").strip()
+    if not reading_id:
+        return jsonify({"error": "reading_id is required"}), 400
+    if not reason:
+        return jsonify({"error": "Reason is required"}), 400
+    try:
+        service_drop_reading(reading_id, api_key.staff.id, reason)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 409
+    return jsonify({"message": "Reading dropped"})
+
+
+@blueprint.route("/customer/<customer_number>/reading/edit", methods=["POST"])
+def customer_reading_edit(customer_number: str) -> Response:
+    api_key, err = _staff_perm("can_manage_billing")
+    if err:
+        return err
+
+    data = request.get_json() or {}
+    reading_id = data.get("reading_id")
+    try:
+        new_value = float(data.get("reading_value", 0))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid reading value"}), 400
+    if not reading_id:
+        return jsonify({"error": "reading_id is required"}), 400
+    service_edit_reading(reading_id, new_value, api_key.staff.id)
+    return jsonify({"message": "Reading updated"})
