@@ -130,3 +130,61 @@ def nfc_sync() -> Response:
     db.session.commit()
 
     return jsonify({"synced": synced, "total": len(enrollments), "errors": errors})
+
+
+@blueprint.route("/nfc/tag", methods=["POST"])
+def nfc_tag_assign() -> Response:
+    api_key = resolve_api_key()
+    if not api_key or not api_key.is_active:
+        return jsonify({"error": "Authentication required"}), 401
+    if not api_key.staff or not api_key.staff.can_enroll_customer:
+        return jsonify({"error": "Permission denied"}), 403
+
+    data = request.get_json() or {}
+    uid = data.get("uid", "").strip()
+    customer_number = data.get("customer_number", "").strip()
+    if not uid or not customer_number:
+        return jsonify({"error": "uid and customer_number are required"}), 400
+
+    existing_tag = NfcTag.query.filter_by(uid=uid).first()
+    if existing_tag:
+        return jsonify({"error": "Tag UID already assigned"}), 409
+
+    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+
+    tag = NfcTag(uid=uid, customer_number=customer_number, enrolled_by_id=api_key.staff.id)
+    db.session.add(tag)
+    customer.date_modified = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({"message": "Tag assigned", "uid": uid, "customer_number": customer_number}), 201
+
+
+@blueprint.route("/nfc/tag/<uid>", methods=["DELETE"])
+def nfc_tag_delete(uid: str) -> Response:
+    api_key = resolve_api_key()
+    if not api_key or not api_key.is_active:
+        return jsonify({"error": "Authentication required"}), 401
+    if not api_key.staff or not api_key.staff.can_enroll_customer:
+        return jsonify({"error": "Permission denied"}), 403
+
+    tag = NfcTag.query.filter_by(uid=uid).first()
+    if not tag:
+        return jsonify({"error": "Tag not found"}), 404
+
+    customer = Customer.query.filter_by(customer_number=tag.customer_number).first()
+    db.session.delete(tag)
+
+    gen_row = Config.query.filter_by(key="nfc_generation").first()
+    if gen_row:
+        gen_row.value = str(int(gen_row.value) + 1)
+    else:
+        db.session.add(Config(key="nfc_generation", value="1"))
+
+    if customer:
+        customer.date_modified = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({"message": "Tag deleted", "uid": uid})

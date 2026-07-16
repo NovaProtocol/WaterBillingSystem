@@ -11,7 +11,12 @@ from __init__ import blueprint
 from utils import resolve_api_key
 from models import ApiKey, Customer, ManagementLog, MeterReading, NfcTag
 from pricing import DUE_DAYS, LATE_PENALTY, PRICING_TIERS
-from reading_service import sync_readings, upload_reading
+from reading_service import (
+    drop_reading as service_drop_reading,
+    edit_reading as service_edit_reading,
+    sync_readings,
+    upload_reading,
+)
 
 
 @blueprint.route("/readings/customer/<customer_number>")
@@ -196,6 +201,45 @@ def api_key_info() -> Response:
     )
 
 
+@blueprint.route("/staff/<staff_id>/api-key/verify", methods=["POST"])
+def staff_api_key_verify(staff_id: int) -> Response:
+    api_key = resolve_api_key()
+    if not api_key:
+        return jsonify({"error": "Authentication required"}), 401
+
+    data = request.get_json() or {}
+    verify_key = data.get("api_key", "").strip()
+    if not verify_key:
+        return jsonify({"error": "api_key is required"}), 400
+
+    target = ApiKey.query.filter_by(key=verify_key, is_active=True).first()
+    if not target:
+        return jsonify({"error": "Invalid or revoked API key"}), 404
+
+    staff = target.staff
+    return jsonify({
+        "valid": True,
+        "api_key": {
+            "id": target.id,
+            "label": target.label,
+            "staff_id": target.staff_id,
+            "is_active": target.is_active,
+        },
+        "staff": {
+            "id": staff.id,
+            "username": staff.username,
+            "name": staff.name,
+            "can_read_meters": staff.can_read_meters,
+            "can_accept_payment": staff.can_accept_payment,
+            "can_enroll_customer": staff.can_enroll_customer,
+            "can_drop_reading": staff.can_drop_reading,
+            "can_drop_payment": staff.can_drop_payment,
+            "can_enroll_staff": staff.can_enroll_staff,
+            "can_manage_billing": staff.can_manage_billing,
+        } if staff else None,
+    })
+
+
 # === New sync endpoints ===
 
 
@@ -342,3 +386,82 @@ def readings_bulk() -> Response:
         }
 
     return jsonify({"customers": result})
+
+
+@blueprint.route("/customer/<customer_number>/reading")
+def customer_readings(customer_number: str) -> Response:
+    api_key = resolve_api_key()
+    if not api_key:
+        return jsonify({"error": "Authentication required"}), 401
+    if not api_key.staff or not api_key.staff.can_read_meters:
+        return jsonify({"error": "Permission denied"}), 403
+
+    page = request.args.get("page", 1, type=int)
+    size = request.args.get("size", 50, type=int)
+    pagination = (
+        MeterReading.query
+        .options(joinedload(MeterReading.token).joinedload(ApiKey.staff))
+        .filter_by(customer_number=customer_number)
+        .order_by(desc(MeterReading.timestamp))
+        .paginate(page=page, per_page=size, error_out=False)
+    )
+    items = [
+        {
+            "id": r.id,
+            "reading_value": float(r.reading_value),
+            "reader": r.token.staff.name if r.token and r.token.staff else None,
+            "timestamp": int(r.timestamp.timestamp()),
+        }
+        for r in pagination.items
+    ]
+    return jsonify({
+        "data": items,
+        "meta": {
+            "current_page": pagination.page,
+            "page_size": pagination.per_page,
+            "total_items": pagination.total,
+            "total_pages": pagination.pages,
+        },
+    })
+
+
+@blueprint.route("/customer/<customer_number>/reading/drop", methods=["POST"])
+def customer_reading_drop(customer_number: str) -> Response:
+    api_key = resolve_api_key()
+    if not api_key:
+        return jsonify({"error": "Authentication required"}), 401
+    if not api_key.staff or not api_key.staff.can_drop_reading:
+        return jsonify({"error": "Permission denied"}), 403
+
+    data = request.get_json() or {}
+    reading_id = data.get("reading_id")
+    reason = data.get("reason", "").strip()
+    if not reading_id:
+        return jsonify({"error": "reading_id is required"}), 400
+    if not reason:
+        return jsonify({"error": "Reason is required"}), 400
+    try:
+        service_drop_reading(reading_id, api_key.staff.id, reason)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 409
+    return jsonify({"message": "Reading dropped"})
+
+
+@blueprint.route("/customer/<customer_number>/reading/edit", methods=["POST"])
+def customer_reading_edit(customer_number: str) -> Response:
+    api_key = resolve_api_key()
+    if not api_key:
+        return jsonify({"error": "Authentication required"}), 401
+    if not api_key.staff or not api_key.staff.can_manage_billing:
+        return jsonify({"error": "Permission denied"}), 403
+
+    data = request.get_json() or {}
+    reading_id = data.get("reading_id")
+    try:
+        new_value = float(data.get("reading_value", 0))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid reading value"}), 400
+    if not reading_id:
+        return jsonify({"error": "reading_id is required"}), 400
+    service_edit_reading(reading_id, new_value, api_key.staff.id)
+    return jsonify({"message": "Reading updated"})

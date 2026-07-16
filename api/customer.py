@@ -8,9 +8,79 @@ from sqlalchemy.orm import joinedload
 
 from app import db
 from __init__ import blueprint
-from models import Billing, Customer, MeterReading
+from models import ApiKey, Billing, Customer, MeterReading, NfcTag, PaymentMethod, XenditTransaction
 from pricing import PRICING_TIERS
 from billing_service import ensure_penalty
+from fee_service import calculate_fee
+from customer_service import (
+    create_customer,
+    get_customer_by_number,
+    get_customer_or_404,
+    list_customers,
+    toggle_active,
+    update_customer,
+)
+from utils import resolve_api_key
+
+
+def _staff_perm(*perms: str) -> tuple[ApiKey | None, Response | None]:
+    api_key = resolve_api_key()
+    if not api_key:
+        return None, (jsonify({"error": "Authentication required"}), 401)
+    if not api_key.staff:
+        return None, (jsonify({"error": "Permission denied"}), 403)
+    for perm in perms:
+        if not getattr(api_key.staff, perm, False):
+            return None, (jsonify({"error": "Permission denied"}), 403)
+    return api_key, None
+
+
+@blueprint.route("/customer/count")
+def customer_count() -> Response:
+    api_key, err = _staff_perm("can_read_meters")
+    if err:
+        return err
+    count = Customer.query.filter_by(is_active=True).count()
+    return jsonify({"count": count})
+
+
+@blueprint.route("/customer/all")
+def customer_all() -> Response:
+    api_key, err = _staff_perm("can_read_meters")
+    if err:
+        return err
+    page = request.args.get("page", 1, type=int)
+    size = request.args.get("size", 50, type=int)
+    q = request.args.get("q", "").strip()
+    sort_by = request.args.get("sort_by", "name")
+    sort_dir = request.args.get("sort_dir", "asc")
+    pagination = list_customers(
+        page=page, per_page=size, q=q or None, sort_by=sort_by, sort_dir=sort_dir
+    )
+    customers_data = []
+    for c in pagination.items:
+        nfc_tag = NfcTag.query.filter_by(customer_number=c.customer_number).first()
+        customers_data.append({
+            "customer_number": c.customer_number,
+            "name": c.name,
+            "address": c.address,
+            "meter_serial_number": c.meter_serial_number or "",
+            "contact_number": c.contact_number,
+            "phase": c.phase,
+            "block": c.block,
+            "street": c.street,
+            "is_active": c.is_active,
+            "nfc_uid": nfc_tag.uid if nfc_tag else None,
+        })
+    return jsonify({
+        "data": customers_data,
+        "meta": {
+            "current_page": pagination.page,
+            "page_size": pagination.per_page,
+            "total_items": pagination.total,
+            "total_pages": pagination.pages,
+        },
+    })
 
 
 @blueprint.route("/customer/<customer_number>")
@@ -336,3 +406,193 @@ def customer_details(customer_number: str) -> Response:
             ],
         }
     )
+
+
+@blueprint.route("/customer/<customer_number>/profile")
+def customer_profile(customer_number: str) -> Response:
+    api_key, err = _staff_perm("can_read_meters")
+    if err:
+        return err
+    return customer_info(customer_number)
+
+
+@blueprint.route("/customer/new", methods=["POST"])
+def customer_new() -> Response:
+    api_key, err = _staff_perm("can_enroll_customer")
+    if err:
+        return err
+    data = request.get_json()
+    customer, error = create_customer(data or {})
+    if error:
+        status = 409 if "already exists" in error else 400
+        return jsonify({"error": error}), status
+    return jsonify({
+        "message": "Customer created",
+        "customer_number": customer.customer_number,
+    }), 201
+
+
+@blueprint.route("/customer/update/<customer_number>", methods=["PUT"])
+def customer_update(customer_number: str) -> Response:
+    api_key, err = _staff_perm("can_enroll_customer")
+    if err:
+        return err
+    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+    data = request.get_json()
+    update_customer(customer, data or {})
+    return jsonify({"message": "Customer updated"})
+
+
+@blueprint.route("/customer/delete/<customer_number>", methods=["DELETE"])
+def customer_delete(customer_number: str) -> Response:
+    api_key, err = _staff_perm("can_enroll_customer")
+    if err:
+        return err
+    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+    toggle_active(customer)
+    return jsonify({
+        "message": f'Customer {"deactivated" if not customer.is_active else "reactivated"}',
+        "is_active": customer.is_active,
+    })
+
+
+@blueprint.route("/customer/login", methods=["POST"])
+def customer_login() -> Response:
+    data = request.get_json() or {}
+    account_number = data.get("account_number", "").strip()
+    registered_name = data.get("registered_name", "").strip()
+    last_receipt = data.get("last_receipt", "").strip()
+
+    if not account_number:
+        return jsonify({"error": "Customer number is required", "error_code": "CUS400"}), 400
+
+    customer = Customer.query.filter_by(customer_number=account_number, is_active=True).first()
+    if not customer:
+        return jsonify({"error": "Customer not found", "error_code": "CUS404"}), 404
+
+    if registered_name and customer.name.lower().strip() != registered_name.lower().strip():
+        return jsonify({"error": "Name does not match", "error_code": "CUS403"}), 403
+
+    return jsonify({
+        "customer_number": customer.customer_number,
+        "customer": {
+            "customer_number": customer.customer_number,
+            "name": customer.name,
+            "address": customer.address or "",
+            "contact_number": customer.contact_number or "",
+            "email": customer.email or "",
+            "meter_serial_number": customer.meter_serial_number or "",
+            "x_coordinate": customer.x_coordinate,
+            "y_coordinate": customer.y_coordinate,
+        }
+    })
+
+
+@blueprint.route("/customer/<customer_number>/invoice", methods=["POST"])
+def customer_invoice(customer_number: str) -> Response:
+    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+
+    data = request.get_json() or {}
+    amount = data.get("amount", 0)
+    if not amount or float(amount) <= 0:
+        return jsonify({"error": "Invalid amount"}), 400
+
+    payment_method = data.get("payment_method", "")
+    if not payment_method:
+        return jsonify({"error": "Payment method is required"}), 400
+
+    fee_rate, fee_amount = calculate_fee(float(amount), payment_method)
+    total_amount = round(float(amount) + fee_amount, 2)
+
+    import os, secrets
+    external_id = f"wbs-{customer_number}-{int(datetime.utcnow().timestamp())}-{secrets.token_hex(4)}"
+
+    method = PaymentMethod.query.filter_by(code=payment_method, is_active=True).first()
+    channels = [method.channel_code] if method and method.channel_code else []
+
+    import urllib.request, urllib.error, json as jsonlib, base64
+
+    api_key_str = os.environ.get("XENDIT_API_KEY", "")
+    if not api_key_str:
+        return jsonify({"error": "Xendit not configured"}), 503
+
+    names = (customer.name or customer_number).strip().split(" ", 1)
+    given_names = names[0] or customer_number
+    surname = names[1] if len(names) > 1 else ""
+
+    payload = {
+        "reference_id": external_id,
+        "session_type": "PAY",
+        "mode": "PAYMENT_LINK",
+        "amount": total_amount,
+        "currency": "PHP",
+        "country": "PH",
+        "allowed_payment_channels": channels,
+        "success_return_url": data.get("success_url", ""),
+        "cancel_return_url": data.get("cancel_url", ""),
+        "description": f"Water bill payment - {customer.name or customer_number}",
+        "customer": {
+            "reference_id": external_id,
+            "type": "INDIVIDUAL",
+            "individual_detail": {"given_names": given_names},
+        },
+    }
+    if surname:
+        payload["customer"]["individual_detail"]["surname"] = surname
+    if customer.email:
+        payload["customer"]["email"] = customer.email
+    if customer.contact_number:
+        payload["customer"]["mobile_number"] = customer.contact_number
+
+    auth = base64.b64encode(f"{api_key_str}:".encode()).decode()
+    req = urllib.request.Request(
+        "https://api.xendit.co/sessions",
+        data=jsonlib.dumps(payload).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Basic {auth}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            session = jsonlib.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        return jsonify({"error": f"Xendit error: {error_body}"}), 502
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+    session_id = session.get("payment_session_id", "")
+    payment_link_url = session.get("payment_link_url", "")
+    if not payment_link_url:
+        return jsonify({"error": "No redirect URL from Xendit"}), 502
+
+    txn = XenditTransaction(
+        customer_number=customer_number,
+        xendit_pr_id=session_id,
+        external_id=external_id,
+        amount=total_amount,
+        base_amount=amount,
+        fee_amount=fee_amount,
+        fee_rate=fee_rate,
+        payment_method=payment_method,
+        status="PENDING",
+    )
+    db.session.add(txn)
+    db.session.commit()
+
+    return jsonify({
+        "redirect_url": payment_link_url,
+        "external_id": external_id,
+        "id": session_id,
+        "base_amount": float(amount),
+        "fee_amount": fee_amount,
+        "fee_rate": fee_rate,
+    })
