@@ -47,6 +47,7 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       API_BASE_URL: ${API_BASE_URL}
+      DEBUG: ${DEBUG}
 
   staff-portal:
     build:
