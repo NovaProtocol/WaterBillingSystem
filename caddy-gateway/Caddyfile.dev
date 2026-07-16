@@ -1,18 +1,10 @@
-# Public endpoints — no mTLS required
-{$CADDY_PORT_PUBLIC:8001} {
+:8001 {
     handle /customer/* {
         reverse_proxy customer-portal:8002
     }
     handle /api/webhook/* {
         reverse_proxy api:8008
     }
-    handle {
-        reverse_proxy landing:8001
-    }
-}
-
-# Private endpoints — mTLS required (enforced by top-level proxy)
-{$CADDY_PORT_PRIVATE:8001} {
     handle /staff/* {
         reverse_proxy staff-portal:8003 {
             header_up X-SSL-Client-DN {http.request.header.X-SSL-Client-DN}
@@ -23,5 +15,8 @@
     }
     handle /api/* {
         reverse_proxy api:8008
+    }
+    handle {
+        reverse_proxy landing:8001
     }
 }
