@@ -1,17 +1,35 @@
-from . import api_internal_bp, db, Response, jsonify, request
-from . import BackgroundTask, Config
-from . import Path
-from . import secrets, time
-from . import datetime, timedelta
+from __future__ import annotations
+
+import secrets
+import threading
+import time
+from datetime import datetime
+from pathlib import Path
+
+from flask import Response, jsonify, request
+
+from app import db
+from __init__ import blueprint
+from models import BackgroundTask, Config
+
+BACKUP_DIR = Path("/app/db_backups")
+_last_restore_newest_time = 0.0
+_restore_newest_lock = threading.Lock()
 
 
-@api_internal_bp.route("/debug/backup", methods=["POST"])
+def _superuser_only() -> None:
+    if not BACKUP_DIR.exists():
+        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@blueprint.route("/debug/backup", methods=["POST"])
 def debug_backup() -> Response:
+    _superuser_only()
     task = BackgroundTask.enqueue(task_type="backup", params={}, title="Backup Database")
     return jsonify({"ok": True, "order_id": task.id, "message": "Backup queued."})
 
 
-@api_internal_bp.route("/debug/backups")
+@blueprint.route("/debug/backups")
 def debug_backups() -> Response:
     _superuser_only()
     if not BACKUP_DIR.exists():
@@ -29,8 +47,9 @@ def debug_backups() -> Response:
     })
 
 
-@api_internal_bp.route("/debug/restore", methods=["POST"])
+@blueprint.route("/debug/restore", methods=["POST"])
 def debug_restore() -> Response:
+    _superuser_only()
     filename = (request.get_json() or {}).get("filename", "").strip()
     if not filename:
         return jsonify({"error": "No backup file specified"}), 400
@@ -43,7 +62,7 @@ def debug_restore() -> Response:
     return jsonify({"ok": True, "order_id": task.id, "message": "Restore queued."})
 
 
-@api_internal_bp.route("/debug/restore-newest")
+@blueprint.route("/debug/restore-newest")
 def debug_restore_newest() -> Response:
     global _last_restore_newest_time
     with _restore_newest_lock:
@@ -52,6 +71,7 @@ def debug_restore_newest() -> Response:
             remaining = round(5 - (now - _last_restore_newest_time), 1)
             return jsonify({"error": f"Cooldown active. Try again in {remaining}s"}), 429
         _last_restore_newest_time = now
+    _superuser_only()
     backups = sorted(BACKUP_DIR.glob("backup_*.sql"), reverse=True)
     if not backups:
         return jsonify({"error": "No backup files found"}), 404
@@ -62,14 +82,16 @@ def debug_restore_newest() -> Response:
     return jsonify({"ok": True, "order_id": task.id, "message": f"Restoring from newest backup: {filename}"})
 
 
-@api_internal_bp.route("/debug/clear", methods=["POST"])
+@blueprint.route("/debug/clear", methods=["POST"])
 def debug_clear() -> Response:
+    _superuser_only()
     task = BackgroundTask.enqueue(task_type="clear", params={}, title="Clear Database")
     return jsonify({"ok": True, "order_id": task.id, "message": "Clear queued."})
 
 
-@api_internal_bp.route("/debug/seed", methods=["POST"])
+@blueprint.route("/debug/seed", methods=["POST"])
 def debug_seed() -> Response:
+    _superuser_only()
     data = request.get_json() or {}
     try:
         n_customers = int(data.get("customers", "0"))
@@ -88,40 +110,45 @@ def debug_seed() -> Response:
     return jsonify({"ok": True, "order_id": task.id, "message": "Seed queued."})
 
 
-@api_internal_bp.route("/debug/read-this-month", methods=["POST"])
+@blueprint.route("/debug/read-month", methods=["POST"])
 def debug_read_month() -> Response:
+    _superuser_only()
     task = BackgroundTask.enqueue(
         task_type="read-this-month", params={}, title="Read This Month"
     )
     return jsonify({"ok": True, "order_id": task.id, "message": "Read-this-month queued."})
 
 
-@api_internal_bp.route("/debug/unread-this-month", methods=["POST"])
+@blueprint.route("/debug/unread-month", methods=["POST"])
 def debug_unread_month() -> Response:
+    _superuser_only()
     task = BackgroundTask.enqueue(
         task_type="unread-this-month", params={}, title="Unread This Month"
     )
     return jsonify({"ok": True, "order_id": task.id, "message": "Unread-this-month queued."})
 
 
-@api_internal_bp.route("/debug/pay-this-month", methods=["POST"])
+@blueprint.route("/debug/pay-month", methods=["POST"])
 def debug_pay_month() -> Response:
+    _superuser_only()
     task = BackgroundTask.enqueue(
         task_type="pay-this-month", params={}, title="Pay This Month"
     )
     return jsonify({"ok": True, "order_id": task.id, "message": "Pay-this-month queued."})
 
 
-@api_internal_bp.route("/debug/remove-payment-this-month", methods=["POST"])
+@blueprint.route("/debug/remove-pay-month", methods=["POST"])
 def debug_remove_pay_month() -> Response:
+    _superuser_only()
     task = BackgroundTask.enqueue(
         task_type="remove-payment-this-month", params={}, title="Remove Payment This Month"
     )
     return jsonify({"ok": True, "order_id": task.id, "message": "Remove-payment queued."})
 
 
-@api_internal_bp.route("/debug/tasks")
+@blueprint.route("/debug/tasks")
 def debug_tasks() -> Response:
+    _superuser_only()
     current_task = BackgroundTask.query.filter_by(status="running").first()
     queue = BackgroundTask.query.filter_by(status="queued").order_by(BackgroundTask.created_at.asc()).all()
     history = (
@@ -151,8 +178,9 @@ def debug_tasks() -> Response:
     })
 
 
-@api_internal_bp.route("/debug/tasks/<int:task_id>")
+@blueprint.route("/debug/tasks/<int:task_id>")
 def debug_task(task_id: int) -> Response:
+    _superuser_only()
     task = BackgroundTask.query.get(task_id)
     if not task:
         return jsonify({"error": "Task not found"}), 404

@@ -35,12 +35,6 @@ def create_app():
     app.register_blueprint(api_bp)
     app.register_blueprint(webhook_bp)
 
-    from internal import api_internal_bp
-    import internal.customer
-    import internal.staff
-    import internal.debug
-    app.register_blueprint(api_internal_bp)
-
     with app.app_context():
         db.create_all()
         try:
