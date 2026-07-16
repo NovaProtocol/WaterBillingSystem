@@ -1,6 +1,9 @@
-import os, sys
+import os, sys, logging
 from flask import Flask
 from apps import db, cache
+
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger('api')
 
 def require_env(*names):
     for name in names:
@@ -29,7 +32,7 @@ def create_app():
 
     app.config['NFC_PWD_SECRET'] = os.environ['NFC_PWD_SECRET']
 
-    from routes import customer, staff, config, debug, system, webhooks
+    import routes.customer, routes.staff, routes.config, routes.debug, routes.system, routes.webhooks
     from __init__ import blueprint as api_bp
     from routes.webhooks import webhook_bp
 
@@ -41,13 +44,14 @@ def create_app():
         try:
             from migrate import run_migrations
             run_migrations()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Migration failed: {e}")
+
         try:
             from services.staff_seeder import ensure_prereq_staff
             ensure_prereq_staff()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Staff seeder failed: {e}")
 
     @app.route('/health')
     def health():
