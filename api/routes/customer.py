@@ -819,7 +819,7 @@ def customer_billing_new(customer_number: str) -> Response:
 
 
 @blueprint.route("/customer/<customer_number>/billing/drop", methods=["POST"])
-def customer_billing_drop(customer_number: str) -> Response:
+def customer_billing_drop(customer_number: str = "") -> Response:
     api_key, err = require_staff("can_drop_payment")
     if err:
         return err
