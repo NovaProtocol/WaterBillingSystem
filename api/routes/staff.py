@@ -9,10 +9,10 @@ from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
-from .. import blueprint
+from __init__ import blueprint
 from models import ApiKey, Billing, Config, Customer, ManagementLog, MeterReading, NfcTag, Staff
-from ..billing_service import ensure_penalty
-from ..customer_service import (
+from billing_service import ensure_penalty
+from customer_service import (
     create_customer,
     get_customer_by_number,
     get_customer_or_404,
@@ -28,7 +28,7 @@ from services.payment_service import (
     recalc_cumulative_balance,
     submit_payment as service_submit_payment,
 )
-from ..reading_service import (
+from reading_service import (
     drop_reading as service_drop_reading,
     edit_reading as service_edit_reading,
 )

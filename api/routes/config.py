@@ -3,7 +3,7 @@ from __future__ import annotations
 from flask import Response, current_app, jsonify, request
 
 from app import cache, db
-from .. import blueprint
+from __init__ import blueprint
 from utils import resolve_api_key
 from models import Config as AppConfig
 from pricing import DUE_DAYS, LATE_PENALTY, PRICING_TIERS
