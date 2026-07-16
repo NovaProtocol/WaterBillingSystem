@@ -32,7 +32,7 @@ from reading_service import (
     drop_reading as service_drop_reading,
     edit_reading as service_edit_reading,
 )
-from utils import require_staff, resolve_api_key
+from utils import _get_staff_id, require_staff, resolve_api_key
 from pricing import compute_water_bill
 
 
@@ -70,6 +70,54 @@ def staff_login() -> Response:
         "can_drop_payment": staff.can_drop_payment,
         "can_enroll_staff": staff.can_enroll_staff,
         "can_manage_billing": staff.can_manage_billing,
+    })
+
+
+def _staff_to_dict(staff: Staff) -> dict:
+    return {
+        "id": staff.id,
+        "username": staff.username,
+        "name": staff.name,
+        "email": staff.email,
+        "contact_number": staff.contact_number,
+        "is_active": staff.is_active,
+        "can_read_meters": staff.can_read_meters,
+        "can_accept_payment": staff.can_accept_payment,
+        "can_enroll_customer": staff.can_enroll_customer,
+        "can_drop_reading": staff.can_drop_reading,
+        "can_drop_payment": staff.can_drop_payment,
+        "can_enroll_staff": staff.can_enroll_staff,
+        "can_manage_billing": staff.can_manage_billing,
+    }
+
+
+@blueprint.route("/staff/info")
+def staff_info() -> Response:
+    auth = require_staff()
+    if auth[1]:
+        return auth[1]
+    api_key = auth[0]
+
+    if api_key is True:
+        staff_id = _get_staff_id()
+        if not staff_id:
+            return jsonify({"error": "staff_id required via X-Staff-ID header or request body"}), 400
+        staff = Staff.query.get(staff_id)
+        if not staff:
+            return jsonify({"error": "Staff not found"}), 404
+    else:
+        staff = api_key.staff
+        if not staff:
+            return jsonify({"error": "Staff not found"}), 404
+
+    return jsonify({
+        "staff": _staff_to_dict(staff),
+        "auth_type": "internal_key" if api_key is True else "api_key",
+        "api_key": {
+            "id": api_key.id,
+            "label": api_key.label,
+            "is_active": api_key.is_active,
+        } if api_key is not True else None,
     })
 
 

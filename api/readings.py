@@ -28,43 +28,6 @@ def pricing() -> Response:
     )
 
 
-@blueprint.route("/key/info")
-def api_key_info() -> Response:
-    api_key = resolve_api_key()
-    if not api_key:
-        return jsonify({"error": "Authentication required"}), 401
-
-    staff = api_key.staff
-    return jsonify(
-        {
-            "api_key": {
-                "id": api_key.id,
-                "label": api_key.label,
-                "is_active": api_key.is_active,
-                "date_created": (
-                    api_key.date_created.isoformat() if api_key.date_created else None
-                ),
-            },
-            "staff": (
-                {
-                    "id": staff.id,
-                    "username": staff.username,
-                    "name": staff.name,
-                    "can_read_meters": staff.can_read_meters,
-                    "can_accept_payment": staff.can_accept_payment,
-                    "can_enroll_customer": staff.can_enroll_customer,
-                    "can_drop_reading": staff.can_drop_reading,
-                    "can_drop_payment": staff.can_drop_payment,
-                    "can_enroll_staff": staff.can_enroll_staff,
-                    "can_manage_billing": staff.can_manage_billing,
-                }
-                if staff
-                else None
-            ),
-        }
-    )
-
-
 @blueprint.route("/staff/<staff_id>/api-key/verify", methods=["POST"])
 def staff_api_key_verify(staff_id: int) -> Response:
     api_key = resolve_api_key()
