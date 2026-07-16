@@ -1,8 +1,11 @@
-import os
+import os, logging
 from flask import Response, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from app import login_manager, cache, Staff
 import api_client
+
+logging.basicConfig(level=logging.ERROR, format='%(levelname)s: %(message)s')
+logger = logging.getLogger('staff-portal')
 
 from __init__ import staff_bp
 
@@ -52,8 +55,8 @@ def login():
                 staff_obj = Staff(staff_data)
                 login_user(staff_obj, remember=True)
                 return redirect(url_for('staff_blueprint.dashboard'))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Login failed: {e}", exc_info=True)
         return render_template('staff/login.html', form=form, error='Invalid credentials')
     return render_template('staff/login.html', form=form)
 
