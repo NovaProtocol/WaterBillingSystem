@@ -59,8 +59,8 @@ def get_customers(page: int = 1, per_page: int = 50) -> dict:
 def create_customer(data: dict) -> dict:
     return _post('/api/customer/new', data)
 
-def edit_customer(data: dict) -> dict:
-    customer_number = data.pop('customer_number', '')
+def edit_customer(customer_id: int, data: dict) -> dict:
+    customer_number = data.get('customer_number', str(customer_id))
     return _put(f'/api/customer/update/{customer_number}', data)
 
 def toggle_customer_active(customer_number: str) -> dict:
@@ -76,26 +76,29 @@ def submit_payment(data: dict) -> dict:
 def get_cashier_tally(period: str) -> dict:
     return _get('/api/staff/1/cashier-tally', {'period': period})
 
-def drop_reading(reading_id: int, customer_number: str = '') -> dict:
+def drop_reading(reading_id: int, data: dict) -> dict:
+    customer_number = data.get('customer_number', '')
     return _post(f'/api/customer/{customer_number}/reading/drop', {'reading_id': reading_id, 'reason': 'Staff drop'})
 
-def edit_reading(reading_id: int, customer_number: str = '', reading_value: float = 0) -> dict:
+def edit_reading(reading_id: int, data: dict) -> dict:
+    customer_number = data.get('customer_number', '')
+    reading_value = data.get('reading_value', 0)
     return _post(f'/api/customer/{customer_number}/reading/edit', {'reading_id': reading_id, 'reading_value': reading_value})
 
 def undo_payment(billing_id: int) -> dict:
     return _post(f'/api/customer/{billing_id}/billing/drop', {'billing_id': billing_id})
 
-def generate_api_key() -> dict:
-    return _post('/api/staff/1/api-key/generate')
+def generate_api_key(staff_id: int = 1) -> dict:
+    return _post(f'/api/staff/{staff_id}/api-key/generate')
 
-def revoke_api_key(key_id: int) -> dict:
-    return _post('/api/staff/api-key/{key_id}/revoke', {'key_id': key_id})
+def revoke_api_key(staff_id: int, key_id: int) -> dict:
+    return _post(f'/api/staff/{staff_id}/api-key/{key_id}/revoke')
 
-def list_api_keys() -> dict:
-    return _get('/api/staff/1/api-keys')
+def list_api_keys(staff_id: int = 1) -> dict:
+    return _get(f'/api/staff/{staff_id}/api-keys')
 
-def get_reading_logs() -> dict:
-    return _get('/api/staff/1/reading-logs')
+def get_reading_logs(staff_id: int = 1) -> dict:
+    return _get(f'/api/staff/{staff_id}/reading-logs')
 
 def list_staff() -> dict:
     return _get('/api/staff/all')

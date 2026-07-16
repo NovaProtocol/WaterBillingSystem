@@ -125,7 +125,7 @@ def manage_customers():
 @staff_bp.route('/staff/manage-customers/<int:customer_id>/edit', methods=['POST'])
 @permission_required('can_enroll_customer')
 def edit_customer(customer_id):
-    data = request.get_json()
+    data = request.get_json() or {}
     try:
         result = api_client.edit_customer(customer_id, data)
         return jsonify(result)
@@ -169,8 +169,9 @@ def generate_api_key():
 @staff_bp.route('/staff/meter-reading/revoke/<int:key_id>', methods=['POST'])
 @login_required
 def revoke_api_key(key_id):
+    staff_id = session.get('staff_id', 1)
     try:
-        result = api_client.revoke_api_key(key_id)
+        result = api_client.revoke_api_key(staff_id, key_id)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -184,8 +185,9 @@ def manage_reading():
 @staff_bp.route('/staff/manage-reading/drop-reading/<int:reading_id>', methods=['POST'])
 @permission_required('can_drop_reading')
 def drop_reading(reading_id):
+    data = request.get_json() or {}
     try:
-        result = api_client.drop_reading(reading_id)
+        result = api_client.drop_reading(reading_id, data)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -193,7 +195,7 @@ def drop_reading(reading_id):
 @staff_bp.route('/staff/manage-reading/edit-reading/<int:reading_id>', methods=['POST'])
 @permission_required('can_drop_reading')
 def edit_reading(reading_id):
-    data = request.get_json()
+    data = request.get_json() or {}
     try:
         result = api_client.edit_reading(reading_id, data)
         return jsonify(result)

@@ -83,13 +83,9 @@ def customer_all() -> Response:
 @blueprint.route("/customer/<customer_number>")
 def customer_info(customer_number: str) -> Response:
     """Get full billing details for a specific customer."""
-    from utils import resolve_api_key
-
-    api_key = resolve_api_key()
-    if not api_key:
-        return jsonify({"error": "Authentication required"}), 401
-    if not api_key.staff or not api_key.staff.can_read_meters:
-        return jsonify({"error": "Permission denied"}), 403
+    api_key, err = require_staff("can_read_meters")
+    if err:
+        return err
 
     customer = Customer.query.filter_by(customer_number=customer_number).first()
     if not customer:
@@ -340,20 +336,10 @@ def customer_info(customer_number: str) -> Response:
 
 @blueprint.route("/customer/<customer_number>/details")
 def customer_details(customer_number: str) -> Response:
-    """Get customer profile with recent reading history.
-
-    Requires API key auth (Bearer token or ?api_key= param).
-    Query param ?history=5 (default) controls how many past readings to include.
-    Returns customer info plus the last N readings sorted newest-first.
-    ---
-    Auth: API key
-    """
-    from utils import resolve_api_key
-
-    api_key = resolve_api_key()
-    if not api_key:
-        return jsonify({"error": "Authentication required"}), 401
-    if not api_key.staff.can_read_meters:
+    """Get customer profile with recent reading history."""
+    api_key, err = require_staff("can_read_meters")
+    if err:
+        return err
         return jsonify({"error": "Permission denied"}), 403
 
     customer = Customer.query.filter_by(customer_number=customer_number).first()
