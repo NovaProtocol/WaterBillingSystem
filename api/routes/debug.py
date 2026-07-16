@@ -9,7 +9,7 @@ from pathlib import Path
 from flask import Response, jsonify, request
 
 from app import db
-from __init__ import blueprint
+from .. import blueprint
 from models import BackgroundTask, Config
 
 BACKUP_DIR = Path("/app/db_backups")
