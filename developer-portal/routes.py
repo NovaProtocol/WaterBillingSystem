@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger('developer-portal')
 import os, random
 from functools import wraps
 from typing import Any, Callable

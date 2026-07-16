@@ -1,3 +1,4 @@
+import logging
 from flask import request, render_template, redirect, url_for, make_response, jsonify
 from itsdangerous import URLSafeTimedSerializer
 from __init__ import customer_bp
@@ -40,7 +41,7 @@ def identify():
                     error_code = body.get('error_code', error_code)
                     error_msg = body.get('error', error_msg)
             except Exception:
-                pass
+                logger.error(f"Failed to parse error response", exc_info=True)
             logger.error(f"[{error_code}] {error_msg}")
             ctx['error'] = f'{error_code}: Verification failed. Please contact support with this code.'
             return render_template('customer/identify.html', **ctx)
@@ -62,7 +63,8 @@ def billing(customer_number):
         return redirect(url_for('customer.identify'))
     try:
         data = serializer.loads(token, max_age=3600)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error: {e}")
         return redirect(url_for('customer.identify'))
     if data.get('customer_number') != customer_number:
         return redirect(url_for('customer.identify'))
@@ -83,7 +85,8 @@ def readings(customer_number):
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         serializer.loads(token, max_age=3600)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error: {e}")
         return jsonify({'error': 'Unauthorized'}), 401
     page = request.args.get('page', 1, type=int)
     try:
@@ -99,7 +102,8 @@ def payments(customer_number):
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         serializer.loads(token, max_age=3600)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error: {e}")
         return jsonify({'error': 'Unauthorized'}), 401
     page = request.args.get('page', 1, type=int)
     try:
@@ -115,7 +119,8 @@ def billing_history(customer_number):
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         serializer.loads(token, max_age=3600)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error: {e}")
         return jsonify({'error': 'Unauthorized'}), 401
     page = request.args.get('page', 1, type=int)
     try:
@@ -131,7 +136,8 @@ def create_invoice(customer_number):
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         serializer.loads(token, max_age=3600)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error: {e}")
         return jsonify({'error': 'Unauthorized'}), 401
     data = request.get_json()
     if not data or 'amount' not in data:

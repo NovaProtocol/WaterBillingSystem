@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger('worker')
+
 import math
 import os
 import random
@@ -47,7 +50,8 @@ def _clear_all_tables() -> None:
             db.session.execute(db.text(f"TRUNCATE TABLE {table_name}"))
         delete_non_prereq_staff()
         db.session.commit()
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error: {e}")
         db.session.rollback()
         raise
     finally:
@@ -488,7 +492,8 @@ def handle_restore(params: dict[str, Any], report: Callable[[float, str], None])
         db.session.commit()
         customer_count = db.session.query(db.func.count(Customer.id)).scalar() or 0
         print(f"  > Customers after restore: {customer_count}", flush=True)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error: {e}")
         db.session.rollback()
         print(f"  > Could not count customers (DB was replaced by restore)", flush=True)
 
@@ -504,7 +509,8 @@ def handle_clear(params: dict[str, Any], report: Callable[[float, str], None]) -
     for t in TABLE_NAMES:
         try:
             counts_before[t] = db.session.execute(db.text(f"SELECT COUNT(*) FROM {t}")).scalar()
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error: {e}")
             counts_before[t] = 0
     print(f"  > Tables to truncate: {', '.join(TABLE_NAMES)} ({sum(counts_before.values())} total rows)", flush=True)
 
@@ -923,7 +929,8 @@ def _process_xendit_payment(txn: XenditTransaction) -> bool:
         txn.error_message = str(e)
         try:
             db.session.commit()
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error: {e}")
             db.session.rollback()
         return False
 

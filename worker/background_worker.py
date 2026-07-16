@@ -100,7 +100,8 @@ def _execute_task(task: BackgroundTask) -> None:
             messages.append(msg)
             task.messages = messages
             db.session.commit()
-        except (ObjectDeletedError, Exception):
+        except (ObjectDeletedError, Exception) as e:
+            logger.error(f"Error: {e}")
             db.session.rollback()
 
     logger.info("[background_worker] Starting: %s", task_title)
