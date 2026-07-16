@@ -29,9 +29,9 @@ def create_app():
 
     app.config['NFC_PWD_SECRET'] = os.environ['NFC_PWD_SECRET']
 
-    from routes import customer, staff, config, debug, system
+    from routes import customer, staff, config, debug, system, webhooks
     from __init__ import blueprint as api_bp
-    from webhooks import webhook_bp
+    from routes.webhooks import webhook_bp
 
     app.register_blueprint(api_bp)
     app.register_blueprint(webhook_bp)
