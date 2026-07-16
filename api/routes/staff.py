@@ -46,13 +46,14 @@ def staff_login() -> Response:
     staff = Staff.query.filter_by(username=username).first()
     if not staff or not staff.is_active:
         return jsonify({"error": "Invalid credentials"}), 401
-    try:
-        if not check_password_hash(staff.password.decode("utf-8"), password):
+    pw_str = staff.password.decode("utf-8", errors="replace")
+    if "$" in pw_str:
+        if not check_password_hash(pw_str, password):
             return jsonify({"error": "Invalid credentials"}), 401
-    except (ValueError, TypeError):
+    else:
         import binascii, hashlib
         try:
-            stored = staff.password.decode("ascii")
+            stored = pw_str
             salt = stored[:64]
             pwdhash = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), salt.encode("ascii"), 100000)
             if binascii.hexlify(pwdhash).decode("ascii") != stored[64:]:
