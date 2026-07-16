@@ -97,7 +97,7 @@
                                     data-street="{{ c.street or '' }}"
                                     data-x="{{ c.x_coordinate or '' }}"
                                     data-y="{{ c.y_coordinate or '' }}"
-                                    data-nfc-tag-id="{{ nfc_tags.get(c.customer_number, '') }}"
+                                    data-nfc-tag-id="{{ c.nfc_uid or '' }}"
                                     title="Edit"
                                     style="background:transparent;border:1px solid #e94560;color:#e94560;border-radius:8px;padding:2px 10px;font-size:0.78rem;">
                                     <i class="fas fa-pen mr-1"></i>Edit
