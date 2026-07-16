@@ -25,24 +25,12 @@ from customer_service import (
     toggle_active,
     update_customer,
 )
-from utils import resolve_api_key
-
-
-def _staff_perm(*perms: str) -> tuple[ApiKey | None, Response | None]:
-    api_key = resolve_api_key()
-    if not api_key:
-        return None, (jsonify({"error": "Authentication required"}), 401)
-    if not api_key.staff:
-        return None, (jsonify({"error": "Permission denied"}), 403)
-    for perm in perms:
-        if not getattr(api_key.staff, perm, False):
-            return None, (jsonify({"error": "Permission denied"}), 403)
-    return api_key, None
+from utils import require_staff, resolve_api_key
 
 
 @blueprint.route("/customer/count")
 def customer_count() -> Response:
-    api_key, err = _staff_perm("can_read_meters")
+    api_key, err = require_staff("can_read_meters")
     if err:
         return err
     count = Customer.query.filter_by(is_active=True).count()
@@ -51,7 +39,7 @@ def customer_count() -> Response:
 
 @blueprint.route("/customer/all")
 def customer_all() -> Response:
-    api_key, err = _staff_perm("can_read_meters")
+    api_key, err = require_staff("can_read_meters")
     if err:
         return err
     page = request.args.get("page", 1, type=int)
@@ -415,7 +403,7 @@ def customer_details(customer_number: str) -> Response:
 
 @blueprint.route("/customer/<customer_number>/profile")
 def customer_profile(customer_number: str) -> Response:
-    api_key, err = _staff_perm("can_read_meters")
+    api_key, err = require_staff("can_read_meters")
     if err:
         return err
     return customer_info(customer_number)
@@ -423,7 +411,7 @@ def customer_profile(customer_number: str) -> Response:
 
 @blueprint.route("/customer/new", methods=["POST"])
 def customer_new() -> Response:
-    api_key, err = _staff_perm("can_enroll_customer")
+    api_key, err = require_staff("can_enroll_customer")
     if err:
         return err
     data = request.get_json()
@@ -439,7 +427,7 @@ def customer_new() -> Response:
 
 @blueprint.route("/customer/update/<customer_number>", methods=["PUT"])
 def customer_update(customer_number: str) -> Response:
-    api_key, err = _staff_perm("can_enroll_customer")
+    api_key, err = require_staff("can_enroll_customer")
     if err:
         return err
     customer = Customer.query.filter_by(customer_number=customer_number).first()
@@ -452,7 +440,7 @@ def customer_update(customer_number: str) -> Response:
 
 @blueprint.route("/customer/delete/<customer_number>", methods=["DELETE"])
 def customer_delete(customer_number: str) -> Response:
-    api_key, err = _staff_perm("can_enroll_customer")
+    api_key, err = require_staff("can_enroll_customer")
     if err:
         return err
     customer = Customer.query.filter_by(customer_number=customer_number).first()
@@ -608,7 +596,7 @@ def customer_invoice(customer_number: str) -> Response:
 
 @blueprint.route("/customer/<customer_number>/reading")
 def customer_readings(customer_number: str) -> Response:
-    api_key, err = _staff_perm("can_read_meters")
+    api_key, err = require_staff("can_read_meters")
     if err:
         return err
 
@@ -643,13 +631,15 @@ def customer_readings(customer_number: str) -> Response:
 
 @blueprint.route("/customer/<customer_number>/reading/new", methods=["POST"])
 def customer_reading_new(customer_number: str) -> Response:
-    api_key, err = _staff_perm("can_read_meters")
+    api_key, err = require_staff("can_read_meters")
     if err:
         return err
 
     data = request.get_json() or {}
     reading_value = data.get("reading_value")
     timestamp = data.get("timestamp", datetime.utcnow().timestamp())
+    staff_id = data.get("staff_id") if api_key is True else api_key.staff.id
+    staff_name = data.get("staff_name") if api_key is True else api_key.staff.name
 
     if reading_value is None:
         return jsonify({"error": "reading_value is required"}), 400
@@ -661,7 +651,7 @@ def customer_reading_new(customer_number: str) -> Response:
         return jsonify({"error": "Invalid reading_value or timestamp"}), 400
 
     reading, error, status = service_upload_reading(
-        customer_number, reading_float, ts_float, api_key.id, api_key.staff.id, api_key.staff.name
+        customer_number, reading_float, ts_float, api_key.id if api_key is not True else None, staff_id, staff_name
     )
     if error:
         return jsonify({"error": error}), status
@@ -672,25 +662,26 @@ def customer_reading_new(customer_number: str) -> Response:
         "customer_number": customer_number,
         "reading_value": float(reading_value),
         "timestamp": int(timestamp),
-        "reader": api_key.staff.name,
+        "reader": staff_name,
     }), 201
 
 
 @blueprint.route("/customer/<customer_number>/reading/drop", methods=["POST"])
 def customer_reading_drop(customer_number: str) -> Response:
-    api_key, err = _staff_perm("can_drop_reading")
+    api_key, err = require_staff("can_drop_reading")
     if err:
         return err
 
     data = request.get_json() or {}
     reading_id = data.get("reading_id")
     reason = data.get("reason", "").strip()
+    staff_id = data.get("staff_id") if api_key is True else api_key.staff.id
     if not reading_id:
         return jsonify({"error": "reading_id is required"}), 400
     if not reason:
         return jsonify({"error": "Reason is required"}), 400
     try:
-        service_drop_reading(reading_id, api_key.staff.id, reason)
+        service_drop_reading(reading_id, staff_id, reason)
     except ValueError as e:
         return jsonify({"error": str(e)}), 409
     return jsonify({"message": "Reading dropped"})
@@ -698,7 +689,7 @@ def customer_reading_drop(customer_number: str) -> Response:
 
 @blueprint.route("/customer/<customer_number>/reading/edit", methods=["POST"])
 def customer_reading_edit(customer_number: str) -> Response:
-    api_key, err = _staff_perm("can_manage_billing")
+    api_key, err = require_staff("can_manage_billing")
     if err:
         return err
 
@@ -710,5 +701,6 @@ def customer_reading_edit(customer_number: str) -> Response:
         return jsonify({"error": "Invalid reading value"}), 400
     if not reading_id:
         return jsonify({"error": "reading_id is required"}), 400
-    service_edit_reading(reading_id, new_value, api_key.staff.id)
+    staff_id = data.get("staff_id") if api_key is True else api_key.staff.id
+    service_edit_reading(reading_id, new_value, staff_id)
     return jsonify({"message": "Reading updated"})

@@ -32,20 +32,8 @@ from reading_service import (
     drop_reading as service_drop_reading,
     edit_reading as service_edit_reading,
 )
-from utils import resolve_api_key
+from utils import require_staff, resolve_api_key
 from pricing import compute_water_bill
-
-
-def _staff_perm(*perms: str) -> tuple[ApiKey | None, Response | None]:
-    api_key = resolve_api_key()
-    if not api_key:
-        return None, (jsonify({"error": "Authentication required"}), 401)
-    if not api_key.staff:
-        return None, (jsonify({"error": "Permission denied"}), 403)
-    for perm in perms:
-        if not getattr(api_key.staff, perm, False):
-            return None, (jsonify({"error": "Permission denied"}), 403)
-    return api_key, None
 
 
 @blueprint.route("/staff/login", methods=["POST"])
@@ -87,7 +75,7 @@ def staff_login() -> Response:
 
 @blueprint.route("/staff/all")
 def staff_all() -> Response:
-    api_key, err = _staff_perm("can_enroll_staff")
+    api_key, err = require_staff("can_enroll_staff")
     if err:
         return err
     staff_list = Staff.query.all()
@@ -115,7 +103,7 @@ def staff_all() -> Response:
 
 @blueprint.route("/staff/<int:staff_id>")
 def staff_get(staff_id: int) -> Response:
-    api_key, err = _staff_perm("can_enroll_staff")
+    api_key, err = require_staff("can_enroll_staff")
     if err:
         return err
     staff = Staff.query.get_or_404(staff_id)
@@ -138,7 +126,7 @@ def staff_get(staff_id: int) -> Response:
 
 @blueprint.route("/staff/new", methods=["POST"])
 def staff_new() -> Response:
-    api_key, err = _staff_perm("can_enroll_staff")
+    api_key, err = require_staff("can_enroll_staff")
     if err:
         return err
     data = request.get_json() or {}
@@ -169,7 +157,7 @@ def staff_new() -> Response:
 
 @blueprint.route("/staff/<int:staff_id>/edit", methods=["POST"])
 def staff_edit(staff_id: int) -> Response:
-    api_key, err = _staff_perm("can_enroll_staff")
+    api_key, err = require_staff("can_enroll_staff")
     if err:
         return err
     data = request.get_json() or {}
@@ -201,7 +189,7 @@ def staff_edit(staff_id: int) -> Response:
 
 @blueprint.route("/staff/<int:staff_id>/cashier-tally")
 def staff_cashier_tally(staff_id: int) -> Response:
-    api_key, err = _staff_perm("can_accept_payment")
+    api_key, err = require_staff("can_accept_payment")
     if err:
         return err
     period = request.args.get("period", "daily")
@@ -225,7 +213,7 @@ def staff_cashier_tally(staff_id: int) -> Response:
 
 @blueprint.route("/staff/<int:staff_id>/reading-logs")
 def staff_reading_logs(staff_id: int) -> Response:
-    api_key, err = _staff_perm("can_drop_reading")
+    api_key, err = require_staff("can_drop_reading")
     if err:
         return err
     logs = (
@@ -253,7 +241,7 @@ def staff_reading_logs(staff_id: int) -> Response:
 
 @blueprint.route("/staff/<int:staff_id>/api-keys")
 def staff_api_keys(staff_id: int) -> Response:
-    api_key, err = _staff_perm()
+    api_key, err = require_staff()
     if err:
         return err
     keys = (
@@ -280,7 +268,7 @@ def staff_api_keys(staff_id: int) -> Response:
 
 @blueprint.route("/staff/<int:staff_id>/api-key/generate", methods=["POST"])
 def staff_api_key_generate(staff_id: int) -> Response:
-    api_key, err = _staff_perm("can_read_meters")
+    api_key, err = require_staff("can_read_meters")
     if err:
         return err
     data = request.get_json()
@@ -297,7 +285,7 @@ def staff_api_key_generate(staff_id: int) -> Response:
 
 @blueprint.route("/staff/<int:staff_id>/api-key/<int:key_id>/revoke", methods=["POST"])
 def staff_api_key_revoke(staff_id: int, key_id: int) -> Response:
-    api_key, err = _staff_perm("can_read_meters")
+    api_key, err = require_staff("can_read_meters")
     if err:
         return err
     target = ApiKey.query.get_or_404(key_id)
