@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import binascii
 import hashlib
+import os
 
 from apps import db
 from models import Staff
@@ -38,6 +39,8 @@ def ensure_prereq_staff() -> None:
             is_active=True,
         ))
 
+
+    db.session.commit()
 
 def delete_non_prereq_staff() -> None:
     Staff.query.filter(Staff.username.notin_(PREREQ_USERNAMES)).delete(
