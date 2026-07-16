@@ -640,8 +640,14 @@ def customer_reading_new(customer_number: str) -> Response:
     except (ValueError, TypeError):
         return jsonify({"error": "Invalid reading_value or timestamp"}), 400
 
+    if api_key is True:
+        from models import ApiKey as KeyModel
+        token = KeyModel.query.filter_by(is_active=True).first()
+        token_id = token.id if token else None
+    else:
+        token_id = api_key.id
     reading, error, status = service_upload_reading(
-        customer_number, reading_float, ts_float, api_key.id if api_key is not True else None, staff_id, staff_name
+        customer_number, reading_float, ts_float, token_id, staff_id, staff_name
     )
     if error:
         return jsonify({"error": error}), status
