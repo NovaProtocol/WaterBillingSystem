@@ -68,10 +68,7 @@ def billing(customer_number):
         return redirect(url_for('customer.identify'))
     if data.get('customer_number') != customer_number:
         return redirect(url_for('customer.identify'))
-    try:
-        billing = api_client.get_billing(customer_number)
-    except Exception as e:
-        return render_template('customer/error.html', error='Unable to load billing information.')
+    billing = api_client.get_billing(customer_number)
     customer_data = data.get('customer_data', {})
     ctx = dict(billing or {})
     ctx.setdefault('customer', customer_data)
