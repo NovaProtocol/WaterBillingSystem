@@ -8,7 +8,7 @@ from sqlalchemy.orm import joinedload
 
 from app import db
 from __init__ import blueprint
-from models import ApiKey, Billing, Customer, MeterReading, NfcTag, PaymentMethod, XenditTransaction
+from models import ApiKey, Billing, Customer, ManagementLog, MeterReading, NfcTag, PaymentMethod, XenditTransaction
 from pricing import PRICING_TIERS
 from billing_service import ensure_penalty
 from fee_service import calculate_fee
@@ -704,3 +704,53 @@ def customer_reading_edit(customer_number: str) -> Response:
     staff_id = data.get("staff_id") if api_key is True else api_key.staff.id
     service_edit_reading(reading_id, new_value, staff_id)
     return jsonify({"message": "Reading updated"})
+
+
+@blueprint.route("/customers/changed")
+def customers_changed() -> Response:
+    api_key, err = require_staff("can_read_meters")
+    if err:
+        return err
+
+    since = request.args.get("since", type=int)
+    if since is None:
+        return jsonify({"error": "since parameter is required (Unix timestamp)"}), 400
+
+    try:
+        since_dt = datetime.fromtimestamp(since)
+    except (ValueError, OSError, OverflowError):
+        return jsonify({"error": "Invalid since timestamp"}), 400
+
+    modified_customers = (
+        Customer.query.with_entities(Customer.customer_number)
+        .filter(Customer.date_modified > since_dt, Customer.is_active.is_(True))
+        .all()
+    )
+
+    reading_customers = (
+        db.session.query(MeterReading.customer_number.distinct())
+        .filter(db.or_(MeterReading.date_created > since_dt, MeterReading.date_modified > since_dt))
+        .all()
+    )
+
+    dropped_logs = (
+        ManagementLog.query.with_entities(ManagementLog.customer_number.distinct())
+        .filter(
+            ManagementLog.date_created > since_dt,
+            ManagementLog.action_type.in_(["drop", "edit"]),
+            ManagementLog.target_type == "reading",
+            ManagementLog.customer_number.isnot(None),
+        )
+        .all()
+    )
+    dropped_customers = {r[0] for r in dropped_logs if r[0]}
+
+    all_changed = {c[0] for c in modified_customers}
+    all_changed.update(c[0] for c in reading_customers)
+    all_changed.update(dropped_customers)
+
+    return jsonify({
+        "customer_numbers": list(all_changed),
+        "server_time": int(datetime.utcnow().timestamp()),
+        "total_customers": Customer.query.filter_by(is_active=True).count(),
+    })
