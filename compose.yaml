@@ -3,7 +3,7 @@ services:
   caddy-gateway:
     build:
       context: .
-      dockerfile: caddy-gateway/Dockerfile
+      dockerfile: services/caddy-gateway/Dockerfile
     container_name: waterbillingsystem_gateway
     restart: unless-stopped
     ports:
@@ -24,7 +24,7 @@ services:
   landing-page:
     build:
       context: .
-      dockerfile: landing-page/Dockerfile
+      dockerfile: services/landing-page/Dockerfile
     container_name: waterbillingsystem_landing
     restart: unless-stopped
     networks:
@@ -36,7 +36,7 @@ services:
   customer-portal:
     build:
       context: .
-      dockerfile: customer-portal/Dockerfile
+      dockerfile: services/customer-portal/Dockerfile
     container_name: waterbillingsystem_customerportal
     restart: unless-stopped
     networks:
@@ -52,7 +52,7 @@ services:
   staff-portal:
     build:
       context: .
-      dockerfile: staff-portal/Dockerfile
+      dockerfile: services/staff-portal/Dockerfile
     container_name: waterbillingsystem_staffportal
     restart: unless-stopped
     networks:
@@ -68,7 +68,7 @@ services:
   developer-portal:
     build:
       context: .
-      dockerfile: developer-portal/Dockerfile
+      dockerfile: services/developer-portal/Dockerfile
     container_name: waterbillingsystem_devportal
     restart: unless-stopped
     networks:
@@ -85,7 +85,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: api/Dockerfile
+      dockerfile: services/api/Dockerfile
     restart: unless-stopped
     networks:
       - net-api-ext
@@ -119,7 +119,7 @@ services:
   background-worker:
     build:
       context: .
-      dockerfile: worker/Dockerfile
+      dockerfile: services/worker/Dockerfile
     container_name: waterbillingsystem_worker
     restart: unless-stopped
     networks:
