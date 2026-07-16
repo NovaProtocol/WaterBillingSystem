@@ -6,6 +6,9 @@ services:
       dockerfile: caddy-gateway/Dockerfile
     container_name: waterbillingsystem_gateway
     restart: unless-stopped
+    ports:
+      - "${CADDY_PORT_PUBLIC:-8001}:${CADDY_PORT_PUBLIC:-8001}"
+      - "${CADDY_PORT_PRIVATE:-8001}:${CADDY_PORT_PRIVATE:-8001}"
     networks:
       - net-landing
       - net-customer
