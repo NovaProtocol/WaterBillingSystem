@@ -34,6 +34,14 @@ def staff_login(username: str, password: str) -> dict:
     data = _post('/api/staff/login', {'username': username, 'password': password})
     return {'success': True, 'staff': data}
 
+def get_dashboard_data() -> dict:
+    customers = _get('/api/customer/count')
+    staff_list = _get('/api/staff/all')
+    return {
+        'total_customers': customers.get('count', 0),
+        'total_staff': len(staff_list.get('staff', [])),
+    }
+
 def customer_lookup(query: str) -> dict:
     r = _get('/api/customer/all', {'q': query, 'size': 10})
     return r.get('data', [])
