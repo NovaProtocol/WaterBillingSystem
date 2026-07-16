@@ -70,11 +70,7 @@ def logout():
 @staff_bp.route('/staff/dashboard')
 @login_required
 def dashboard():
-    try:
-        data = api_client.get_dashboard_data()
-    except Exception as e:
-        logger.error(f"API call failed: {e}")
-        data = {}
+    data = api_client.get_dashboard_data()
     return render_template('staff/dashboard.html', data=data)
 
 @staff_bp.route('/staff/customer-lookup')
@@ -92,12 +88,8 @@ def customer_lookup():
 def customers():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
-    try:
-        result = api_client.get_customers(page, per_page)
-        return render_template('staff/customers.html', **result)
-    except Exception as e:
-        logger.error(f"API call failed: {e}")
-        return render_template('staff/customers.html', customers=[], page=1, per_page=50, total=0, pages=0)
+    result = api_client.get_customers(page, per_page)
+    return render_template('staff/customers.html', **result)
 
 @staff_bp.route('/staff/customers/create', methods=['POST'])
 @permission_required('can_enroll_customer')
@@ -117,21 +109,17 @@ def manage_customers():
     q = request.args.get('q', '')
     sort_by = request.args.get('sort_by', 'name')
     sort_dir = request.args.get('sort_dir', 'asc')
-    try:
-        result = api_client.get_customers(page, per_page)
-        ctx = {
-            'customers': result.get('customers', []),
-            'page': result.get('page', page),
-            'per_page': result.get('per_page', per_page),
-            'total': result.get('total', 0),
-            'pages': result.get('pages', 0),
-            'sort_by': sort_by,
-            'sort_dir': sort_dir,
-            'q': q,
-        }
-    except Exception as e:
-        logger.error(f"API call failed: {e}")
-        ctx = {'customers': [], 'page': 1, 'per_page': per_page, 'total': 0, 'pages': 0, 'sort_by': sort_by, 'sort_dir': sort_dir, 'q': q, 'nfc_tags': {}}
+    result = api_client.get_customers(page, per_page)
+    ctx = {
+        'customers': result.get('customers', []),
+        'page': result.get('page', page),
+        'per_page': result.get('per_page', per_page),
+        'total': result.get('total', 0),
+        'pages': result.get('pages', 0),
+        'sort_by': sort_by,
+        'sort_dir': sort_dir,
+        'q': q,
+    }
     return render_template('staff/manage_customers.html', **ctx)
 
 @staff_bp.route('/staff/manage-customers/<int:customer_id>/edit', methods=['POST'])
@@ -165,12 +153,8 @@ def clear_customer_nfc(customer_id):
 @staff_bp.route('/staff/meter-reading')
 @login_required
 def meter_reading():
-    try:
-        keys_result = api_client.list_api_keys()
-        keys = keys_result.get('keys', [])
-    except Exception as e:
-        logger.error(f"API call failed: {e}")
-        keys = []
+    keys_result = api_client.list_api_keys()
+    keys = keys_result.get('keys', [])
     return render_template('staff/meter_reading.html', keys=keys)
 
 @staff_bp.route('/staff/meter-reading/generate', methods=['POST'])
@@ -194,12 +178,8 @@ def revoke_api_key(key_id):
 @staff_bp.route('/staff/manage-reading')
 @login_required
 def manage_reading():
-    try:
-        result = api_client.get_reading_logs()
-        return render_template('staff/manage_reading.html', **result)
-    except Exception as e:
-        logger.error(f"API call failed: {e}")
-        return render_template('staff/manage_reading.html', logs=[], staff_list=[], tokens=[])
+    result = api_client.get_reading_logs()
+    return render_template('staff/manage_reading.html', **result)
 
 @staff_bp.route('/staff/manage-reading/drop-reading/<int:reading_id>', methods=['POST'])
 @permission_required('can_drop_reading')
@@ -239,12 +219,8 @@ def submit_payment():
 @permission_required('can_accept_payment')
 def cashier_tally():
     period = request.args.get('period', 'daily')
-    try:
-        data = api_client.get_cashier_tally(period)
-        return render_template('staff/cashier_tally.html', **data)
-    except Exception as e:
-        logger.error(f"API call failed: {e}")
-        return render_template('staff/cashier_tally.html', tally={}, period=period, display='', prev_date='', next_date='', start_date='', end_date='', group_days='', nav_date='', use_matrix='')
+    data = api_client.get_cashier_tally(period)
+    return render_template('staff/cashier_tally.html', **data)
 
 @staff_bp.route('/staff/manage-billing')
 @login_required
@@ -263,12 +239,8 @@ def undo_payment(payment_id):
 @staff_bp.route('/staff/staff', methods=['GET'])
 @login_required
 def staff_list():
-    try:
-        result = api_client.list_staff()
-        return render_template('staff/staff_list.html', **result)
-    except Exception as e:
-        logger.error(f"API call failed: {e}")
-        return render_template('staff/staff_list.html', staff=[])
+    result = api_client.list_staff()
+    return render_template('staff/staff_list.html', **result)
 
 @staff_bp.route('/staff/staff/create', methods=['POST'])
 @permission_required('can_enroll_staff')
