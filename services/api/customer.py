@@ -8,7 +8,7 @@ from sqlalchemy.orm import joinedload
 
 from app import db
 from __init__ import blueprint
-from models import ApiKey, Billing, Customer, ManagementLog, MeterReading, NfcTag, PaymentMethod, XenditTransaction
+from models import ApiKey, Billing, Config, Customer, ManagementLog, MeterReading, NfcTag, PaymentMethod, XenditTransaction
 from pricing import PRICING_TIERS
 from billing_service import ensure_penalty
 from services.payment_service import (
@@ -857,3 +857,90 @@ def customer_billing_drop(customer_number: str) -> Response:
     if result and "error" in result:
         return jsonify(result), 400
     return jsonify(result or {"message": "Payment dropped"})
+
+
+# ── NFC ──────────────────────────────────────────────────────────────────
+
+
+@blueprint.route("/customer/<customer_number>/nfc")
+def customer_nfc(customer_number: str) -> Response:
+    api_key, err = require_staff("can_read_meters")
+    if err:
+        return err
+
+    tag = NfcTag.query.filter_by(customer_number=customer_number).first()
+    if not tag:
+        return jsonify({"nfc_uid": None})
+
+    return jsonify({
+        "nfc_uid": tag.uid,
+        "customer_number": tag.customer_number,
+    })
+
+
+@blueprint.route("/customer/all/nfc")
+def customer_all_nfc() -> Response:
+    api_key, err = require_staff("can_read_meters")
+    if err:
+        return err
+
+    tags = NfcTag.query.order_by(NfcTag.date_created.desc()).all()
+    return jsonify({
+        "tags": [
+            {"uid": t.uid, "customer_number": t.customer_number}
+            for t in tags
+        ]
+    })
+
+
+@blueprint.route("/customer/<customer_number>/nfc/create", methods=["POST"])
+def customer_nfc_create(customer_number: str) -> Response:
+    api_key, err = require_staff("can_enroll_customer")
+    if err:
+        return err
+
+    data = request.get_json() or {}
+    uid = data.get("uid", "").strip()
+    if not uid:
+        return jsonify({"error": "uid is required"}), 400
+
+    existing_tag = NfcTag.query.filter_by(uid=uid).first()
+    if existing_tag:
+        return jsonify({"error": "Tag UID already assigned"}), 409
+
+    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+
+    tag = NfcTag(uid=uid, customer_number=customer_number, enrolled_by_id=api_key.staff.id)
+    db.session.add(tag)
+    customer.date_modified = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({"message": "Tag assigned", "uid": uid, "customer_number": customer_number}), 201
+
+
+@blueprint.route("/customer/<customer_number>/nfc/delete", methods=["POST"])
+def customer_nfc_delete(customer_number: str) -> Response:
+    api_key, err = require_staff("can_enroll_customer")
+    if err:
+        return err
+
+    tag = NfcTag.query.filter_by(customer_number=customer_number).first()
+    if not tag:
+        return jsonify({"error": "No NFC tag assigned to this customer"}), 404
+
+    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    db.session.delete(tag)
+
+    gen_row = Config.query.filter_by(key="nfc_generation").first()
+    if gen_row:
+        gen_row.value = str(int(gen_row.value) + 1)
+    else:
+        db.session.add(Config(key="nfc_generation", value="1"))
+
+    if customer:
+        customer.date_modified = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({"message": "Tag deleted", "uid": tag.uid})
