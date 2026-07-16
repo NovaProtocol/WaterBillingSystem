@@ -5,22 +5,20 @@ from sqlalchemy import desc
 
 from app import db
 from __init__ import blueprint
-from models import Billing, Customer, MeterReading
+from models import Billing, MeterReading
 from billing_service import ensure_penalty
 from services.payment_service import (
     drop_payment as service_drop_payment,
     submit_payment as service_submit_payment,
 )
-from utils import resolve_api_key
+from utils import require_staff
 
 
 @blueprint.route("/customer/<customer_number>/billing")
 def customer_billing(customer_number: str) -> Response:
-    api_key = resolve_api_key()
-    if not api_key:
-        return jsonify({"error": "Authentication required"}), 401
-    if not api_key.staff or not api_key.staff.can_read_meters:
-        return jsonify({"error": "Permission denied"}), 403
+    api_key, err = require_staff("can_read_meters")
+    if err:
+        return err
 
     page = request.args.get("page", 1, type=int)
     size = request.args.get("size", 50, type=int)
@@ -64,11 +62,9 @@ def customer_billing(customer_number: str) -> Response:
 
 @blueprint.route("/customer/<customer_number>/billing/new", methods=["POST"])
 def customer_billing_new(customer_number: str) -> Response:
-    api_key = resolve_api_key()
-    if not api_key:
-        return jsonify({"error": "Authentication required"}), 401
-    if not api_key.staff or not api_key.staff.can_accept_payment:
-        return jsonify({"error": "Permission denied"}), 403
+    api_key, err = require_staff("can_accept_payment")
+    if err:
+        return err
 
     data = request.get_json() or {}
     amount = data.get("amount", 0)
@@ -79,9 +75,8 @@ def customer_billing_new(customer_number: str) -> Response:
     if amount_float <= 0:
         return jsonify({"error": "Amount must be positive"}), 400
 
-    result, error, status = service_submit_payment(
-        customer_number, amount_float, api_key.staff.id
-    )
+    staff_id = data.get("staff_id") if api_key is True else api_key.staff.id
+    result, error, status = service_submit_payment(customer_number, amount_float, staff_id)
     if error:
         return jsonify({"error": error}), status
     db.session.commit()
@@ -90,15 +85,14 @@ def customer_billing_new(customer_number: str) -> Response:
 
 @blueprint.route("/customer/<customer_number>/billing/drop", methods=["POST"])
 def customer_billing_drop(customer_number: str) -> Response:
-    api_key = resolve_api_key()
-    if not api_key:
-        return jsonify({"error": "Authentication required"}), 401
-    if not api_key.staff or not api_key.staff.can_drop_payment:
-        return jsonify({"error": "Permission denied"}), 403
+    api_key, err = require_staff("can_drop_payment")
+    if err:
+        return err
 
     data = request.get_json() or {}
     billing_id = data.get("billing_id")
     reason = data.get("reason", "").strip()
+    staff_id = data.get("staff_id") if api_key is True else api_key.staff.id
     if not billing_id:
         return jsonify({"error": "billing_id is required"}), 400
     if not reason:
@@ -110,7 +104,7 @@ def customer_billing_drop(customer_number: str) -> Response:
     if not billing.is_paid:
         return jsonify({"error": "Bill is not paid"}), 400
 
-    result = service_drop_payment(billing_id, api_key.staff.id, reason)
+    result = service_drop_payment(billing_id, staff_id, reason)
     if result and "error" in result:
         return jsonify(result), 400
     return jsonify(result or {"message": "Payment dropped"})
