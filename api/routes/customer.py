@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from flask import Response, jsonify, request
 from sqlalchemy import desc
@@ -177,9 +177,9 @@ def customer_info(customer_number: str) -> Response:
     due_date = None
     days_remaining = None
     if unpaid_bills:
-        due_dt = datetime.utcfromtimestamp(unpaid_bills[0]["timestamp"]) + timedelta(days=7)
+        due_dt = datetime.fromtimestamp(unpaid_bills[0]["timestamp"], tz=timezone.utc).replace(tzinfo=None) + timedelta(days=7)
         due_date = due_dt.strftime("%m-%d-%Y")
-        days_remaining = max(0, (due_dt - datetime.utcnow()).days)
+        days_remaining = max(0, (due_dt - datetime.now(tz=timezone.utc).replace(tzinfo=None)).days)
 
     # Build billing items with reading history
     reading_pairs = []
@@ -515,7 +515,7 @@ def customer_invoice(customer_number: str) -> Response:
     total_amount = round(float(amount) + fee_amount, 2)
 
     import os, secrets
-    external_id = f"wbs-{customer_number}-{int(datetime.utcnow().timestamp())}-{secrets.token_hex(4)}"
+    external_id = f"wbs-{customer_number}-{int(datetime.now(tz=timezone.utc).replace(tzinfo=None).timestamp())}-{secrets.token_hex(4)}"
 
     method = PaymentMethod.query.filter_by(code=payment_method, is_active=True).first()
     channels = [method.channel_code] if method and method.channel_code else []
@@ -648,7 +648,7 @@ def customer_reading_new(customer_number: str) -> Response:
 
     data = request.get_json() or {}
     reading_value = data.get("reading_value")
-    timestamp = data.get("timestamp", datetime.utcnow().timestamp())
+    timestamp = data.get("timestamp", datetime.now(tz=timezone.utc).replace(tzinfo=None).timestamp())
     staff_id = data.get("staff_id") if api_key is True else api_key.staff.id
     staff_name = data.get("staff_name") if api_key is True else api_key.staff.name
 
@@ -768,7 +768,7 @@ def customers_changed() -> Response:
 
     return jsonify({
         "customer_numbers": list(all_changed),
-        "server_time": int(datetime.utcnow().timestamp()),
+        "server_time": int(datetime.now(tz=timezone.utc).replace(tzinfo=None).timestamp()),
         "total_customers": Customer.query.filter_by(is_active=True).count(),
     })
 
@@ -927,7 +927,7 @@ def customer_nfc_create(customer_number: str) -> Response:
 
     tag = NfcTag(uid=uid, customer_number=customer_number, enrolled_by_id=api_key.staff.id)
     db.session.add(tag)
-    customer.date_modified = datetime.utcnow()
+    customer.date_modified = datetime.now(tz=timezone.utc).replace(tzinfo=None)
     db.session.commit()
 
     return jsonify({"message": "Tag assigned", "uid": uid, "customer_number": customer_number}), 201
@@ -953,7 +953,7 @@ def customer_nfc_delete(customer_number: str) -> Response:
         db.session.add(Config(key="nfc_generation", value="1"))
 
     if customer:
-        customer.date_modified = datetime.utcnow()
+        customer.date_modified = datetime.now(tz=timezone.utc).replace(tzinfo=None)
     db.session.commit()
 
     return jsonify({"message": "Tag deleted", "uid": tag.uid})

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import secrets
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from apps import db
 from models import Billing, Customer, Staff
@@ -66,7 +66,7 @@ def submit_payment(
         or 0
     )
 
-    now = datetime.utcnow()
+    now = datetime.now(tz=timezone.utc).replace(tzinfo=None)
     receipt = _generate_receipt(now)
     cash_remaining = amount
     carryover_used = 0.0
@@ -177,7 +177,7 @@ def parse_date_range(
     ref_date: datetime | None = None,
 ) -> tuple[datetime, datetime]:
     if ref_date is None:
-        ref_date = datetime.utcnow()
+        ref_date = datetime.now(tz=timezone.utc).replace(tzinfo=None)
 
     if period == "custom":
         try:

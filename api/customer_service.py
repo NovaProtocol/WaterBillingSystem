@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import Integer, func
@@ -71,7 +71,7 @@ def update_customer(customer: Customer, data: dict) -> None:
 def toggle_active(customer: Customer) -> None:
     customer.is_active = not customer.is_active
     if not customer.is_active:
-        customer.deleted_at = datetime.utcnow()
+        customer.deleted_at = datetime.now(tz=timezone.utc).replace(tzinfo=None)
     else:
         customer.deleted_at = None
     db.session.commit()

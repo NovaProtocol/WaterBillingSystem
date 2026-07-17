@@ -1,4 +1,13 @@
-import os, sys, pytest
+import os, sys, pytest, warnings
+from sqlalchemy import exc as sa_exc
+
+warnings.filterwarnings('ignore', category=DeprecationWarning,
+                        message='.*datetime.datetime.utcnow.*')
+warnings.filterwarnings('ignore', category=DeprecationWarning,
+                        message='.*datetime.datetime.utcfromtimestamp.*')
+warnings.filterwarnings('ignore', category=ResourceWarning,
+                        message='.*unclosed database.*')
+warnings.filterwarnings('ignore', category=sa_exc.LegacyAPIWarning)
 
 # Point to shared/ for models, pricing, services
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'shared'))

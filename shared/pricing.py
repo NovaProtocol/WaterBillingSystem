@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 LATE_PENALTY: float = 15.00
@@ -69,10 +69,10 @@ def compute_penalty(
 ) -> float:
     due_dt = reading_timestamp + timedelta(days=DUE_DAYS)
     if billing_record:
-        payment_ts = billing_record.payment_timestamp or billing_record.date_paid or datetime.utcnow()
+        payment_ts = billing_record.payment_timestamp or billing_record.date_paid or datetime.now(tz=timezone.utc).replace(tzinfo=None)
         if payment_ts > due_dt:
             return LATE_PENALTY
     else:
-        if datetime.utcnow() > due_dt:
+        if datetime.now(tz=timezone.utc).replace(tzinfo=None) > due_dt:
             return LATE_PENALTY
     return 0.0

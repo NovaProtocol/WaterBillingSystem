@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from apps import db
 from models import ManagementLog
@@ -21,7 +21,7 @@ def log_action(
         target_id=target_id,
         customer_number=customer_number,
         details=details,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(tz=timezone.utc).replace(tzinfo=None),
     )
     db.session.add(log)
     return log

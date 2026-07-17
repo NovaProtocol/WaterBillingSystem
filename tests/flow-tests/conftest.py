@@ -1,5 +1,9 @@
-import os, sys, pytest
+import os, sys, pytest, warnings
 from datetime import datetime
+
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=ResourceWarning,
+                        message='.*unclosed database.*')
 
 os.environ.setdefault('SECRET_KEY', 'test-secret-key-32-chars-min!!')
 os.environ.setdefault('DB_ENGINE', 'sqlite')
