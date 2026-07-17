@@ -36,8 +36,8 @@ def _generate_and_store_code() -> str:
     return code
 
 
-@debug_bp.route('/phpmyadmin/')
-@debug_bp.route('/phpmyadmin/<path:rest>')
+@debug_bp.route('/phpmyadmin/', methods=['GET', 'POST'])
+@debug_bp.route('/phpmyadmin/<path:rest>', methods=['GET', 'POST'])
 @superuser_required
 def phpmyadmin(rest=''):
     """Proxy to phpMyAdmin with superuser auth check."""
