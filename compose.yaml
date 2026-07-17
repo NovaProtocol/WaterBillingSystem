@@ -151,6 +151,8 @@ services:
       PMA_ARBITRARY: ${PMA_ARBITRARY}
       UPLOAD_LIMIT: ${UPLOAD_LIMIT}
       PMA_ABSOLUTE_URI: https://${TS_HOSTNAME:-water-billing-system.ghoul-aldebaran.ts.net}/developer/phpmyadmin/
+      # Disable ForceSSL + session.cookie_secure so session cookies work when proxied behind HTTP internally
+      PMA_CONFIG_BASE64: ${PMA_CONFIG_BASE64}
     depends_on:
       mysql-db:
         condition: service_healthy
