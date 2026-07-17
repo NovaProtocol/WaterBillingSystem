@@ -46,10 +46,8 @@ def phpmyadmin(rest=''):
     if request.query_string:
         target += f'?{request.query_string.decode()}'
 
-    headers = {
-        k: v for k, v in request.headers
-        if k.lower() not in ('host', 'content-length')
-    }
+    headers = {k: v for k, v in request.headers
+               if k.lower() not in ('host', 'content-length', 'transfer-encoding')}
 
     try:
         resp = http_requests.request(
@@ -58,13 +56,15 @@ def phpmyadmin(rest=''):
             headers=headers,
             data=request.get_data(),
             cookies=request.cookies,
-            stream=True,
             timeout=60,
         )
+        resp_headers = {k: v for k, v in resp.headers.items()
+                        if k.lower() not in ('content-encoding', 'transfer-encoding',
+                                              'content-length')}
         flask_resp = Response(
-            resp.iter_content(chunk_size=8192),
+            resp.content,
             status=resp.status_code,
-            headers=dict(resp.headers),
+            headers=resp_headers,
         )
         return flask_resp
     except http_requests.exceptions.ConnectionError as e:
