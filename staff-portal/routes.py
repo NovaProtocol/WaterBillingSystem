@@ -164,15 +164,17 @@ def clear_customer_nfc(customer_id):
 @staff_bp.route('/staff/meter-reading')
 @login_required
 def meter_reading():
-    keys_result = api_client.list_api_keys()
+    staff_id = session.get('staff_id', 1)
+    keys_result = api_client.list_api_keys(staff_id)
     keys = keys_result.get('keys', [])
     return render_template('staff/meter_reading.html', keys=keys)
 
 @staff_bp.route('/staff/meter-reading/generate', methods=['POST'])
 @login_required
 def generate_api_key():
+    staff_id = session.get('staff_id', 1)
     try:
-        result = api_client.generate_api_key()
+        result = api_client.generate_api_key(staff_id)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -190,14 +192,15 @@ def revoke_api_key(key_id):
 @staff_bp.route('/staff/manage-reading')
 @login_required
 def manage_reading():
-    result = api_client.get_reading_logs()
+    staff_id = session.get('staff_id', 1)
+    result = api_client.get_reading_logs(staff_id)
     try:
         staff_data = api_client.list_staff()
         result['staff_list'] = staff_data.get('staff', [])
     except Exception:
         result['staff_list'] = []
     try:
-        keys_data = api_client.list_api_keys()
+        keys_data = api_client.list_api_keys(staff_id)
         result['tokens'] = keys_data.get('keys', [])
     except Exception:
         result['tokens'] = []
@@ -242,7 +245,8 @@ def submit_payment():
 @permission_required('can_accept_payment')
 def cashier_tally():
     period = request.args.get('period', 'daily')
-    data = api_client.get_cashier_tally(period)
+    staff_id = session.get('staff_id', 1)
+    data = api_client.get_cashier_tally(period, staff_id)
     return render_template('staff/cashier_tally.html', **data)
 
 @staff_bp.route('/staff/manage-billing')

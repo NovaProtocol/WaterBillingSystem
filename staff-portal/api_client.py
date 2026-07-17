@@ -76,8 +76,8 @@ def submit_payment(data: dict) -> dict:
     customer_number = data.get('customer_number', '')
     return _post(f'/api/customer/{customer_number}/billing/new', data)
 
-def get_cashier_tally(period: str) -> dict:
-    return _get('/api/staff/1/cashier-tally', {'period': period})
+def get_cashier_tally(period: str, staff_id: int = 1) -> dict:
+    return _get(f'/api/staff/{staff_id}/cashier-tally', {'period': period})
 
 def drop_reading(reading_id: int, data: dict) -> dict:
     customer_number = data.get('customer_number', '')
