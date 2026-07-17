@@ -120,7 +120,6 @@
 {% endblock content %}
 
 {% block javascripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
   var GENERATE_KEY_URL = '{{ url_for("staff_blueprint.generate_api_key") }}';
   var REVOKE_KEY_URL_BASE = '{{ url_for("staff_blueprint.revoke_api_key", key_id=0) }}';
@@ -140,12 +139,7 @@
         success: function(resp) {
           $('#generateKeyModal').modal('hide');
           $('#generatedKey').val(resp.key);
-          $('#qrcode').empty();
-          new QRCode(document.getElementById('qrcode'), {
-            text: resp.key,
-            width: 180,
-            height: 180
-          });
+          $('#qrcode').html('<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(resp.key) + '" alt="QR Code" style="width:180px;height:180px;">');
           $('#keyResultModal').modal('show');
           $('#generateKeyForm')[0].reset();
           btn.prop('disabled', false).text('Generate');
@@ -155,6 +149,14 @@
           alert('Failed to generate key: ' + (xhr.responseJSON?.error || xhr.statusText));
         }
       });
+    });
+
+    // Show QR for existing keys
+    $('.qr-key').on('click', function() {
+      var key = $(this).data('key');
+      $('#generatedKey').val(key);
+      $('#qrcode').html('<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(key) + '" alt="QR Code" style="width:180px;height:180px;">');
+      $('#keyResultModal').modal('show');
     });
   });
 </script>
