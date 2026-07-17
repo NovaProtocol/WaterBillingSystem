@@ -83,6 +83,17 @@ def customer_lookup():
     except Exception as e:
         return jsonify({'customers': [], 'error': str(e)})
 
+@staff_bp.route('/staff/api/customer/<customer_number>')
+@login_required
+def proxy_customer(customer_number):
+    """Proxy: browser calls this instead of calling the API directly."""
+    try:
+        result = api_client.get_customer(customer_number)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Customer proxy failed: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
 @staff_bp.route('/staff/customers', methods=['GET'])
 @login_required
 def customers():
