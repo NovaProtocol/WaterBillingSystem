@@ -1,7 +1,6 @@
-"""Render every developer portal page and verify 200 status."""
+"""Render developer portal pages and verify content."""
 
 import os, sys, pytest
-from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'developer-portal'))
 os.environ.setdefault('SECRET_KEY', 'test-secret')
@@ -22,11 +21,13 @@ def client(app):
     return app.test_client()
 
 
-class TestDeveloperPortalPages:
-    def test_login_via_session(self, client):
+class TestDeveloperPortalPagesRendered:
+    def test_debug_panel_shows_title(self, client):
         with client.session_transaction() as sess:
             sess['_user_id'] = '1'
             sess['staff_data'] = {'id': 1, 'username': 'superuser', 'is_superuser': True}
         resp = client.get('/developer/')
         assert resp.status_code == 200
-        assert b'DEBUG' in resp.data
+        body = resp.data.decode()
+        assert 'DEBUG' in body
+        assert 'PANEL' in body or 'Panel' in body
