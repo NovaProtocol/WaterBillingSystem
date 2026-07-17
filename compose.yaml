@@ -150,6 +150,7 @@ services:
       PMA_PORT: ${PMA_PORT}
       PMA_ARBITRARY: ${PMA_ARBITRARY}
       UPLOAD_LIMIT: ${UPLOAD_LIMIT}
+      PMA_ABSOLUTE_URI: https://${TS_HOSTNAME:-water-billing-system.ghoul-aldebaran.ts.net}/developer/phpmyadmin/
     depends_on:
       mysql-db:
         condition: service_healthy

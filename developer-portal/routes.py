@@ -36,6 +36,41 @@ def _generate_and_store_code() -> str:
     return code
 
 
+@debug_bp.route('/phpmyadmin/')
+@debug_bp.route('/phpmyadmin/<path:rest>')
+@superuser_required
+def phpmyadmin(rest=''):
+    """Proxy to phpMyAdmin with superuser auth check."""
+    pma_host = os.environ.get('PMA_HOST', 'phpmyadmin')
+    target = f'http://{pma_host}:80/{rest}'
+    if request.query_string:
+        target += f'?{request.query_string.decode()}'
+
+    headers = {
+        k: v for k, v in request.headers
+        if k.lower() not in ('host', 'content-length')
+    }
+
+    try:
+        resp = http_requests.request(
+            method=request.method,
+            url=target,
+            headers=headers,
+            data=request.get_data(),
+            cookies=request.cookies,
+            stream=True,
+            timeout=60,
+        )
+        flask_resp = Response(
+            resp.iter_content(chunk_size=8192),
+            status=resp.status_code,
+            headers=dict(resp.headers),
+        )
+        return flask_resp
+    except http_requests.exceptions.ConnectionError as e:
+        return jsonify({"error": f"Cannot reach phpMyAdmin: {e}"}), 502
+
+
 @debug_bp.route('/')
 @superuser_required
 def dashboard():
