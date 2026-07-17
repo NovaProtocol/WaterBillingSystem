@@ -58,14 +58,20 @@ def customer_all() -> Response:
     for c in pagination.items:
         nfc_tag = NfcTag.query.filter_by(customer_number=c.customer_number).first()
         customers_data.append({
+            "id": c.id,
             "customer_number": c.customer_number,
             "name": c.name,
             "address": c.address,
             "meter_serial_number": c.meter_serial_number or "",
             "contact_number": c.contact_number,
+            "email": c.email,
             "phase": c.phase,
             "block": c.block,
             "street": c.street,
+            "x_coordinate": c.x_coordinate,
+            "y_coordinate": c.y_coordinate,
+            "cumulative_balance": float(c.cumulative_balance or 0),
+            "max_meter_value": float(c.max_meter_value or 99999),
             "is_active": c.is_active,
             "nfc_uid": nfc_tag.uid if nfc_tag else None,
         })
