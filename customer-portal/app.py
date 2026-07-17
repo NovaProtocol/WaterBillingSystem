@@ -16,6 +16,7 @@ def create_app():
     app = Flask(__name__, template_folder='templates')
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
     app.config['WTF_CSRF_ENABLED'] = os.environ.get('WTF_CSRF_ENABLED', 'True').lower() in ('true', '1', 'yes')
+    app.config['WTF_CSRF_METHODS'] = []
     csrf.init_app(app)
 
     from routes import customer_bp
