@@ -39,9 +39,6 @@
                                         <button class="btn btn-outline-sm toggle-key" type="button" title="Toggle visibility" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <button class="btn btn-outline-sm qr-key" type="button" data-key="{{ k.key }}" title="Show QR">
-                                            <i class="fas fa-qrcode"></i>
-                                        </button>
                                     </div>
                                 </div>
                             </td>
@@ -101,8 +98,7 @@
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body text-center">
-                <p class="text-muted mb-3">Scan the QR code or copy the key below:</p>
-                <div id="qrcode" class="mb-3 d-inline-block"></div>
+                <p class="text-muted mb-3">Copy the key below:</p>
                 <div class="input-group mb-3">
                     <input type="text" id="generatedKey" class="form-control text-center font-weight-bold" style="font-family: monospace; font-size: 0.85rem;" readonly>
                     <div class="input-group-append">
@@ -120,10 +116,65 @@
 {% endblock content %}
 
 {% block javascripts %}
-<script src="{{ url_for('static', filename='assets/vendor/qrcodejs/1.0.0/qrcode.min.js') }}"></script>
 <script>
   var GENERATE_KEY_URL = '{{ url_for("staff_blueprint.generate_api_key") }}';
   var REVOKE_KEY_URL_BASE = '{{ url_for("staff_blueprint.revoke_api_key", key_id=0) }}';
+
+  $(function() {
+    // Generate key form submission
+    $('#generateKeyForm').on('submit', function(e) {
+      e.preventDefault();
+      var label = $('#keyLabel').val().trim();
+      $.ajax({
+        url: GENERATE_KEY_URL,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({label: label || ''}),
+        success: function(resp) {
+          $('#generateKeyModal').modal('hide');
+          $('#generatedKey').val(resp.key);
+          $('#keyResultModal').modal('show');
+          $('#generateKeyForm')[0].reset();
+        },
+        error: function(xhr) {
+          alert('Failed to generate key: ' + (xhr.responseJSON?.error || xhr.statusText));
+        }
+      });
+    });
+
+    // Copy key button
+    $('#copyKeyBtn').on('click', function() {
+      var input = document.getElementById('generatedKey');
+      input.select();
+      document.execCommand('copy');
+    });
+
+    // Toggle key visibility
+    $(document).on('click', '.toggle-key', function() {
+      var input = $(this).closest('.input-group').find('.key-input');
+      var icon = $(this).find('i');
+      if (input.attr('type') === 'password') {
+        input.attr('type', 'text');
+        icon.removeClass('fa-eye').addClass('fa-eye-slash');
+      } else {
+        input.attr('type', 'password');
+        icon.removeClass('fa-eye-slash').addClass('fa-eye');
+      }
+    });
+
+    // Revoke key
+    $(document).on('click', '.revoke-key', function() {
+      if (!confirm('Revoke this API key? This cannot be undone.')) return;
+      var keyId = $(this).data('id');
+      $.ajax({
+        url: REVOKE_KEY_URL_BASE.replace('0', keyId),
+        method: 'POST',
+        success: function() { location.reload(); },
+        error: function(xhr) {
+          alert('Failed to revoke key: ' + (xhr.responseJSON?.error || xhr.statusText));
+        }
+      });
+    });
+  });
 </script>
-<script src="{{ url_for('static', filename='assets/js/meter_reading.js') }}"></script>
 {% endblock javascripts %}
