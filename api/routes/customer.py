@@ -55,6 +55,8 @@ def customer_all() -> Response:
         page=page, per_page=size, q=q or None, sort_by=sort_by, sort_dir=sort_dir
     )
     customers_data = []
+    from customer_service import compute_batch_due
+    due_map = compute_batch_due(list(pagination.items))
     for c in pagination.items:
         nfc_tag = NfcTag.query.filter_by(customer_number=c.customer_number).first()
         customers_data.append({
@@ -72,6 +74,7 @@ def customer_all() -> Response:
             "y_coordinate": c.y_coordinate,
             "cumulative_balance": float(c.cumulative_balance or 0),
             "max_meter_value": float(c.max_meter_value or 99999),
+            "total_due": due_map.get(c.customer_number, 0.0),
             "is_active": c.is_active,
             "nfc_uid": nfc_tag.uid if nfc_tag else None,
         })
@@ -335,6 +338,18 @@ def customer_info(customer_number: str) -> Response:
                     ),
                 }
                 for b in recent_billings
+            ],
+            "payment_methods": [
+                {
+                    "code": pm.code,
+                    "label": pm.label,
+                    "sort_order": pm.sort_order,
+                    "fee_percent": float(pm.fee_percent) if pm.fee_percent else 0,
+                    "fee_flat": float(pm.fee_flat) if pm.fee_flat else 0,
+                    "fee_minimum": float(pm.fee_minimum) if pm.fee_minimum else 0,
+                    "xendit_fee": float(pm.xendit_fee) if pm.xendit_fee else 0,
+                }
+                for pm in PaymentMethod.query.filter_by(is_active=True).order_by(PaymentMethod.sort_order).all()
             ],
         }
     )

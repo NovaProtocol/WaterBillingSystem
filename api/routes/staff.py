@@ -255,6 +255,10 @@ def staff_cashier_tally(staff_id: int) -> Response:
     return jsonify({
         "tally": tally,
         "use_matrix": use_matrix,
+        "nav_date": nav.get("nav_date"),
+        "group_days": group_days,
+        "start_date": start.strftime("%Y-%m-%d") if start else "",
+        "end_date": end.strftime("%Y-%m-%d") if end else "",
         "display": nav["display"],
         "prev_date": nav["prev_date"],
         "next_date": nav["next_date"],
@@ -306,7 +310,7 @@ def staff_api_keys(staff_id: int) -> Response:
         "keys": [
             {
                 "id": k.id,
-                "key": k.key[:20] + "..." if len(k.key) > 20 else k.key,
+                "key": k.key,
                 "label": k.label,
                 "is_active": k.is_active,
                 "staff_id": k.staff_id,
