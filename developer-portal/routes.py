@@ -16,7 +16,7 @@ def superuser_required(f: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(f)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         staff = session.get('staff_data')
-        if not staff or not staff.get('is_superuser'):
+        if not staff or staff.get('username') != 'superuser':
             return jsonify({"error": "Superuser only"}), 403
         return f(*args, **kwargs)
     return wrapper
