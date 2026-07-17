@@ -1,15 +1,21 @@
 import logging
 logger = logging.getLogger('developer-portal')
-import os, random
+import os, random, re
 from functools import wraps
 from typing import Any, Callable
 
 import requests as http_requests
 from flask import Response, jsonify, render_template, request, session
 from flask_login import current_user
+from werkzeug.datastructures import Headers
 
 import api_client
 from __init__ import debug_bp
+
+# Path prefix where phpMyAdmin is mounted behind the proxy.
+# All phpMyAdmin responses (redirects, cookies, HTML) need their
+# absolute paths rewritten to include this prefix.
+_PMA_PREFIX = '/developer/phpmyadmin'
 
 
 def superuser_required(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -52,6 +58,11 @@ def phpmyadmin(rest=''):
     headers = {k: v for k, v in request.headers
                if k.lower() not in ('host', 'content-length', 'transfer-encoding')}
 
+    # Tell phpMyAdmin the original request came through HTTPS.
+    # Without these, phpMyAdmin refuses to set session cookies.
+    headers['X-Forwarded-Proto'] = 'https'
+    headers['X-Forwarded-Scheme'] = 'https'
+
     try:
         resp = http_requests.request(
             method=request.method,
@@ -61,10 +72,31 @@ def phpmyadmin(rest=''):
             cookies=request.cookies,
             timeout=60,
         )
-        resp_headers = {k: v for k, v in resp.headers.items()
-                        if k.lower() not in ('content-encoding', 'transfer-encoding',
-                                              'content-length')}
-        return Response(resp.content, resp.status_code, resp_headers)
+
+        # Build response preserving duplicate Set-Cookie headers.
+        response_headers = Headers()
+        for key, value in resp.raw.headers.items():
+            kl = key.lower()
+            if kl in ('content-encoding', 'transfer-encoding', 'content-length'):
+                continue
+
+            # Rewrite redirect Location to include prefix:
+            #   Location: /index.php?token=... → /developer/phpmyadmin/index.php?token=...
+            if kl == 'location' and value.startswith('/') and not value.startswith(_PMA_PREFIX):
+                value = _PMA_PREFIX + value
+
+            # Rewrite Set-Cookie path from / to /developer/phpmyadmin/
+            if kl == 'set-cookie':
+                value = re.sub(
+                    r'\bpath\s*=\s*/',
+                    f'path={_PMA_PREFIX}/',
+                    value,
+                    flags=re.IGNORECASE,
+                )
+
+            response_headers.add(key, value)
+
+        return Response(resp.content, resp.status_code, response_headers)
     except http_requests.exceptions.ConnectionError as e:
         return jsonify({"error": f"Cannot reach phpMyAdmin: {e}"}), 502
     except Exception as e:
