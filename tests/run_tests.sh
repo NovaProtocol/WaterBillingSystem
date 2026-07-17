@@ -1,8 +1,8 @@
 #!/bin/bash
 # Multi-stage test runner.
-# Stage 1: Endpoint tests (pytest, fast)
-# Stage 2: Page render tests   (Playwright, renders pages)
-# Stage 3: Flow tests          (multi-step processes)
+# Stage 1: API endpoint tests (no dependencies)
+# Stage 2: Page render tests  (each in its own process to avoid import conflicts)
+# Stage 3: Flow tests         (multi-step processes)
 #
 # Usage: ./tests/run_tests.sh          # run all stages
 #        ./tests/run_tests.sh 1        # stage 1 only
@@ -17,32 +17,51 @@ if [ ! -f "$VENV" ]; then
     echo "Creating virtual environment..."
     python3 -m venv "$(dirname "$0")/.venv"
     "$VENV" -m pip install -q playwright pytest requests flask flask_sqlalchemy flask_login flask_wtf flask_caching werkzeug wtforms itsdangerous python-dotenv cryptography
-    "$VENV" -m playwright install chromium
+    "$VENV" -m playwright install chromium 2>/dev/null || true
 fi
 
 STAGE=${1:-all}
 
-run_stage() {
-    local name="$1"
-    local stage="$2"
-    local dir="$TESTS_DIR/$stage-tests"
-    echo ""
-    echo "═══════════════════════════════════════════════════"
-    echo "  STAGE $stage: $name"
-    echo "═══════════════════════════════════════════════════"
+run_file() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        echo ""
+        echo "  $(basename "$file"):"
+        "$VENV" -m pytest "$file" -v --tb=short 2>&1 | tail -5
+    fi
+}
+
+run_dir_separate() {
+    local dir="$1"
     if [ -d "$dir" ]; then
-        "$VENV" -m pytest "$dir" -v --tb=short 2>&1 | tail -20
-    else
-        echo "  (no tests)"
+        for f in "$dir"/test_*.py; do
+            [ -f "$f" ] && run_file "$f"
+        done
     fi
 }
 
 if [ "$STAGE" = "all" ] || [ "$STAGE" = "1" ]; then
-    run_stage "API Endpoints" "api"
+    echo ""
+    echo "═══════════════════════════════════════════════════"
+    echo "  STAGE 1: API Endpoints"
+    echo "═══════════════════════════════════════════════════"
+    "$VENV" -m pytest "$TESTS_DIR/api-tests" -v --tb=short 2>&1 | tail -5
 fi
+
 if [ "$STAGE" = "all" ] || [ "$STAGE" = "2" ]; then
-    run_stage "Page Rendering" "page"
+    echo ""
+    echo "═══════════════════════════════════════════════════"
+    echo "  STAGE 2: Page Rendering"
+    echo "═══════════════════════════════════════════════════"
+    for f in "$TESTS_DIR/page-tests"/test_*.py; do
+        [ -f "$f" ] && run_file "$f"
+    done
 fi
+
 if [ "$STAGE" = "all" ] || [ "$STAGE" = "3" ]; then
-    run_stage "Business Flows" "flow"
+    echo ""
+    echo "═══════════════════════════════════════════════════"
+    echo "  STAGE 3: Business Flows"
+    echo "═══════════════════════════════════════════════════"
+    "$VENV" -m pytest "$TESTS_DIR/flow-tests" -v --tb=short 2>&1 | tail -5
 fi
