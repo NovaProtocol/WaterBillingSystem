@@ -38,9 +38,12 @@ def _generate_and_store_code() -> str:
 
 @debug_bp.route('/phpmyadmin/', methods=['GET', 'POST'])
 @debug_bp.route('/phpmyadmin/<path:rest>', methods=['GET', 'POST'])
-@superuser_required
 def phpmyadmin(rest=''):
     """Proxy to phpMyAdmin with superuser auth check."""
+    staff = session.get('staff_data')
+    if not staff or staff.get('username') != 'superuser':
+        return jsonify({"error": "Superuser only"}), 403
+
     pma_host = os.environ.get('PMA_HOST', 'phpmyadmin')
     target = f'http://{pma_host}:80/{rest}'
     if request.query_string:
@@ -61,15 +64,13 @@ def phpmyadmin(rest=''):
         resp_headers = {k: v for k, v in resp.headers.items()
                         if k.lower() not in ('content-encoding', 'transfer-encoding',
                                               'content-length')}
-        flask_resp = Response(
-            resp.content,
-            status=resp.status_code,
-            headers=resp_headers,
-        )
-        return flask_resp
+        return Response(resp.content, resp.status_code, resp_headers)
     except http_requests.exceptions.ConnectionError as e:
         return jsonify({"error": f"Cannot reach phpMyAdmin: {e}"}), 502
+    except Exception as e:
+        return jsonify({"error": f"Proxy error: {str(e)}"}), 502
 
+phpmyadmin._csrf_exempt = True
 
 @debug_bp.route('/')
 @superuser_required
