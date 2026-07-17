@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from apps import db
 from models import Billing
@@ -20,10 +20,10 @@ def ensure_penalty(billing: Billing) -> float:
     if billing.reading:
         reading_ts = billing.reading.timestamp
     else:
-        reading_ts = billing.date_created or datetime.utcnow()
+        reading_ts = billing.date_created or datetime.now(tz=timezone.utc).replace(tzinfo=None)
 
     due_dt = reading_ts + timedelta(days=DUE_DAYS)
-    if datetime.utcnow() > due_dt and float(billing.penalty or 0) == 0:
+    if datetime.now(tz=timezone.utc).replace(tzinfo=None) > due_dt and float(billing.penalty or 0) == 0:
         billing.penalty = LATE_PENALTY
         db.session.flush()
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from apps import db
 from models import Billing, Customer, MeterReading
@@ -84,7 +84,7 @@ def sync_readings(
     synced = 0
     results = []
     errors = []
-    now = datetime.utcnow()
+    now = datetime.now(tz=timezone.utc).replace(tzinfo=None)
 
     for i, entry in enumerate(readings):
         cust = entry.get("customer_number", "").strip()
@@ -199,7 +199,7 @@ def drop_reading(reading_id: int, staff_id: int, reason: str) -> MeterReading | 
             f"has already been paid. Undo the payment first."
         )
 
-    now = datetime.utcnow()
+    now = datetime.now(tz=timezone.utc).replace(tzinfo=None)
     if reading.timestamp.year < now.year or (
         reading.timestamp.year == now.year and reading.timestamp.month < now.month
     ):

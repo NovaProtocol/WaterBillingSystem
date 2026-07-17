@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from flask import Response, jsonify, request
 from sqlalchemy import desc
@@ -106,7 +106,7 @@ def staff_info() -> Response:
         staff_id = _get_staff_id()
         if not staff_id:
             return jsonify({"error": "staff_id required via X-Staff-ID header or request body"}), 400
-        staff = Staff.query.get(staff_id)
+        staff = db.session.get(Staff, staff_id)
         if not staff:
             return jsonify({"error": "Staff not found"}), 404
     else:
@@ -245,7 +245,7 @@ def staff_cashier_tally(staff_id: int) -> Response:
     if err:
         return err
     period = request.args.get("period", "daily")
-    today = datetime.utcnow()
+    today = datetime.now(tz=timezone.utc).replace(tzinfo=None)
     start_str = request.args.get("start_date") or request.args.get("date")
     end_str = request.args.get("end_date")
     group_days = request.args.get("group_days", 1, type=int)
