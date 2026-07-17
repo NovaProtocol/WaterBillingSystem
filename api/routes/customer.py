@@ -793,7 +793,7 @@ def customer_billing(customer_number: str) -> Response:
     items = []
     for b in pagination.items:
         ensure_penalty(b)
-        reading = MeterReading.query.get(b.reading_id) if b.reading_id else None
+        reading = db.session.get(MeterReading, b.reading_id) if b.reading_id else None
         items.append({
             "id": b.id,
             "reading_id": b.reading_id,
@@ -860,7 +860,7 @@ def customer_billing_drop(customer_number: str = "") -> Response:
     if not reason:
         return jsonify({"error": "Reason is required"}), 400
 
-    billing = Billing.query.get(billing_id)
+    billing = db.session.get(Billing, billing_id)
     if not billing:
         return jsonify({"error": "Billing record not found"}), 404
     if not billing.is_paid:
