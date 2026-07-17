@@ -31,9 +31,7 @@ from services.staff_seeder import (
     ensure_prereq_staff,
     delete_non_prereq_staff,
 )
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-
-BACKUP_DIR = _PROJECT_ROOT / "db_backups"
+BACKUP_DIR = Path("/app/db_backups")
 
 TABLE_NAMES = [
     "customers", "meter_readings",
