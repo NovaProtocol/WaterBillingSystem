@@ -25,7 +25,7 @@ class Staff:
     def get_id(self): return str(self.id)
 
 def create_app():
-    require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'PMA_URL', 'DEPLOYMENT_TYPE')
+    require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'DEPLOYMENT_TYPE')
 
     app = Flask(__name__, template_folder='templates')
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
