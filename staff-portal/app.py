@@ -2,11 +2,8 @@ import os, sys
 from flask import Flask, session
 from flask_login import LoginManager, login_user
 from flask_caching import Cache
-from flask_wtf.csrf import CSRFProtect
-
 login_manager = LoginManager()
 cache = Cache()
-csrf = CSRFProtect()
 
 def require_env(*names):
     for name in names:
@@ -29,17 +26,12 @@ def create_app():
 
     app = Flask(__name__, template_folder='templates')
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
-    app.config['WTF_CSRF_ENABLED'] = os.environ.get('WTF_CSRF_ENABLED', 'True').lower() in ('true', '1', 'yes')
-
     login_manager.init_app(app)
     login_manager.login_view = 'staff_blueprint.login'
 
     cache_type = os.environ['CACHE_TYPE']
     app.config['CACHE_TYPE'] = cache_type
     cache.init_app(app)
-
-    csrf.init_app(app)
-    app.config['WTF_CSRF_METHODS'] = []
 
     @login_manager.user_loader
     def load_user(staff_id):

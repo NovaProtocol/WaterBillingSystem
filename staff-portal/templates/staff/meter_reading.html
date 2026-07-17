@@ -126,8 +126,6 @@
   var REVOKE_KEY_URL_BASE = '{{ url_for("staff_blueprint.revoke_api_key", key_id=0) }}';
 
   // Send label when generating key
-  var csrfToken = $('meta[name="csrf-token"]').attr('content');
-
   $(function() {
     $('#generateKeyForm').on('submit', function(e) {
       e.preventDefault();
@@ -138,7 +136,6 @@
         url: GENERATE_KEY_URL,
         method: 'POST',
         contentType: 'application/json',
-        headers: {'X-CSRFToken': csrfToken},
         data: JSON.stringify({label: label || ''}),
         success: function(resp) {
           $('#generateKeyModal').modal('hide');

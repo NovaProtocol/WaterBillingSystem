@@ -76,7 +76,6 @@
         $.ajax({
             url: '{{ "/customer/check" }}',
             method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token() }}'},
             contentType: 'application/json',
             data: JSON.stringify({ customer_number: num, last_receipt: receipt }),
             success: function(data) {
@@ -120,7 +119,6 @@
         $.ajax({
             url: '{{ "/customer/check" }}',
             method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token() }}'},
             contentType: 'application/json',
             data: JSON.stringify({ customer_number: customerData.customer_number }),
             success: function(data) {

@@ -1,10 +1,7 @@
 import os, sys
 from flask import Flask, session
 from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
-
 login_manager = LoginManager()
-csrf = CSRFProtect()
 
 def require_env(*names):
     for name in names:
@@ -31,9 +28,6 @@ def create_app():
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
 
     login_manager.init_app(app)
-
-    csrf.init_app(app)
-    app.config['WTF_CSRF_METHODS'] = []
 
     @login_manager.user_loader
     def load_user(staff_id):

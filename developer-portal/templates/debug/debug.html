@@ -205,7 +205,7 @@ function confirmAndExec(action, data, description) {
   document.getElementById('confirm-execute').disabled = true;
   document.getElementById('confirm-code').textContent = '--------';
 
-  fetch('{{ url_for("debug.confirm") }}', { method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token() }}'} })
+  fetch('{{ url_for("debug.confirm") }}', { method: 'POST' })
     .then(r => r.json())
     .then(resp => {
       document.getElementById('confirm-code').textContent = resp.code;
@@ -242,7 +242,7 @@ document.getElementById('confirm-execute').addEventListener('click', function() 
   $('#confirm-modal').modal('hide');
   fetch(actionMap[action] || url, {
     method: 'POST',
-    headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+
     body: formData,
   })
     .then(r => r.json().catch(() => ({error: 'Request failed'})))
