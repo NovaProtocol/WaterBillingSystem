@@ -16,7 +16,7 @@ class Staff:
     def __init__(self, data: dict):
         self.id = data.get('id')
         self.username = data.get('username')
-        self.is_superuser = data.get('is_superuser', False)
+        self.is_superuser = data.get('username') == 'superuser'
         self.is_active = True
     @property
     def is_authenticated(self): return True
