@@ -202,7 +202,7 @@ $('#pay-now-btn').on('click', function() {
     $.ajax({
         url: invoiceUrl,
         method: 'POST',
-        headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+
         contentType: 'application/json',
         data: JSON.stringify({
             amount: BASE_AMOUNT,
