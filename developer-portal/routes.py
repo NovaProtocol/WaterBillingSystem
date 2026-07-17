@@ -70,7 +70,6 @@ def phpmyadmin(rest=''):
     except Exception as e:
         return jsonify({"error": f"Proxy error: {str(e)}"}), 502
 
-phpmyadmin._csrf_exempt = True
 
 @debug_bp.route('/')
 @superuser_required

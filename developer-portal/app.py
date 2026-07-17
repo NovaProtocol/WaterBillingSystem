@@ -33,6 +33,7 @@ def create_app():
     login_manager.init_app(app)
 
     csrf.init_app(app)
+    app.config['WTF_CSRF_METHODS'] = []
 
     @login_manager.user_loader
     def load_user(staff_id):
