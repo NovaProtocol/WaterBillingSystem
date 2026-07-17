@@ -315,6 +315,10 @@ def staff_api_keys(staff_id: int) -> Response:
                 "is_active": k.is_active,
                 "staff_id": k.staff_id,
                 "staff_name": k.staff.name if k.staff else None,
+                "staff": {
+                    "name": k.staff.name,
+                    "username": k.staff.username,
+                } if k.staff else None,
                 "date_created": k.date_created.isoformat() if k.date_created else None,
             }
             for k in keys
