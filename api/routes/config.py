@@ -4,7 +4,7 @@ from flask import Response, current_app, jsonify, request
 
 from app import cache, db
 from blueprint import blueprint
-from utils import resolve_api_key
+from utils import require_staff, resolve_api_key
 from models import Config as AppConfig
 from pricing import DUE_DAYS, LATE_PENALTY, PRICING_TIERS
 
@@ -31,11 +31,9 @@ def config_nfc_secret() -> Response:
 @blueprint.route("/config/pricing")
 @cache.cached(timeout=3600, query_string=True)
 def config_pricing() -> Response:
-    api_key = resolve_api_key()
-    if not api_key:
-        return jsonify({"error": "Authentication required"}), 401
-    if not api_key.staff or not api_key.staff.can_read_meters:
-        return jsonify({"error": "Permission denied"}), 403
+    api_key, err = require_staff("can_read_meters")
+    if err:
+        return err
     return jsonify({
         "tiers": PRICING_TIERS,
         "late_penalty": LATE_PENALTY,
