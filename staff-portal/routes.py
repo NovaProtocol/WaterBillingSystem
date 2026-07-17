@@ -173,8 +173,9 @@ def meter_reading():
 @login_required
 def generate_api_key():
     staff_id = session.get('staff_id', 1)
+    data = request.get_json() or {}
     try:
-        result = api_client.generate_api_key(staff_id)
+        result = api_client.generate_api_key(staff_id, data)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 400

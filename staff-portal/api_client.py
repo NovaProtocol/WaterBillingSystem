@@ -91,8 +91,8 @@ def edit_reading(reading_id: int, data: dict) -> dict:
 def undo_payment(billing_id: int) -> dict:
     return _post(f'/api/customer/{billing_id}/billing/drop', {'billing_id': billing_id})
 
-def generate_api_key(staff_id: int = 1) -> dict:
-    return _post(f'/api/staff/{staff_id}/api-key/generate')
+def generate_api_key(staff_id: int = 1, data: dict = None) -> dict:
+    return _post(f'/api/staff/{staff_id}/api-key/generate', data or {})
 
 def revoke_api_key(staff_id: int, key_id: int) -> dict:
     return _post(f'/api/staff/{staff_id}/api-key/{key_id}/revoke')
