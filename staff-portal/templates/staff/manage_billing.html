@@ -177,7 +177,7 @@
 <script>
   var CUSTOMER_LOOKUP_URL = '{{ url_for("staff_blueprint.customer_lookup") }}';
   var UNDO_PAYMENT_URL_BASE = '{{ url_for("staff_blueprint.undo_payment", payment_id=0) }}';
-  var API_CUSTOMER_URL = '{{ "/api/customer/0" }}';
+  var API_CUSTOMER_URL = '{{ "/staff/api/customer/0" }}';
 </script>
 <script src="{{ url_for('static', filename='assets/js/manage_billing.js') }}"></script>
 {% endblock javascripts %}
