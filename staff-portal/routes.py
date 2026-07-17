@@ -180,6 +180,16 @@ def revoke_api_key(key_id):
 @login_required
 def manage_reading():
     result = api_client.get_reading_logs()
+    try:
+        staff_data = api_client.list_staff()
+        result['staff_list'] = staff_data.get('staff', [])
+    except Exception:
+        result['staff_list'] = []
+    try:
+        keys_data = api_client.list_api_keys()
+        result['tokens'] = keys_data.get('keys', [])
+    except Exception:
+        result['tokens'] = []
     return render_template('staff/manage_reading.html', **result)
 
 @staff_bp.route('/staff/manage-reading/drop-reading/<int:reading_id>', methods=['POST'])

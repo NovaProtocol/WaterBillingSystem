@@ -73,6 +73,9 @@ def billing(customer_number):
     ctx = dict(billing or {})
     ctx.setdefault('customer', customer_data)
     ctx.setdefault('customer_number', customer_number)
+    ctx.setdefault('pending_xendit', None)
+    ctx.setdefault('recent_readings', [])
+    ctx.setdefault('payment_methods', [])
     return render_template('customer/billing.html', **ctx)
 
 @customer_bp.route('/customer/billing/<customer_number>/readings')
