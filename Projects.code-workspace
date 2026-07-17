@@ -5,6 +5,10 @@
     { "name": "Documentation", "path": "documentations" }
   ],
   "settings": {
-    "terminal.integrated.defaultProfile.linux": "bash"
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "chat.tools.terminal.autoApprove": {
+      "git add": true,
+      "git commit": true
+    }
   }
 }
