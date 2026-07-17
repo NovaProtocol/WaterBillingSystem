@@ -74,7 +74,6 @@ services:
     networks:
       - net-debug
       - net-api-debug
-      - net-data
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
       SECRET_KEY: ${SECRET_KEY}
