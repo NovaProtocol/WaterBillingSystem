@@ -120,7 +120,6 @@
 {% endblock content %}
 
 {% block javascripts %}
-<script src="{{ url_for('static', filename='assets/vendor/qrcodejs/1.0.0/qrcode.min.js') }}"></script>
 <script>
   var GENERATE_KEY_URL = '{{ url_for("staff_blueprint.generate_api_key") }}';
   var REVOKE_KEY_URL_BASE = '{{ url_for("staff_blueprint.revoke_api_key", key_id=0) }}';
@@ -129,6 +128,8 @@
   $(function() {
     $('#generateKeyForm').on('submit', function(e) {
       e.preventDefault();
+      var btn = $(this).find('button[type=submit]');
+      btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Generating...');
       var label = $('#keyLabel').val().trim();
       $.ajax({
         url: GENERATE_KEY_URL,
@@ -138,21 +139,16 @@
         success: function(resp) {
           $('#generateKeyModal').modal('hide');
           $('#generatedKey').val(resp.key);
-          $('#qrcode').empty();
-          new QRCode(document.getElementById('qrcode'), {
-            text: resp.key,
-            width: 180,
-            height: 180
-          });
           $('#keyResultModal').modal('show');
           $('#generateKeyForm')[0].reset();
+          btn.prop('disabled', false).text('Generate');
         },
         error: function(xhr) {
+          btn.prop('disabled', false).text('Generate');
           alert('Failed to generate key: ' + (xhr.responseJSON?.error || xhr.statusText));
         }
       });
     });
   });
 </script>
-<script src="{{ url_for('static', filename='assets/js/meter_reading.js') }}"></script>
 {% endblock javascripts %}
