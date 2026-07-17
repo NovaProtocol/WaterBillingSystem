@@ -270,34 +270,3 @@ def get_task(task_id):
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-@debug_bp.route('/phpmyadmin')
-@debug_bp.route('/phpmyadmin/<path:path>')
-@superuser_required
-def phpmyadmin_proxy(path=''):
-    pma_url = os.environ['PMA_URL'].rstrip('/')
-    target = f"{pma_url}/{path}"
-    query = request.query_string.decode() if request.query_string else ''
-    if query:
-        target += '?' + query
-
-    headers = {k: v for k, v in request.headers if k.lower() not in ('host', 'content-length', 'x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host')}
-
-    try:
-        resp = http_requests.request(
-            method=request.method,
-            url=target,
-            headers=headers,
-            data=request.get_data(),
-            cookies=request.cookies,
-            stream=True,
-            timeout=60,
-        )
-    except Exception as e:
-        return jsonify({"error": f"Proxy error: {str(e)}"}), 502
-
-    excluded = {'content-encoding', 'content-length', 'transfer-encoding', 'connection'}
-    response_headers = [(k, v) for k, v in resp.headers.items() if k.lower() not in excluded]
-
-    return Response(resp.content, resp.status_code, response_headers)

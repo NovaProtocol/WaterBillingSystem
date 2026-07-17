@@ -79,7 +79,6 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       API_BASE_URL: ${API_BASE_URL}
-      PMA_URL: ${PMA_URL}
 
   api:
     build:
@@ -146,12 +145,7 @@ services:
       - net-data
       - net-debug
     environment:
-      PMA_HOST: ${PMA_HOST}
-      PMA_PORT: ${PMA_PORT}
-      PMA_ARBITRARY: ${PMA_ARBITRARY}
-      UPLOAD_LIMIT: ${UPLOAD_LIMIT}
       PMA_ABSOLUTE_URI: https://${TS_HOSTNAME:-water-billing-system.ghoul-aldebaran.ts.net}/developer/phpmyadmin/
-      # Disable ForceSSL + session.cookie_secure so session cookies work when proxied behind HTTP internally
       PMA_CONFIG_BASE64: ${PMA_CONFIG_BASE64}
     depends_on:
       mysql-db:
