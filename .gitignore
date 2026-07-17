@@ -18,6 +18,9 @@ __pycache__/
 env/
 venv/
 
+# === workspace ===
+*.code-workspace
+
 # === environment files ===
 .env
 .env.sample
@@ -94,3 +97,5 @@ documentations/site/
 # === Windows alternate data streams ===
 *:Zone.Identifier
 *:Zone.Identifier:*
+Projects.code-workspace
+Projects.code-workspace
