@@ -31,6 +31,13 @@ function customerAutocomplete(inputId, dropdownId, onSelect) {
     searchTimeout = setTimeout(function() {
       $.get(CUSTOMER_LOOKUP_URL, {q: q}, function(data) {
         var d = $(dropdownId); d.empty();
+        $(inputId).removeClass('is-invalid');
+        if (data && data.error === 'mixed_input') {
+          $(inputId).addClass('is-invalid');
+          d.append('<div class="item invalid-feedback d-block px-3 py-2 mb-0" style="font-size:0.82rem;">' + (data.message || 'Invalid search') + '</div>');
+          d.show();
+          return;
+        }
         if (!data || !data.length) { d.hide(); return; }
         data.forEach(function(c) {
           d.append('<div class="item" data-number="'+c.customer_number+'" data-name="'+$('<span>').text(c.name).html()+'"><strong>'+c.customer_number+'</strong> &mdash; '+$('<span>').text(c.name).html()+'<br><span class="sub">'+$('<span>').text(c.address||'').html()+'</span></div>');
