@@ -49,7 +49,7 @@ def customer_all() -> Response:
     page = request.args.get("page", 1, type=int)
     size = request.args.get("size", 50, type=int)
     q = request.args.get("q", "").strip()
-    sort_by = request.args.get("sort_by", "name")
+    sort_by = request.args.get("sort_by", "customer_number")
     sort_dir = request.args.get("sort_dir", "asc")
     pagination = list_customers(
         page=page, per_page=size, q=q or None, sort_by=sort_by, sort_dir=sort_dir
