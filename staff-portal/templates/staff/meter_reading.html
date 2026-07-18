@@ -204,7 +204,7 @@
         method: 'POST',
         success: function() {
           row.find('.badge').removeClass('badge-success').addClass('badge-secondary').text('Revoked');
-          row.find('.revoke-key, .qr-key, .toggle-key').remove();
+          row.find('.revoke-key').remove();
           row.addClass('revoked-row');
           if ($('#hideRevoked').is(':checked')) {
             row.hide();
