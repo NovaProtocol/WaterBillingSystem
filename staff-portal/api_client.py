@@ -48,20 +48,47 @@ def refresh_customer_cache(force=False) -> list:
     _customer_cache_time = now
     return _customer_cache
 
+def _relevance(customer: dict, q: str) -> int:
+    """Score 0-100: higher = better match."""
+    num = customer.get('customer_number', '').lower()
+    name = customer.get('name', '').lower()
+    addr = customer.get('address', '').lower()
+    phone = customer.get('contact_number', '')
+
+    if num == q:
+        return 100
+    if num.startswith(q):
+        return 90
+    if q in num:
+        return 80
+    if name.startswith(q):
+        return 70
+    if q in name:
+        return 60
+    if q in addr:
+        return 40
+    if phone and q in phone:
+        return 20
+    return 0
+
+
 def search_cached_customers(query: str = '') -> list:
-    """Search locally cached customers by number, name, or address."""
+    """Search locally cached customers by number, name, or address.
+    Results sorted by relevance: exact number match first, then prefix,
+    then contains, then name matches, then address/phone."""
     customers = refresh_customer_cache()
     if not query:
         return customers[:50]
     q = query.lower().strip()
-    results = []
+
+    scored = []
     for c in customers:
-        if q in c.get('customer_number', '').lower() \
-                or q in c.get('name', '').lower() \
-                or q in c.get('address', '').lower() \
-                or q in c.get('contact_number', ''):
-            results.append(c)
-    return results[:50]
+        score = _relevance(c, q)
+        if score > 0:
+            scored.append((score, c))
+
+    scored.sort(key=lambda x: -x[0])
+    return [c for _, c in scored[:50]]
 
 def get_cache_status() -> dict:
     return {
