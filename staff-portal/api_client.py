@@ -98,6 +98,19 @@ def search_cached_customers(query: str = '') -> list:
             elif ql in val:
                 results.append(c)
 
+    # Sort by number: numerically ascending (1, 2, 10, 1550, 2320)
+    if is_prefix:
+        results.sort(key=lambda x: (
+            0 if x.get('customer_number') == q else 1,
+            int(x.get('customer_number', '0') or '0'),
+        ))
+    # Sort by name: exact match first, then alphabetical
+    else:
+        results.sort(key=lambda x: (
+            0 if x.get('name', '').lower() == ql else 1,
+            x.get('name', '').lower(),
+        ))
+
     return results[:50]
 
 
