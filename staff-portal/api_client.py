@@ -1,8 +1,62 @@
-import os
+import os, time, re
 import requests
 
 API_BASE = os.environ['API_BASE_URL']
 INTERNAL_KEY = os.environ.get('INTERNAL_API_KEY', '')
+
+# Customer cache: stores ALL customers for fast local search
+_customer_cache = []
+_customer_cache_time = 0
+CACHE_TTL = 300  # 5 minutes
+
+def refresh_customer_cache(force=False) -> list:
+    """Fetch ALL customers from API and cache locally."""
+    global _customer_cache, _customer_cache_time
+    now = time.time()
+    if not force and _customer_cache and (now - _customer_cache_time) < CACHE_TTL:
+        return _customer_cache
+
+    all_customers = []
+    page = 1
+    while True:
+        try:
+            r = _get('/api/customer/all', {'page': page, 'size': 200})
+        except Exception:
+            break
+        data = r.get('data', [])
+        if not data:
+            break
+        all_customers.extend(data)
+        meta = r.get('meta', {})
+        if page >= meta.get('total_pages', 1):
+            break
+        page += 1
+
+    _customer_cache = all_customers
+    _customer_cache_time = now
+    return _customer_cache
+
+def search_cached_customers(query: str = '') -> list:
+    """Search locally cached customers by number, name, or address."""
+    customers = refresh_customer_cache()
+    if not query:
+        return customers[:50]
+    q = query.lower().strip()
+    results = []
+    for c in customers:
+        if q in c.get('customer_number', '').lower() \
+                or q in c.get('name', '').lower() \
+                or q in c.get('address', '').lower() \
+                or q in c.get('contact_number', ''):
+            results.append(c)
+    return results[:50]
+
+def get_cache_status() -> dict:
+    return {
+        'size': len(_customer_cache),
+        'age': time.time() - _customer_cache_time if _customer_cache else None,
+        'ttl': CACHE_TTL,
+    }
 
 def _headers():
     headers = {}

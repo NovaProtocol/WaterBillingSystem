@@ -78,7 +78,7 @@ def dashboard():
 def customer_lookup():
     q = request.args.get('q', '')
     try:
-        result = api_client.customer_lookup(q)
+        result = api_client.search_cached_customers(q)
         return jsonify(result)
     except Exception as e:
         return jsonify({'customers': [], 'error': str(e)})
@@ -94,6 +94,28 @@ def proxy_customer(customer_number):
     except Exception as e:
         logger.error(f"Customer proxy failed: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
+@staff_bp.route('/staff/api/customers/cache-status')
+@login_required
+def customer_cache_status():
+    status = api_client.get_cache_status()
+    if status['size'] == 0:
+        return jsonify({'status': 'empty', 'message': 'Cache not yet loaded. Access customer search to populate.'})
+    return jsonify({
+        'status': 'loaded',
+        'cached_customers': status['size'],
+        'age_seconds': int(status['age']),
+        'ttl_seconds': status['ttl'],
+    })
+
+@staff_bp.route('/staff/api/customers/cache-refresh', methods=['POST'])
+@login_required
+def customer_cache_refresh():
+    try:
+        count = len(api_client.refresh_customer_cache(force=True))
+        return jsonify({'message': f'Cache refreshed: {count} customers loaded'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @staff_bp.route('/staff/customers', methods=['GET'])
 @login_required
