@@ -15,28 +15,7 @@
                 <input type="text" id="customerSearch" class="form-control" placeholder="Type customer number or name..." autocomplete="off">
                 <div class="autocomplete-dropdown" id="customerDropdown"></div>
             </div>
-            <div class="form-row mt-3">
-                <div class="col-md-6">
-                    <label>Filter by Staff</label>
-                    <select id="staffFilter" class="form-control">
-                        <option value="">All Staff</option>
-                        {% for s in staff_list %}
-                        <option value="{{ s.id }}">{{ s.name or s.username }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label>Filter by Token</label>
-                    <select id="tokenFilter" class="form-control" style="min-width:0; width:100%;">
-                        <option value="">All Tokens</option>
-                        {% for t in tokens %}
-                        <option value="{{ t.id }}" title="{{ t.key }}">
-                            {{ t.staff.name or t.staff.username }}{% if t.label %} — {{ t.label }}{% endif %}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
+
         </div>
     </div>
 
