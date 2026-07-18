@@ -186,6 +186,23 @@
       new QRCode(document.getElementById('qrcode'), { text: key, width: 180, height: 180 });
       $('#keyResultModal').modal('show');
     });
+
+    // Revoke a key with confirmation
+    $(document).on('click', '.revoke-key', function() {
+      var id = $(this).data('id');
+      if (!confirm('Revoke this API key? This cannot be undone.')) return;
+      var btn = $(this);
+      $.ajax({
+        url: REVOKE_KEY_URL_BASE.replace('0', id),
+        method: 'POST',
+        success: function() {
+          btn.closest('tr').fadeOut(300, function() { $(this).remove(); });
+        },
+        error: function(xhr) {
+          alert('Failed to revoke key: ' + (xhr.responseJSON?.error || xhr.statusText));
+        }
+      });
+    });
   });
 </script>
 {% endblock javascripts %}
