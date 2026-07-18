@@ -4,26 +4,25 @@ import requests
 API_BASE = os.environ['API_BASE_URL']
 INTERNAL_KEY = os.environ.get('INTERNAL_API_KEY', '')
 
-# Customer cache: stores ALL customers for fast local search
+# Lightweight customer cache: stores only {customer_number, name} for fast local search
 _customer_cache = []
 _customer_cache_time = 0
 CACHE_TTL = 300  # 5 minutes
 
 def refresh_customer_cache(force=False) -> list:
-    """Fetch ALL customers from API and cache locally.
+    """Fetch customer numbers+names from API and cache locally.
     Uses /api/customers/changed to skip full refresh if nothing changed."""
     global _customer_cache, _customer_cache_time
     now = time.time()
 
     if _customer_cache:
-        # Check if anything changed since our last refresh
         try:
             changed = _get('/api/customers/changed', {'since': int(_customer_cache_time or 0)})
             if not changed.get('customer_numbers'):
-                _customer_cache_time = now  # Extend TTL, cache still fresh
+                _customer_cache_time = now
                 return _customer_cache
         except Exception:
-            pass  # On error, fall through to full refresh
+            pass
 
     if not force and _customer_cache and (now - _customer_cache_time) < CACHE_TTL:
         return _customer_cache
@@ -38,7 +37,12 @@ def refresh_customer_cache(force=False) -> list:
         data = r.get('data', [])
         if not data:
             break
-        all_customers.extend(data)
+        for c in data:
+            all_customers.append({
+                'customer_number': c.get('customer_number', ''),
+                'name': c.get('name', ''),
+                'address': c.get('address', '') or '',
+            })
         meta = r.get('meta', {})
         if page >= meta.get('total_pages', 1):
             break
@@ -48,47 +52,54 @@ def refresh_customer_cache(force=False) -> list:
     _customer_cache_time = now
     return _customer_cache
 
-def _relevance(customer: dict, q: str) -> int:
-    """Score 0-100: higher = better match."""
-    num = customer.get('customer_number', '').lower()
-    name = customer.get('name', '').lower()
-    addr = customer.get('address', '').lower()
-    phone = customer.get('contact_number', '')
 
-    if num == q:
-        return 100
-    if num.startswith(q):
-        return 90
-    if q in num:
-        return 80
-    if name.startswith(q):
-        return 70
-    if q in name:
-        return 60
-    if q in addr:
-        return 40
-    if phone and q in phone:
-        return 20
-    return 0
+def _is_pure_digits(s: str) -> bool:
+    return bool(s) and all(c.isdigit() for c in s)
+
+def _is_pure_name(s: str) -> bool:
+    """Letters, spaces, dots, hyphens, apostrophes — no digits."""
+    return bool(s) and all(c.isalpha() or c in ' .-\'' for c in s)
 
 
 def search_cached_customers(query: str = '') -> list:
-    """Search locally cached customers by number, name, or address.
-    Results sorted by relevance: exact number match first, then prefix,
-    then contains, then name matches, then address/phone."""
-    customers = refresh_customer_cache()
+    """Smart search: digits-only searches by customer_number, letters-only by name.
+    Returns list of {customer_number, name} matches, or error dict for mixed input."""
     if not query:
-        return customers[:50]
-    q = query.lower().strip()
+        return refresh_customer_cache()[:50]
 
-    scored = []
+    q = query.strip()
+    if not q:
+        return []
+
+    if _is_pure_digits(q):
+        field = 'customer_number'
+        is_prefix = True
+    elif _is_pure_name(q):
+        field = 'name'
+        is_prefix = False
+    else:
+        return [{'error': 'mixed_input',
+                 'message': 'Search by customer number (digits only) or name (letters only).'}]
+
+    customers = refresh_customer_cache()
+    ql = q.lower()
+    results = []
+
     for c in customers:
-        score = _relevance(c, q)
-        if score > 0:
-            scored.append((score, c))
+        val = c.get(field, '').lower()
+        if is_prefix:
+            if val == ql:
+                results.insert(0, c)
+            elif val.startswith(ql):
+                results.append(c)
+        else:
+            if val.startswith(ql):
+                results.insert(0, c)
+            elif ql in val:
+                results.append(c)
 
-    scored.sort(key=lambda x: -x[0])
-    return [c for _, c in scored[:50]]
+    return results[:50]
+
 
 def get_cache_status() -> dict:
     return {
