@@ -7,26 +7,30 @@ INTERNAL_KEY = os.environ.get('INTERNAL_API_KEY', '')
 # Lightweight customer cache: stores only {customer_number, name} for fast local search
 _customer_cache = []
 _customer_cache_time = 0
-CACHE_TTL = 300  # 5 minutes
+CACHE_TTL = 300       # Full refresh every 5 min
+CHANGED_CHECK_INTERVAL = 30  # Check for changes every 30s
 
 def refresh_customer_cache(force=False) -> list:
-    """Fetch customer numbers+names from API and cache locally.
-    Uses /api/customers/changed to skip full refresh if nothing changed."""
+    """Fetch ALL customers from API and cache locally."""
     global _customer_cache, _customer_cache_time
     now = time.time()
 
-    if _customer_cache:
+    # If cache is fresh enough, return immediately — no API calls
+    if not force and _customer_cache and (now - _customer_cache_time) < CHANGED_CHECK_INTERVAL:
+        return _customer_cache
+
+    # Cache exists but may be stale — check if anything changed
+    if _customer_cache and not force:
         try:
             changed = _get('/api/customers/changed', {'since': int(_customer_cache_time or 0)})
             if not changed.get('customer_numbers'):
                 _customer_cache_time = now
                 return _customer_cache
         except Exception:
-            pass
+            if (now - _customer_cache_time) < CACHE_TTL:
+                return _customer_cache
 
-    if not force and _customer_cache and (now - _customer_cache_time) < CACHE_TTL:
-        return _customer_cache
-
+    # Need to refresh — fetch from API
     all_customers = []
     page = 1
     while True:
