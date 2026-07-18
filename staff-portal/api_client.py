@@ -10,9 +10,21 @@ _customer_cache_time = 0
 CACHE_TTL = 300  # 5 minutes
 
 def refresh_customer_cache(force=False) -> list:
-    """Fetch ALL customers from API and cache locally."""
+    """Fetch ALL customers from API and cache locally.
+    Uses /api/customers/changed to skip full refresh if nothing changed."""
     global _customer_cache, _customer_cache_time
     now = time.time()
+
+    if _customer_cache:
+        # Check if anything changed since our last refresh
+        try:
+            changed = _get('/api/customers/changed', {'since': int(_customer_cache_time or 0)})
+            if not changed.get('customer_numbers'):
+                _customer_cache_time = now  # Extend TTL, cache still fresh
+                return _customer_cache
+        except Exception:
+            pass  # On error, fall through to full refresh
+
     if not force and _customer_cache and (now - _customer_cache_time) < CACHE_TTL:
         return _customer_cache
 
