@@ -299,7 +299,7 @@
 <script>
   var CUST_LAT = {{ customer.x_coordinate | tojson if customer.x_coordinate else 'null' }};
   var CUST_LNG = {{ customer.y_coordinate | tojson if customer.y_coordinate else 'null' }};
-  var CUST_NUM = '{{ customer.customer_number }}';
+  var CUST_NUM = {{ customer.customer_number | tojson }};
   var BILLING_API_READINGS_URL = '{{ url_for("customer.readings", customer_number=0) }}';
   var BILLING_API_PAYMENTS_URL = '{{ url_for("customer.payments", customer_number=0) }}';
   var BILLING_API_HISTORY_URL = '{{ url_for("customer.billing_history", customer_number=0) }}';

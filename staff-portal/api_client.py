@@ -42,8 +42,8 @@ def get_dashboard_data() -> dict:
         'total_staff': len(staff_list.get('staff', [])),
     }
 
-def get_customer(customer_number: str) -> dict:
-    return _get(f'/api/customer/{customer_number}')
+def get_customer(customer_number: str, params: dict = None) -> dict:
+    return _get(f'/api/customer/{customer_number}', params)
 
 def customer_lookup(query: str) -> dict:
     r = _get('/api/customer/all', {'q': query, 'size': 10})

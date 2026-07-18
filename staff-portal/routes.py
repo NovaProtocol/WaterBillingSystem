@@ -88,7 +88,8 @@ def customer_lookup():
 def proxy_customer(customer_number):
     """Proxy: browser calls this instead of calling the API directly."""
     try:
-        result = api_client.get_customer(customer_number)
+        params = {k: v for k, v in request.args.items() if k != 'customer_number'}
+        result = api_client.get_customer(customer_number, params)
         return jsonify(result)
     except Exception as e:
         logger.error(f"Customer proxy failed: {e}", exc_info=True)
