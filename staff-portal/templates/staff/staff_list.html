@@ -262,7 +262,7 @@
 
     $('#create-staff-form').on('submit', function(e) {
         e.preventDefault();
-        var perms = buildPerms(this);
+        var perms = buildPerms('#create-staff-form');
         $.ajax({
             url: '{{ url_for("staff_blueprint.staff_create") }}',
             method: 'POST',

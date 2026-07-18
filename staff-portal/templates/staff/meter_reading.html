@@ -184,8 +184,31 @@
       });
     });
 
-    // Show QR for existing keys
-    $('.qr-key').on('click', function() {
+    // Toggle key visibility (password/text)
+    $(document).on('click', '.toggle-key', function() {
+      var input = $(this).closest('.input-group').find('.key-input');
+      var icon = $(this).find('i');
+      if (input.attr('type') === 'password') {
+        input.attr('type', 'text');
+        icon.removeClass('fa-eye').addClass('fa-eye-slash');
+      } else {
+        input.attr('type', 'password');
+        icon.removeClass('fa-eye-slash').addClass('fa-eye');
+      }
+    });
+
+    // Copy key to clipboard
+    $(document).on('click', '#copyKeyBtn', function() {
+      var key = $('#generatedKey').val();
+      navigator.clipboard.writeText(key).then(function() {
+        var icon = $('#copyKeyBtn').find('i');
+        icon.removeClass('fa-copy').addClass('fa-check');
+        setTimeout(function() { icon.removeClass('fa-check').addClass('fa-copy'); }, 2000);
+      });
+    });
+
+    // Show QR for any key (works for static and dynamic rows)
+    $(document).on('click', '.qr-key', function() {
       var key = $(this).data('key');
       $('#generatedKey').val(key);
       $('#qrcode').empty();
