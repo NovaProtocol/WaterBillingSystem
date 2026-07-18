@@ -19,7 +19,7 @@
         <div class="card-body">
             {% if keys %}
             <div class="table-responsive">
-                <table class="table table-hover" style="font-size: 0.88rem;">
+                <table id="keysTable" class="table table-hover" style="font-size: 0.88rem;">
                     <thead class="thead-light">
                         <tr>
                             <th>Key</th>
@@ -67,7 +67,7 @@
                 </table>
             </div>
             {% else %}
-            <p class="text-muted mb-0">No API keys yet. Generate one to allow meter reading terminals to connect.</p>
+            <p id="noKeysMessage" class="text-muted mb-0">No API keys yet. Generate one to allow meter reading terminals to connect.</p>
             {% endif %}
         </div>
     </div>
@@ -145,6 +145,29 @@
           $('#keyResultModal').modal('show');
           $('#generateKeyForm')[0].reset();
           btn.prop('disabled', false).text('Generate');
+
+          // Prepend the new key to the table without refresh
+          var now = new Date();
+          var dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + 'T' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+          var row = '<tr>' +
+            '<td><div class="input-group input-group-sm" style="flex-wrap:nowrap;min-width:260px;">' +
+            '<input type="password" class="form-control form-control-sm-cotta key-input" value="' + resp.key + '" readonly style="font-family:monospace;font-size:0.78rem;cursor:default;background:#fff;" data-full="' + resp.key + '">' +
+            '<div class="input-group-append">' +
+            '<button class="btn btn-outline-sm toggle-key" type="button" title="Toggle visibility" style="border-top-left-radius:0;border-bottom-left-radius:0;"><i class="fas fa-eye"></i></button>' +
+            '<button class="btn btn-outline-sm qr-key" type="button" data-key="' + resp.key + '" title="Show QR"><i class="fas fa-qrcode"></i></button>' +
+            '</div></div></td>' +
+            '<td>' + (resp.label || '\u2014') + '</td>' +
+            '<td><span class="badge badge-success">Active</span></td>' +
+            '<td>' + dateStr + '</td>' +
+            '<td><button class="btn btn-outline-sm revoke-key" data-id="' + resp.id + '" title="Revoke"><i class="fas fa-trash"></i></button></td>' +
+            '</tr>';
+          if ($('#keysTable tbody tr').length === 0) {
+            $('#keysTable tbody').append(row);
+            $('#noKeysMessage').hide();
+            $('#keysTable').show();
+          } else {
+            $('#keysTable tbody').prepend(row);
+          }
         },
         error: function(xhr) {
           btn.prop('disabled', false).text('Generate');
