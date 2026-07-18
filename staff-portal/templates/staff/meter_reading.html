@@ -12,9 +12,15 @@
     <div class="card card-cotta mb-4">
         <div class="card-header">
             <i class="fas fa-key mr-2 text-cotta"></i>API Keys
-            <button class="btn btn-sm-cotta float-right" data-toggle="modal" data-target="#generateKeyModal">
-                <i class="fas fa-plus mr-1"></i>Generate Key
-            </button>
+            <div class="float-right d-flex align-items-center" style="gap:0.5rem;">
+                <div class="custom-control custom-checkbox" style="font-size:0.82rem;">
+                    <input type="checkbox" class="custom-control-input" id="hideRevoked" checked>
+                    <label class="custom-control-label" for="hideRevoked">Hide revoked</label>
+                </div>
+                <button class="btn btn-sm-cotta" data-toggle="modal" data-target="#generateKeyModal">
+                    <i class="fas fa-plus mr-1"></i>Generate Key
+                </button>
+            </div>
         </div>
         <div class="card-body">
             {% if keys %}
@@ -31,7 +37,7 @@
                     </thead>
                     <tbody>
                         {% for k in keys %}
-                        <tr>
+                        <tr class="{% if not k.is_active %}revoked-row{% endif %}">
                             <td>
                                 <div class="input-group input-group-sm" style="flex-wrap: nowrap; min-width: 260px;">
                                     <input type="password" class="form-control form-control-sm-cotta key-input" value="{{ k.key }}" readonly style="font-family: monospace; font-size: 0.78rem; cursor: default; background: #fff;" data-full="{{ k.key }}">
@@ -192,17 +198,37 @@
       var id = $(this).data('id');
       if (!confirm('Revoke this API key? This cannot be undone.')) return;
       var btn = $(this);
+      var row = btn.closest('tr');
       $.ajax({
         url: REVOKE_KEY_URL_BASE.replace('0', id),
         method: 'POST',
         success: function() {
-          btn.closest('tr').fadeOut(300, function() { $(this).remove(); });
+          row.find('.badge').removeClass('badge-success').addClass('badge-secondary').text('Revoked');
+          row.find('.revoke-key, .qr-key, .toggle-key').remove();
+          row.addClass('revoked-row');
+          if ($('#hideRevoked').is(':checked')) {
+            row.hide();
+          }
         },
         error: function(xhr) {
           alert('Failed to revoke key: ' + (xhr.responseJSON?.error || xhr.statusText));
         }
       });
     });
+
+    // Toggle revoked keys visibility
+    $('#hideRevoked').on('change', function() {
+      if ($(this).is(':checked')) {
+        $('.revoked-row').hide();
+      } else {
+        $('.revoked-row').show();
+      }
+    });
+
+    // Hide revoked keys on page load
+    if ($('#hideRevoked').is(':checked')) {
+      $('.revoked-row').hide();
+    }
   });
 </script>
 {% endblock javascripts %}
