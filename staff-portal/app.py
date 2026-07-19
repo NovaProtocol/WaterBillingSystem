@@ -54,4 +54,9 @@ def create_app():
     def health():
         return {'status': 'ok'}
 
+    # Pre-warm customer cache in background (first request would take ~9s)
+    import threading, api_client
+    t = threading.Thread(target=api_client.refresh_customer_cache, kwargs={'force': True}, daemon=True)
+    t.start()
+
     return app
