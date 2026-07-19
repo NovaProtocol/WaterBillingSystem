@@ -137,19 +137,7 @@ services:
       mysql-db:
         condition: service_healthy
 
-  phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: waterbillingsystem_phpmyadmin
-    restart: unless-stopped
-    networks:
-      - net-data
-      - net-debug
-    environment:
-      PMA_ABSOLUTE_URI: https://${TS_HOSTNAME:-water-billing-system.ghoul-aldebaran.ts.net}/developer/phpmyadmin/
-      PMA_CONFIG_BASE64: ${PMA_CONFIG_BASE64}
-    depends_on:
-      mysql-db:
-        condition: service_healthy
+  # phpmyadmin temporarily removed — network issues pulling images
 
   mysql-db:
     image: mysql:8.4
