@@ -17,11 +17,16 @@ def create_app():
 
     @app.template_filter('timestamp_to_date')
     def timestamp_to_date(ts):
-        if ts:
-            s = str(ts).replace('T', ' ')[:19]
-            from datetime import datetime
+        if ts is None:
+            return ''
+        from datetime import datetime
+        if isinstance(ts, (int, float)):
+            return datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M')
+        s = str(ts).replace('T', ' ')[:19]
+        try:
             return datetime.strptime(s, '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%d %H:%M')
-        return ''
+        except ValueError:
+            return s
 
     @app.route('/health')
     def health():
