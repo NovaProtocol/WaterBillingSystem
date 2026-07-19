@@ -113,37 +113,15 @@ class TestStaffPortalPagesRendered:
         assert 'Pedro Reyes' in body
         assert 'C003' in body
 
-    @patch('api_client.search_and_sort_customers')
-    def test_manage_customers_shows_edit_data(self, mock_customers, client):
-        """Render /staff/manage-customers and verify edit button data attributes."""
-        mock_customers.return_value = SAMPLE_CUSTOMERS
+    def test_manage_customers_page_loads(self, client):
+        """Manage customers is JS-driven — just verify the page renders."""
         self._login(client)
         resp = client.get('/staff/manage-customers')
         assert resp.status_code == 200
         body = resp.data.decode()
-
-        # Juan Dela Cruz should have an edit button with his data
-        assert 'data-number="C001"' in body
-        assert 'data-name="Juan Dela Cruz"' in body
-        assert 'data-address="123 Rizal St, Manila"' in body
-        assert 'data-contact="09171234567"' in body
-        assert 'data-phase="Phase 1"' in body
-        assert 'data-block="Block A"' in body
-        assert 'MTR-001' in body
-
-        # NFC tag should appear
-        assert 'data-nfc-tag-id="A1B2C3D4"' in body
-
-        # Inactive customer should show different styling
-        assert 'data-active="false"' in body
-
-    @patch('api_client.search_and_sort_customers')
-    def test_manage_customers_shows_pagination(self, mock_customers, client):
-        mock_customers.return_value = SAMPLE_CUSTOMERS
-        self._login(client)
-        resp = client.get('/staff/manage-customers')
-        body = resp.data.decode()
-        assert '3 total' in body.lower() or '3</span>' in body
+        assert 'Manage Customers' in body
+        assert 'customerTableBody' in body
+        assert 'searchInput' in body
 
     @patch('api_client.list_api_keys')
     def test_meter_reading_shows_keys(self, mock_keys, client):
