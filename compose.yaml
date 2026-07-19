@@ -15,7 +15,7 @@ services:
       - net-staff
       - net-debug
       - net-api-ext
-      - tailscale-network_proxy_network
+      - cloudflared-tunnel_default
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
       CADDY_PORT_PUBLIC: ${CADDY_PORT_PUBLIC:-8001}
@@ -167,7 +167,7 @@ networks:
   net-api-staff:      { internal: true }
   net-api-debug:      { internal: true }
   net-data:           { internal: true }
-  tailscale-network_proxy_network:
+  cloudflared-tunnel_default:
     external: true
 
 volumes:
