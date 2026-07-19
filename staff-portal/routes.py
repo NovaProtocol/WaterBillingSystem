@@ -117,6 +117,17 @@ def customer_cache_refresh():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@staff_bp.route('/staff/api/customers/search-sort')
+@login_required
+def api_customers_search_sort():
+    q = request.args.get('q', '')
+    sort_by = request.args.get('sort_by', 'customer_number')
+    sort_dir = request.args.get('sort_dir', 'asc')
+    page = request.args.get('page', 1, type=int)
+    size = request.args.get('size', 50, type=int)
+    return jsonify(api_client.search_and_sort_customers(q, sort_by, sort_dir, page, size))
+
+
 @staff_bp.route('/staff/customers', methods=['GET'])
 @login_required
 def customers():
@@ -138,23 +149,7 @@ def customer_create():
 @staff_bp.route('/staff/manage-customers', methods=['GET'])
 @login_required
 def manage_customers():
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 50, type=int)
-    q = request.args.get('q', '')
-    sort_by = request.args.get('sort_by', 'customer_number')
-    sort_dir = request.args.get('sort_dir', 'asc')
-    result = api_client.search_and_sort_customers(q, sort_by, sort_dir, page, per_page)
-    ctx = {
-        'customers': result.get('customers', []),
-        'page': result.get('page', page),
-        'per_page': result.get('per_page', per_page),
-        'total': result.get('total', 0),
-        'pages': result.get('pages', 0),
-        'sort_by': sort_by,
-        'sort_dir': sort_dir,
-        'q': q,
-    }
-    return render_template('staff/manage_customers.html', **ctx)
+    return render_template('staff/manage_customers.html')
 
 @staff_bp.route('/staff/manage-customers/<int:customer_id>/edit', methods=['POST'])
 @permission_required('can_enroll_customer')
