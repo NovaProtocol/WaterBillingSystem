@@ -41,12 +41,7 @@ def refresh_customer_cache(force=False) -> list:
         data = r.get('data', [])
         if not data:
             break
-        for c in data:
-            all_customers.append({
-                'customer_number': c.get('customer_number', ''),
-                'name': c.get('name', ''),
-                'address': c.get('address', '') or '',
-            })
+        all_customers.extend(data)
         meta = r.get('meta', {})
         if page >= meta.get('total_pages', 1):
             break
@@ -116,6 +111,53 @@ def search_cached_customers(query: str = '') -> list:
         ))
 
     return results[:50]
+
+
+def search_and_sort_customers(q: str = '', sort_by: str = 'customer_number', sort_dir: str = 'asc',
+                               page: int = 1, per_page: int = 50) -> dict:
+    """Search, sort, and paginate from the local cache. Returns the same format as get_customers()."""
+    customers = refresh_customer_cache()
+
+    # Search filter
+    if q:
+        ql = q.lower().strip()
+        if _is_pure_digits(q):
+            filtered = [c for c in customers if ql in c.get('customer_number', '').lower()]
+        else:
+            filtered = [c for c in customers if ql in c.get('name', '').lower() or ql in c.get('address', '').lower()]
+    else:
+        filtered = list(customers)
+
+    # Sort
+    reverse = sort_dir == 'desc'
+    if sort_by == 'customer_number':
+        filtered.sort(key=lambda x: int(x.get('customer_number', '0') or '0'), reverse=reverse)
+    elif sort_by == 'name':
+        filtered.sort(key=lambda x: (x.get('name', '') or '').lower(), reverse=reverse)
+    elif sort_by == 'cumulative_balance':
+        filtered.sort(key=lambda x: float(x.get('cumulative_balance', 0) or 0), reverse=reverse)
+    elif sort_by == 'total_due':
+        filtered.sort(key=lambda x: float(x.get('total_due', 0) or 0), reverse=reverse)
+    elif sort_by == 'phase':
+        filtered.sort(key=lambda x: (x.get('phase', '') or '').lower(), reverse=reverse)
+    elif sort_by == 'block':
+        filtered.sort(key=lambda x: (x.get('block', '') or '').lower(), reverse=reverse)
+    else:
+        filtered.sort(key=lambda x: (x.get('name', '') or '').lower(), reverse=reverse)
+
+    # Paginate
+    total = len(filtered)
+    pages = max(1, (total + per_page - 1) // per_page)
+    start = (page - 1) * per_page
+    items = filtered[start:start + per_page]
+
+    return {
+        'customers': items,
+        'page': page,
+        'per_page': per_page,
+        'total': total,
+        'pages': pages,
+    }
 
 
 def get_cache_status() -> dict:

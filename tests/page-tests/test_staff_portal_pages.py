@@ -113,7 +113,7 @@ class TestStaffPortalPagesRendered:
         assert 'Pedro Reyes' in body
         assert 'C003' in body
 
-    @patch('api_client.get_customers')
+    @patch('api_client.search_and_sort_customers')
     def test_manage_customers_shows_edit_data(self, mock_customers, client):
         """Render /staff/manage-customers and verify edit button data attributes."""
         mock_customers.return_value = SAMPLE_CUSTOMERS
@@ -137,7 +137,7 @@ class TestStaffPortalPagesRendered:
         # Inactive customer should show different styling
         assert 'data-active="false"' in body
 
-    @patch('api_client.get_customers')
+    @patch('api_client.search_and_sort_customers')
     def test_manage_customers_shows_pagination(self, mock_customers, client):
         mock_customers.return_value = SAMPLE_CUSTOMERS
         self._login(client)
