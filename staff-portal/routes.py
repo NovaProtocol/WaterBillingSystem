@@ -141,9 +141,9 @@ def manage_customers():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
     q = request.args.get('q', '')
-    sort_by = request.args.get('sort_by', 'name')
+    sort_by = request.args.get('sort_by', 'customer_number')
     sort_dir = request.args.get('sort_dir', 'asc')
-    result = api_client.get_customers(page, per_page)
+    result = api_client.search_and_sort_customers(q, sort_by, sort_dir, page, per_page)
     ctx = {
         'customers': result.get('customers', []),
         'page': result.get('page', page),
