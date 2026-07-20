@@ -68,6 +68,25 @@ def _recalc_cumulative_balance(customer_number: str) -> None:
         customer.cumulative_balance = round(float(total), 2)
 
 
+def _recalc_total_due(customer_number: str) -> None:
+    total = 0.0
+    for bill in Billing.query.filter_by(customer_number=customer_number, is_paid=False).all():
+        bill_due = (
+            float(bill.billed_amount or 0)
+            + float(bill.penalty or 0)
+            - float(bill.paid_amount or 0)
+        )
+        total += max(0, bill_due)
+    balance = float(
+        db.session.query(db.func.sum(Billing.carryover_offset))
+        .filter_by(customer_number=customer_number)
+        .scalar() or 0
+    )
+    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    if customer:
+        customer.total_due = max(0, round(total - balance, 2))
+
+
 # ── Seed data ──────────────────────────────────────────────────────────
 
 FIRST_NAMES = [
@@ -362,6 +381,7 @@ def _seed_data(
             db.session.add(bill)
 
         cust.cumulative_balance = round(cum_balance, 2)
+        cust.total_due = max(0, round(water_bill - cum_balance, 2))
 
         if (ci + 1) % 10 == 0:
             db.session.commit()
@@ -758,6 +778,7 @@ def handle_remove_payment_this_month(params: dict[str, Any], report: Callable[[f
         if bill.customer_number not in seen:
             seen.add(bill.customer_number)
             _recalc_cumulative_balance(bill.customer_number)
+            _recalc_total_due(bill.customer_number)
     total_dur = _time.time() - t0
     print(f"  > Done: {undone} bills reverted ({len(seen)} customers affected) in {total_dur:.1f}s", flush=True)
     report(100, f"Done. {undone} bills reverted ({len(seen)} customers).")
@@ -955,6 +976,7 @@ def _reverse_xendit_payment(txn: XenditTransaction) -> bool:
         b.carryover_offset = 0
 
     recalc_cumulative_balance(txn.customer_number)
+    _recalc_total_due(txn.customer_number)
 
     txn.status = "REVERSED"
     txn.reversed_at = datetime.now(timezone.utc).replace(tzinfo=None)
