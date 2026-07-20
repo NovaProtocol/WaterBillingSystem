@@ -1,171 +1,8 @@
-import os, time, re
+import os
 import requests
 
 API_BASE = os.environ['API_BASE_URL']
 INTERNAL_KEY = os.environ.get('INTERNAL_API_KEY', '')
-
-# Lightweight customer cache: stores only {customer_number, name} for fast local search
-_customer_cache = []
-_customer_cache_time = 0
-CACHE_TTL = 300       # Full refresh every 5 min
-CHANGED_CHECK_INTERVAL = 30  # Check for changes every 30s
-
-def refresh_customer_cache(force=False) -> list:
-    """Fetch ALL customers from API and cache locally."""
-    global _customer_cache, _customer_cache_time
-    now = time.time()
-
-    # If cache is fresh enough, return immediately — no API calls
-    if not force and _customer_cache and (now - _customer_cache_time) < CHANGED_CHECK_INTERVAL:
-        return _customer_cache
-
-    # Cache exists but may be stale — check if anything changed
-    if _customer_cache and not force:
-        try:
-            changed = _get('/api/customers/changed', {'since': int(_customer_cache_time or 0)})
-            if not changed.get('customer_numbers'):
-                _customer_cache_time = now
-                return _customer_cache
-        except Exception:
-            if (now - _customer_cache_time) < CACHE_TTL:
-                return _customer_cache
-
-    # Need to refresh — fetch from API
-    all_customers = []
-    page = 1
-    while True:
-        try:
-            r = _get('/api/customer/all', {'page': page, 'size': 200})
-        except Exception:
-            break
-        data = r.get('data', [])
-        if not data:
-            break
-        all_customers.extend(data)
-        meta = r.get('meta', {})
-        if page >= meta.get('total_pages', 1):
-            break
-        page += 1
-
-    _customer_cache = all_customers
-    _customer_cache_time = now
-    return _customer_cache
-
-
-def _is_pure_digits(s: str) -> bool:
-    return bool(s) and all(c.isdigit() for c in s)
-
-def _is_pure_name(s: str) -> bool:
-    """Letters, spaces, dots, hyphens, apostrophes — no digits."""
-    return bool(s) and all(c.isalpha() or c in ' .-\'' for c in s)
-
-
-def search_cached_customers(query: str = '') -> list:
-    """Smart search: digits-only searches by customer_number, letters-only by name.
-    Returns list of {customer_number, name} matches, or error dict for mixed input."""
-    if not query:
-        return refresh_customer_cache()[:50]
-
-    q = query.strip()
-    if not q:
-        return []
-
-    if _is_pure_digits(q):
-        field = 'customer_number'
-        is_prefix = True
-    elif _is_pure_name(q):
-        field = 'name'
-        is_prefix = False
-    else:
-        return [{'error': 'mixed_input',
-                 'message': 'Search by customer number (digits only) or name (letters only).'}]
-
-    customers = refresh_customer_cache()
-    ql = q.lower()
-    results = []
-
-    for c in customers:
-        val = c.get(field, '').lower()
-        if is_prefix:
-            if val == ql:
-                results.insert(0, c)
-            elif val.startswith(ql):
-                results.append(c)
-        else:
-            if val.startswith(ql):
-                results.insert(0, c)
-            elif ql in val:
-                results.append(c)
-
-    # Sort by number: numerically ascending (1, 2, 10, 1550, 2320)
-    if is_prefix:
-        results.sort(key=lambda x: (
-            0 if x.get('customer_number') == q else 1,
-            int(x.get('customer_number', '0') or '0'),
-        ))
-    # Sort by name: exact match first, then alphabetical
-    else:
-        results.sort(key=lambda x: (
-            0 if x.get('name', '').lower() == ql else 1,
-            x.get('name', '').lower(),
-        ))
-
-    return results[:50]
-
-
-def search_and_sort_customers(q: str = '', sort_by: str = 'customer_number', sort_dir: str = 'asc',
-                               page: int = 1, per_page: int = 50) -> dict:
-    """Search, sort, and paginate from the local cache. Returns the same format as get_customers()."""
-    customers = refresh_customer_cache()
-
-    # Search filter
-    if q:
-        ql = q.lower().strip()
-        if _is_pure_digits(q):
-            filtered = [c for c in customers if ql in c.get('customer_number', '').lower()]
-        else:
-            filtered = [c for c in customers if ql in c.get('name', '').lower() or ql in c.get('address', '').lower()]
-    else:
-        filtered = list(customers)
-
-    # Sort
-    reverse = sort_dir == 'desc'
-    if sort_by == 'customer_number':
-        filtered.sort(key=lambda x: int(x.get('customer_number', '0') or '0'), reverse=reverse)
-    elif sort_by == 'name':
-        filtered.sort(key=lambda x: (x.get('name', '') or '').lower(), reverse=reverse)
-    elif sort_by == 'cumulative_balance':
-        filtered.sort(key=lambda x: float(x.get('cumulative_balance', 0) or 0), reverse=reverse)
-    elif sort_by == 'total_due':
-        filtered.sort(key=lambda x: float(x.get('total_due', 0) or 0), reverse=reverse)
-    elif sort_by == 'phase':
-        filtered.sort(key=lambda x: (x.get('phase', '') or '').lower(), reverse=reverse)
-    elif sort_by == 'block':
-        filtered.sort(key=lambda x: (x.get('block', '') or '').lower(), reverse=reverse)
-    else:
-        filtered.sort(key=lambda x: (x.get('name', '') or '').lower(), reverse=reverse)
-
-    # Paginate
-    total = len(filtered)
-    pages = max(1, (total + per_page - 1) // per_page)
-    start = (page - 1) * per_page
-    items = filtered[start:start + per_page]
-
-    return {
-        'customers': items,
-        'page': page,
-        'per_page': per_page,
-        'total': total,
-        'pages': pages,
-    }
-
-
-def get_cache_status() -> dict:
-    return {
-        'size': len(_customer_cache),
-        'age': time.time() - _customer_cache_time if _customer_cache else None,
-        'ttl': CACHE_TTL,
-    }
 
 def _headers():
     headers = {}
@@ -207,6 +44,28 @@ def get_dashboard_data() -> dict:
 
 def get_customer(customer_number: str, params: dict = None) -> dict:
     return _get(f'/api/customer/{customer_number}', params)
+
+def customer_search(query: str) -> list:
+    """Search customers by number or name prefix. Proxies to API."""
+    data = _get('/api/customer/all', {'q': query, 'page': 1, 'size': 50})
+    return data.get('data', [])
+
+
+def customer_search_sort(q: str = '', sort_by: str = 'customer_number',
+                          sort_dir: str = 'asc', page: int = 1, per_page: int = 50) -> dict:
+    """Search, sort, paginate customers via API. Returns same format as get_customers()."""
+    data = _get('/api/customer/all', {
+        'q': q, 'page': page, 'size': per_page,
+        'sort_by': sort_by, 'sort_dir': sort_dir,
+    })
+    return {
+        'customers': data.get('data', []),
+        'page': data.get('meta', {}).get('current_page', page),
+        'per_page': data.get('meta', {}).get('page_size', per_page),
+        'total': data.get('meta', {}).get('total_items', 0),
+        'pages': data.get('meta', {}).get('total_pages', 1),
+    }
+
 
 def customer_lookup(query: str) -> dict:
     r = _get('/api/customer/all', {'q': query, 'size': 10})
