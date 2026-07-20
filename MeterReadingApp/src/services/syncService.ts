@@ -39,7 +39,7 @@ async function doResyncNfc(serverUrl: string, apiKey: string, signal: AbortSigna
   const data: NfcTagsResponse = await res.json();
   for (const tag of data.tags ?? []) {
     const pwd = nfcPwdSecret ? computeTagPwd(nfcPwdSecret, tag.uid) : '00000000';
-    await upsertNfcCache(tag.uid, tag.customer_number, pwd);
+    await upsertNfcCache(tag.uid, String(tag.customer_number), pwd);
   }
 
   await setConfig('nfc_has_pending', '0');
@@ -133,7 +133,7 @@ async function uploadNfcEnrollments(serverUrl: string, apiKey: string, signal: A
     body: JSON.stringify({
       enrollments: pending.map((e) => ({
         uid: e.uid,
-        customer_number: e.customer_number,
+        customer_number: Number(e.customer_number),
       })),
     }),
     signal,
@@ -155,7 +155,7 @@ async function processNfcCacheBatch(
     if (!nfcUid) continue;
 
     const pwd = computeTagPwd(nfcPwdSecret, nfcUid);
-    await upsertNfcCache(nfcUid, data.customer.customer_number, pwd);
+    await upsertNfcCache(nfcUid, String(data.customer.customer_number), pwd);
   }
 }
 
@@ -237,7 +237,7 @@ export function useSync(): UseSyncResult {
       if (unsynced.length > 0) {
         const syncBody = {
           readings: unsynced.map((r) => ({
-            customer_number: r.customer_number,
+            customer_number: Number(r.customer_number),
             reading_value: r.reading_value,
             timestamp: r.timestamp,
           })),
@@ -308,7 +308,7 @@ export function useSync(): UseSyncResult {
             signal: controller.signal,
           }).catch(() => null);
 
-          const allBatchData: { chunk: string[]; customers: BulkReadingsResponse['customers'] }[] = [];
+          const allBatchData: { chunk: number[]; customers: BulkReadingsResponse['customers'] }[] = [];
 
           for (let i = 0; i < batchUrls.length; i++) {
             const res = await nextFetch;
@@ -343,7 +343,7 @@ export function useSync(): UseSyncResult {
 
             for (const [cn, data] of Object.entries(customers)) {
               const customerRow = {
-                customer_number: data.customer.customer_number,
+                customer_number: String(data.customer.customer_number),
                 name: data.customer.name ?? '',
                 address: data.customer.address ?? '',
                 contact_number: data.customer.contact_number ?? '',

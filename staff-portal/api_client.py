@@ -42,7 +42,7 @@ def get_dashboard_data() -> dict:
         'total_staff': len(staff_list.get('staff', [])),
     }
 
-def get_customer(customer_number: str, params: dict = None) -> dict:
+def get_customer(customer_number: int, params: dict = None) -> dict:
     return _get(f'/api/customer/{customer_number}', params)
 
 def customer_search(query: str) -> list:
@@ -90,25 +90,25 @@ def edit_customer(customer_id: int, data: dict) -> dict:
     customer_number = data.get('customer_number', str(customer_id))
     return _put(f'/api/customer/update/{customer_number}', data)
 
-def toggle_customer_active(customer_number: str) -> dict:
+def toggle_customer_active(customer_number: int) -> dict:
     return _delete(f'/api/customer/delete/{customer_number}')
 
-def clear_customer_nfc(customer_number: str) -> dict:
+def clear_customer_nfc(customer_number: int) -> dict:
     return _post(f'/api/customer/{customer_number}/nfc/delete')
 
 def submit_payment(data: dict) -> dict:
-    customer_number = data.get('customer_number', '')
+    customer_number = data.get('customer_number')
     return _post(f'/api/customer/{customer_number}/billing/new', data)
 
 def get_cashier_tally(period: str, staff_id: int = 1) -> dict:
     return _get(f'/api/staff/{staff_id}/cashier-tally', {'period': period})
 
 def drop_reading(reading_id: int, data: dict) -> dict:
-    customer_number = data.get('customer_number', '')
+    customer_number = data.get('customer_number')
     return _post(f'/api/customer/{customer_number}/reading/drop', {'reading_id': reading_id, 'reason': 'Staff drop'})
 
 def edit_reading(reading_id: int, data: dict) -> dict:
-    customer_number = data.get('customer_number', '')
+    customer_number = data.get('customer_number')
     reading_value = data.get('reading_value', 0)
     return _post(f'/api/customer/{customer_number}/reading/edit', {'reading_id': reading_id, 'reading_value': reading_value})
 

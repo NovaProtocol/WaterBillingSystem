@@ -10,7 +10,7 @@ from customer_service import recalc_total_due
 
 
 def existing_this_month(
-    customer_number: str, timestamp_dt: datetime, exclude_id: int | None = None
+    customer_number: int, timestamp_dt: datetime, exclude_id: int | None = None
 ) -> MeterReading | None:
     query = MeterReading.query.filter(
         MeterReading.customer_number == customer_number,
@@ -25,7 +25,7 @@ def existing_this_month(
 def log_duplicate_attempt(
     staff_id: int,
     staff_name: str,
-    customer_number: str,
+    customer_number: int,
     existing: MeterReading,
     attempted_value: float,
     token_id: int | None = None,
@@ -47,7 +47,7 @@ def log_duplicate_attempt(
 
 
 def _create_billing_for_reading(
-    reading: MeterReading, customer_number: str
+    reading: MeterReading, customer_number: int
 ) -> Billing | None:
     prev_reading = (
         MeterReading.query.filter(
@@ -82,18 +82,18 @@ def _create_billing_for_reading(
 def sync_readings(
     readings: list, token_id: int, staff_id: int, staff_name: str
 ) -> tuple[int, list, list]:
-    recalc_customers: set[str] = set()
+    recalc_customers: set[int] = set()
     synced = 0
     results = []
     errors = []
     now = datetime.now(tz=timezone.utc).replace(tzinfo=None)
 
     for i, entry in enumerate(readings):
-        cust = entry.get("customer_number", "").strip()
+        cust = entry.get("customer_number")
         value = entry.get("reading_value")
         ts = entry.get("timestamp", now.timestamp())
 
-        if not cust:
+        if cust is None:
             errors.append({"index": i, "error": "customer_number is required"})
             continue
         if value is None:
@@ -159,7 +159,7 @@ def sync_readings(
 
 
 def upload_reading(
-    customer_number: str,
+    customer_number: int,
     reading_value: float,
     timestamp: float,
     token_id: int,

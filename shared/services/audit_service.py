@@ -12,7 +12,7 @@ def log_action(
     target_type: str,
     target_id: int,
     details: str,
-    customer_number: str | None = None,
+    customer_number: int | None = None,
 ) -> ManagementLog:
     log = ManagementLog(
         staff_id=staff_id,

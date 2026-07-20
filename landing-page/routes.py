@@ -106,7 +106,7 @@ def model_detail(slug: str) -> str:
 @landing_blueprint.route("/", methods=["GET", "POST"])
 def index() -> Response | str:
     if request.method == "POST":
-        customer_number = request.form.get("customer_number", "").strip()
+        customer_number = request.form.get("customer_number")
         last_receipt = request.form.get("last_receipt", "").strip()
 
         if not customer_number:
@@ -114,6 +114,6 @@ def index() -> Response | str:
                 "landing/index.html", models=MODELS, modal_error="Customer number is required."
             )
 
-        return redirect(f"/customer/?account_number={customer_number}")
+        return redirect(f"/customer/?account_number={int(customer_number)}")
 
     return render_template("landing/index.html", models=MODELS)

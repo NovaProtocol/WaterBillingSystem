@@ -11,16 +11,16 @@ def _headers():
 
 def customer_login(account_number: str, name: str, last_receipt: str = '') -> dict:
     r = requests.post(f'{API_BASE}/api/customer/login',
-        json={'account_number': account_number, 'registered_name': name, 'last_receipt': last_receipt},
+        json={'account_number': int(account_number), 'registered_name': name, 'last_receipt': last_receipt},
         headers=_headers(), timeout=10)
     r.raise_for_status(); return r.json()
 
-def get_billing(customer_number: str) -> dict:
+def get_billing(customer_number: int) -> dict:
     r = requests.get(f'{API_BASE}/api/customer/{customer_number}',
         headers=_headers(), timeout=10)
     r.raise_for_status(); return r.json()
 
-def get_readings(customer_number: str, page: int = 1) -> dict:
+def get_readings(customer_number: int, page: int = 1) -> dict:
     r = requests.get(f'{API_BASE}/api/customer/{customer_number}/reading',
         params={'page': page, 'size': 12},
         headers=_headers(), timeout=10)
@@ -34,7 +34,7 @@ def get_readings(customer_number: str, page: int = 1) -> dict:
         'pages': data.get('meta', {}).get('total_pages', 1),
     }
 
-def get_payments(customer_number: str, page: int = 1) -> dict:
+def get_payments(customer_number: int, page: int = 1) -> dict:
     r = requests.get(f'{API_BASE}/api/customer/{customer_number}/billing',
         params={'page': page, 'size': 10},
         headers=_headers(), timeout=10)
@@ -49,10 +49,10 @@ def get_payments(customer_number: str, page: int = 1) -> dict:
         'pages': data.get('meta', {}).get('total_pages', 1),
     }
 
-def get_billing_history(customer_number: str, page: int = 1) -> dict:
+def get_billing_history(customer_number: int, page: int = 1) -> dict:
     return get_readings(customer_number, page=page)
 
-def create_xendit_invoice(customer_number: str, amount: float) -> dict:
+def create_xendit_invoice(customer_number: int, amount: float) -> dict:
     r = requests.post(f'{API_BASE}/api/customer/{customer_number}/invoice',
         json={'amount': amount},
         headers=_headers(), timeout=15)

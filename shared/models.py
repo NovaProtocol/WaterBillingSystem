@@ -47,7 +47,7 @@ class Customer(db.Model):
     __tablename__ = "customers"
 
     id = db.Column(db.Integer, primary_key=True)
-    customer_number = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    customer_number = db.Column(db.Integer, unique=True, nullable=False, index=True)
     name = db.Column(db.String(128), nullable=True)
     address = db.Column(db.Text(), nullable=True)
     contact_number = db.Column(db.String(32), nullable=True)
@@ -79,7 +79,7 @@ class MeterReading(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     customer_number = db.Column(
-        db.String(64),
+        db.Integer,
         db.ForeignKey("customers.customer_number"),
         nullable=False,
         index=True,
@@ -109,7 +109,7 @@ class Billing(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     customer_number = db.Column(
-        db.String(64),
+        db.Integer,
         db.ForeignKey("customers.customer_number"),
         nullable=False,
         index=True,
@@ -181,7 +181,7 @@ class NfcTag(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     uid = db.Column(db.String(64), unique=True, nullable=False)
     customer_number = db.Column(
-        db.String(64),
+        db.Integer,
         db.ForeignKey("customers.customer_number"),
         nullable=False,
         index=True,
@@ -221,7 +221,7 @@ class ManagementLog(db.Model):
     target_type = db.Column(db.String(64), nullable=False)
     target_id = db.Column(db.Integer, nullable=False)
     customer_number = db.Column(
-        db.String(64),
+        db.Integer,
         db.ForeignKey("customers.customer_number"),
         nullable=True,
         index=True,
@@ -291,7 +291,7 @@ class XenditTransaction(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     customer_number = db.Column(
-        db.String(64),
+        db.Integer,
         db.ForeignKey("customers.customer_number"),
         nullable=False,
         index=True,

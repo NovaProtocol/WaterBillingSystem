@@ -326,7 +326,7 @@ export default function NfcEnrollScreen() {
           const syncRes = await fetch(`${serverUrl}/api/nfc/sync`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({ enrollments: [{ uid, customer_number: accountNumber }] }),
+            body: JSON.stringify({ enrollments: [{ uid, customer_number: Number(accountNumber) }] }),
           });
           if (syncRes.ok) {
             console.warn('[enroll] server sync ok, marking synced');

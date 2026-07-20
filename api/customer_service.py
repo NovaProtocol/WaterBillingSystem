@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import Integer, func
+from sqlalchemy import func
 
 from apps import db
 from models import Billing, Customer
@@ -15,18 +15,18 @@ def get_customer_or_404(customer_id: int) -> Customer:
     return Customer.query.get_or_404(customer_id)
 
 
-def get_customer_by_number(customer_number: str) -> Customer | None:
+def get_customer_by_number(customer_number: int) -> Customer | None:
     return Customer.query.filter_by(customer_number=customer_number).first()
 
 
 def create_customer(data: dict) -> tuple[Customer | None, str | None]:
-    customer_number = data.get("customer_number", "").strip()
+    customer_number = data.get("customer_number")
     name = data.get("name", "").strip()
     address = data.get("address", "").strip()
     contact_number = data.get("contact_number", "").strip()
     email = data.get("email", "").strip()
 
-    if not customer_number:
+    if customer_number is None:
         return None, "Customer number is required"
 
     if Customer.query.filter_by(customer_number=customer_number).first():
@@ -77,7 +77,7 @@ def toggle_active(customer: Customer) -> None:
     db.session.commit()
 
 
-def _total_carryover(customer_number: str) -> float:
+def _total_carryover(customer_number: int) -> float:
     return float(
         db.session.query(db.func.sum(Billing.carryover_offset))
         .filter_by(customer_number=customer_number)
@@ -105,7 +105,7 @@ def compute_customer_due(customer: Customer) -> float:
     return max(0, round(total_due - balance, 2))
 
 
-def recalc_total_due(customer_number: str) -> float:
+def recalc_total_due(customer_number: int) -> float:
     total = compute_customer_due(get_customer_by_number(customer_number))
     customer = Customer.query.filter_by(customer_number=customer_number).first()
     if customer:
@@ -114,7 +114,7 @@ def recalc_total_due(customer_number: str) -> float:
     return total
 
 
-def compute_batch_due(customers: list[Customer]) -> dict[str, float]:
+def compute_batch_due(customers: list[Customer]) -> dict[int, float]:
     if not customers:
         return {}
     cnums = [c.customer_number for c in customers]
@@ -128,7 +128,7 @@ def compute_batch_due(customers: list[Customer]) -> dict[str, float]:
         .all()
     )
 
-    bills_by_cust: dict[str, list[Billing]] = defaultdict(list)
+    bills_by_cust: dict[int, list[Billing]] = defaultdict(list)
     for bill in unpaid_bills:
         bills_by_cust[bill.customer_number].append(bill)
 
@@ -141,11 +141,11 @@ def compute_batch_due(customers: list[Customer]) -> dict[str, float]:
         .group_by(Billing.customer_number)
         .all()
     )
-    offset_map: dict[str, float] = {
+    offset_map: dict[int, float] = {
         r.customer_number: float(r.total_offset) for r in offset_rows
     }
 
-    result: dict[str, float] = {}
+    result: dict[int, float] = {}
     for c in customers:
         bills = bills_by_cust.get(c.customer_number, [])
         total_due = 0.0
@@ -173,12 +173,12 @@ def list_customers(
 
     if q:
         if q.isdigit():
-            query = query.filter(Customer.customer_number.like(f'{q}%'))
+            query = query.filter(Customer.customer_number == int(q))
         elif q.isalpha():
             query = query.filter(Customer.name.like(f'{q}%'))
 
     if sort_by == "customer_number":
-        order = func.cast(Customer.customer_number, Integer)
+        order = Customer.customer_number
         order = order.asc() if sort_dir == "asc" else order.desc()
     elif sort_by == "total_due":
         col = Customer.total_due
