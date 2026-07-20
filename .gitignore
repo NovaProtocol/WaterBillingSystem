@@ -94,8 +94,8 @@ MeterReadingApp/ios/
 # === documentation-specific ===
 documentation/site/
 
-# === superpowers artifacts ===
-docs/superpowers/
+# === AI-generated docs (not part of project source) ===
+docs/
 
 # === Windows alternate data streams ===
 *:Zone.Identifier
