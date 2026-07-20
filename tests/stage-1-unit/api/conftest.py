@@ -7,6 +7,12 @@ os.environ['XENDIT_WEBHOOK_TOKEN'] = 'test'
 os.environ['CACHE_TYPE'] = 'SimpleCache'
 os.environ['PYTHON_GIL'] = '1'
 os.environ['DEPLOYMENT_TYPE'] = 'DEBUG'
+os.environ['DB_ENGINE'] = 'sqlite'
+os.environ['DB_HOST'] = 'localhost'
+os.environ['DB_PORT'] = '3306'
+os.environ['DB_NAME'] = ':memory:'
+os.environ['DB_USERNAME'] = 'root'
+os.environ['DB_PASS'] = 'test'
 os.environ['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
 sys.path.insert(0, os.path.join(BASE, 'api'))
 sys.path.insert(0, os.path.join(BASE, 'shared'))
