@@ -6,6 +6,7 @@ from apps import db
 from models import Billing, Customer, MeterReading
 from pricing import compute_water_bill
 from services.audit_service import log_action
+from customer_service import recalc_total_due
 
 
 def existing_this_month(
@@ -81,6 +82,7 @@ def _create_billing_for_reading(
 def sync_readings(
     readings: list, token_id: int, staff_id: int, staff_name: str
 ) -> tuple[int, list, list]:
+    recalc_customers: set[str] = set()
     synced = 0
     results = []
     errors = []
@@ -144,9 +146,15 @@ def sync_readings(
                 ),
             }
         )
+        recalc_customers.add(cust)
         synced += 1
 
     db.session.commit()
+    for cust in recalc_customers:
+        try:
+            recalc_total_due(cust)
+        except Exception:
+            pass
     return synced, results, errors
 
 
@@ -186,6 +194,7 @@ def upload_reading(
     _create_billing_for_reading(reading, customer_number)
     db.session.commit()
 
+    recalc_total_due(customer_number)
     return reading, None, 201
 
 
@@ -219,6 +228,7 @@ def drop_reading(reading_id: int, staff_id: int, reason: str) -> MeterReading | 
     Billing.query.filter_by(reading_id=reading_id).delete()
     db.session.delete(reading)
     db.session.commit()
+    recalc_total_due(reading.customer_number)
     return reading
 
 
@@ -254,4 +264,5 @@ def edit_reading(
             billing.current_reading_value = new_value
             billing.billed_amount = round(water_bill, 2)
     db.session.commit()
+    recalc_total_due(reading.customer_number)
     return reading

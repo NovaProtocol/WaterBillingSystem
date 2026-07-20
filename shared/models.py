@@ -58,6 +58,7 @@ class Customer(db.Model):
     block = db.Column(db.String(64), nullable=True)
     street = db.Column(db.String(128), nullable=True)
     cumulative_balance = db.Column(db.Numeric(10, 2), default=0.00)
+    total_due = db.Column(db.Numeric(10, 2), default=0.00)
     meter_serial_number = db.Column(db.String(64), nullable=True, index=True)
     max_meter_value = db.Column(db.Numeric(10, 2), default=99999.00)
 

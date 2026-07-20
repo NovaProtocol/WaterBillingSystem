@@ -105,6 +105,15 @@ def compute_customer_due(customer: Customer) -> float:
     return max(0, round(total_due - balance, 2))
 
 
+def recalc_total_due(customer_number: str) -> float:
+    total = compute_customer_due(get_customer_by_number(customer_number))
+    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    if customer:
+        customer.total_due = total
+        db.session.commit()
+    return total
+
+
 def compute_batch_due(customers: list[Customer]) -> dict[str, float]:
     if not customers:
         return {}
@@ -161,23 +170,23 @@ def list_customers(
 ) -> Any:
     per_page = min(max(per_page, 10), 200)
     query = Customer.query
+
     if q:
-        like = f"%{q}%"
-        query = query.filter(
-            Customer.customer_number.like(like)
-            | Customer.name.like(like)
-            | Customer.contact_number.like(like)
-        )
+        if q.isdigit():
+            query = query.filter(Customer.customer_number.like(f'C{q}%'))
+        elif q.isalpha():
+            query = query.filter(Customer.name.like(f'{q}%'))
+
     if sort_by == "customer_number":
         order = func.cast(func.substring(Customer.customer_number, 2), Integer)
         order = order.asc() if sort_dir == "asc" else order.desc()
     elif sort_by == "total_due":
-        order = None
+        col = Customer.total_due
+        order = col.asc() if sort_dir == "asc" else col.desc()
     else:
         col = getattr(Customer, sort_by, Customer.name)
         order = col.asc() if sort_dir == "asc" else col.desc()
-    if order is not None:
-        return query.order_by(order).paginate(
-            page=page, per_page=per_page, error_out=False
-        )
-    return query.paginate(page=page, per_page=per_page, error_out=False)
+
+    return query.order_by(order).paginate(
+        page=page, per_page=per_page, error_out=False
+    )

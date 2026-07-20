@@ -26,6 +26,7 @@ from customer_service import (
     get_customer_by_number,
     get_customer_or_404,
     list_customers,
+    recalc_total_due,
     toggle_active,
     update_customer,
 )
@@ -54,11 +55,15 @@ def customer_all() -> Response:
     pagination = list_customers(
         page=page, per_page=size, q=q or None, sort_by=sort_by, sort_dir=sort_dir
     )
+
+    cnums = [c.customer_number for c in pagination.items]
+    nfc_map: dict[str, str] = {
+        t.customer_number: t.uid
+        for t in NfcTag.query.filter(NfcTag.customer_number.in_(cnums)).all()
+    }
+
     customers_data = []
-    from customer_service import compute_batch_due
-    due_map = compute_batch_due(list(pagination.items))
     for c in pagination.items:
-        nfc_tag = NfcTag.query.filter_by(customer_number=c.customer_number).first()
         customers_data.append({
             "id": c.id,
             "customer_number": c.customer_number,
@@ -74,9 +79,9 @@ def customer_all() -> Response:
             "y_coordinate": c.y_coordinate,
             "cumulative_balance": float(c.cumulative_balance or 0),
             "max_meter_value": float(c.max_meter_value or 99999),
-            "total_due": due_map.get(c.customer_number, 0.0),
+            "total_due": float(c.total_due or 0),
             "is_active": c.is_active,
-            "nfc_uid": nfc_tag.uid if nfc_tag else None,
+            "nfc_uid": nfc_map.get(c.customer_number),
         })
     return jsonify({
         "data": customers_data,
@@ -99,6 +104,8 @@ def customer_info(customer_number: str) -> Response:
     customer = Customer.query.filter_by(customer_number=customer_number).first()
     if not customer:
         return jsonify({"error": "Customer not found"}), 404
+
+    recalc_total_due(customer_number)
 
     staff_filter = request.args.get("staff_id", type=int)
     token_filter = request.args.get("token_id", type=int)
@@ -412,12 +419,7 @@ def customer_details(customer_number: str) -> Response:
     )
 
 
-@blueprint.route("/customer/<customer_number>/profile")
-def customer_profile(customer_number: str) -> Response:
-    api_key, err = require_staff("can_read_meters")
-    if err:
-        return err
-    return customer_info(customer_number)
+
 
 
 @blueprint.route("/customer/new", methods=["POST"])
