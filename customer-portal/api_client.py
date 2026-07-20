@@ -40,7 +40,12 @@ def get_payments(customer_number: int, page: int = 1) -> dict:
         headers=_headers(), timeout=10)
     r.raise_for_status()
     data = r.json()
-    items = [b for b in data.get('data', []) if b.get('is_paid')]
+    items = []
+    for b in data.get('data', []):
+        if b.get('is_paid'):
+            ts = b.get('payment_timestamp') or b.get('date_paid') or 0
+            b['timestamp'] = ts
+            items.append(b)
     return {
         'items': items,
         'page': data.get('meta', {}).get('current_page', page),
@@ -50,7 +55,27 @@ def get_payments(customer_number: int, page: int = 1) -> dict:
     }
 
 def get_billing_history(customer_number: int, page: int = 1) -> dict:
-    return get_readings(customer_number, page=page)
+    r = requests.get(f'{API_BASE}/api/customer/{customer_number}/billing',
+        params={'page': page, 'size': 12},
+        headers=_headers(), timeout=10)
+    r.raise_for_status()
+    data = r.json()
+    items = []
+    for b in data.get('data', []):
+        items.append({
+            'month': b.get('month') or '',
+            'usage': b.get('consumption') or 0,
+            'billed_amount': b.get('billed_amount', 0),
+            'penalty': b.get('penalty', 0),
+            'paid_amount': b.get('paid_amount') if b.get('is_paid') else None,
+        })
+    return {
+        'items': items,
+        'page': data.get('meta', {}).get('current_page', page),
+        'per_page': data.get('meta', {}).get('page_size', 12),
+        'total': data.get('meta', {}).get('total_items', 0),
+        'pages': data.get('meta', {}).get('total_pages', 1),
+    }
 
 def create_xendit_invoice(customer_number: int, amount: float) -> dict:
     r = requests.post(f'{API_BASE}/api/customer/{customer_number}/invoice',
