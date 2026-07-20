@@ -13,7 +13,7 @@ The project runs as four containers defined in `compose.yaml` at the project roo
 | `waterbillingsystem_phpmyadmin` | waterbillingsystem_phpmyadmin | `7002` | Database admin UI |
 | `waterbillingsystem_documentation` | waterbillingsystem_documentation | `7001` | MkDocs documentation served via `python -m http.server` |
 
-The `waterbillingsystem_main` service waits for the `waterbillingsystem_db` health check to pass before starting. Data persists in named volumes: `mysql_data` for the database and `db_backups` for database backup files (mounted at `/app/db_backups` in the BillServer container). The docs container builds MkDocs on startup from `./documentations`.
+The `waterbillingsystem_main` service waits for the `waterbillingsystem_db` health check to pass before starting. Data persists in named volumes: `mysql_data` for the database and `db_backups` for database backup files (mounted at `/app/db_backups` in the BillServer container). The docs container builds MkDocs on startup from `./documentation`.
 
 ### compose.yaml
 
@@ -93,7 +93,7 @@ services:
       - default
       - proxy
     volumes:
-      - ./documentations:/app
+      - ./documentation:/app
 
 volumes:
   mysql_data:
