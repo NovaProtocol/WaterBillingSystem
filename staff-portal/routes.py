@@ -78,7 +78,7 @@ def dashboard():
 def customer_lookup():
     q = request.args.get('q', '')
     try:
-        result = api_client.search_cached_customers(q)
+        result = api_client.customer_search(q)
         return jsonify(result)
     except Exception as e:
         return jsonify({'customers': [], 'error': str(e)})
@@ -95,28 +95,6 @@ def proxy_customer(customer_number):
         logger.error(f"Customer proxy failed: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-@staff_bp.route('/staff/api/customers/cache-status')
-@login_required
-def customer_cache_status():
-    status = api_client.get_cache_status()
-    if status['size'] == 0:
-        return jsonify({'status': 'empty', 'message': 'Cache not yet loaded. Access customer search to populate.'})
-    return jsonify({
-        'status': 'loaded',
-        'cached_customers': status['size'],
-        'age_seconds': int(status['age']),
-        'ttl_seconds': status['ttl'],
-    })
-
-@staff_bp.route('/staff/api/customers/cache-refresh', methods=['POST'])
-@login_required
-def customer_cache_refresh():
-    try:
-        count = len(api_client.refresh_customer_cache(force=True))
-        return jsonify({'message': f'Cache refreshed: {count} customers loaded'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 @staff_bp.route('/staff/api/customers/search-sort')
 @login_required
 def api_customers_search_sort():
@@ -125,7 +103,7 @@ def api_customers_search_sort():
     sort_dir = request.args.get('sort_dir', 'asc')
     page = request.args.get('page', 1, type=int)
     size = request.args.get('size', 50, type=int)
-    return jsonify(api_client.search_and_sort_customers(q, sort_by, sort_dir, page, size))
+    return jsonify(api_client.customer_search_sort(q, sort_by, sort_dir, page, size))
 
 
 @staff_bp.route('/staff/customers', methods=['GET'])
