@@ -22,7 +22,7 @@ class Staff:
     def get_id(self): return str(self.id)
 
 def create_app():
-    require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'CACHE_TYPE', 'DEPLOYMENT_TYPE')
+    require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'CACHE_TYPE', 'DEPLOYMENT_TYPE', 'GATEKEEPER_INTERNAL')
 
     app = Flask(__name__, template_folder='templates', static_url_path='/staff/static')
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
@@ -58,5 +58,8 @@ def create_app():
     import threading, api_client
     t = threading.Thread(target=api_client.refresh_customer_cache, kwargs={'force': True}, daemon=True)
     t.start()
+
+    from shared.gatekeeper import gatekeeper_check
+    app.before_request(gatekeeper_check)
 
     return app

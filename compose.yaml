@@ -7,19 +7,13 @@ services:
     container_name: waterbillingsystem_gateway
     restart: unless-stopped
     ports:
-      - "${CADDY_PORT_PUBLIC:-8001}:${CADDY_PORT_PUBLIC:-8001}"
-      - "${CADDY_PORT_PRIVATE:-8001}:${CADDY_PORT_PRIVATE:-8001}"
+      - "7020:7020"
+      - "7021:7021"
     networks:
-      - net-landing
-      - net-customer
-      - net-staff
-      - net-debug
-      - net-api-ext
-      - tailscale-network_proxy_network
+      - net-public
+      - net-private
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-      CADDY_PORT_PUBLIC: ${CADDY_PORT_PUBLIC:-8001}
-      CADDY_PORT_PRIVATE: ${CADDY_PORT_PRIVATE:-8001}
 
   landing-page:
     build:
@@ -28,7 +22,7 @@ services:
     container_name: waterbillingsystem_landing
     restart: unless-stopped
     networks:
-      - net-landing
+      - net-public
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
       SECRET_KEY: ${SECRET_KEY}
@@ -40,13 +34,15 @@ services:
     container_name: waterbillingsystem_customerportal
     restart: unless-stopped
     networks:
-      - net-customer
-      - net-api-cust
+      - net-public
+      - net-api
+      - net-gk
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
       SECRET_KEY: ${SECRET_KEY}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       API_BASE_URL: ${API_BASE_URL}
+      GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
       DEBUG: ${DEBUG}
 
   staff-portal:
@@ -56,13 +52,15 @@ services:
     container_name: waterbillingsystem_staffportal
     restart: unless-stopped
     networks:
-      - net-staff
-      - net-api-staff
+      - net-private
+      - net-api
+      - net-gk
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
       SECRET_KEY: ${SECRET_KEY}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       API_BASE_URL: ${API_BASE_URL}
+      GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
       CACHE_TYPE: ${CACHE_TYPE}
 
   developer-portal:
@@ -72,13 +70,32 @@ services:
     container_name: waterbillingsystem_devportal
     restart: unless-stopped
     networks:
-      - net-debug
-      - net-api-debug
+      - net-private
+      - net-api
+      - net-gk
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
       SECRET_KEY: ${SECRET_KEY}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       API_BASE_URL: ${API_BASE_URL}
+      GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
+
+  webhook-container:
+    build:
+      context: .
+      dockerfile: webhook-container/Dockerfile
+    container_name: waterbillingsystem_webhook
+    restart: unless-stopped
+    networks:
+      - net-public
+      - net-api
+      - net-gk
+    environment:
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+      SECRET_KEY: ${SECRET_KEY}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      API_BASE_URL: ${API_BASE_URL}
+      GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
 
   api:
     build:
@@ -86,10 +103,7 @@ services:
       dockerfile: api/Dockerfile
     restart: unless-stopped
     networks:
-      - net-api-ext
-      - net-api-cust
-      - net-api-staff
-      - net-api-debug
+      - net-api
       - net-data
     volumes:
       - db_backups:/app/db_backups
@@ -137,7 +151,32 @@ services:
       mysql-db:
         condition: service_healthy
 
-  # phpmyadmin temporarily removed — network issues pulling images
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: waterbillingsystem_phpmyadmin
+    restart: unless-stopped
+    networks:
+      - net-private
+      - net-data
+    environment:
+      PMA_HOST: ${PMA_HOST}
+      PMA_PORT: ${PMA_PORT}
+      PMA_ARBITRARY: ${PMA_ARBITRARY:-0}
+      UPLOAD_LIMIT: ${UPLOAD_LIMIT}
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+  documentation:
+    build:
+      context: .
+      dockerfile: documentation/Dockerfile
+    container_name: waterbillingsystem_documentation
+    restart: unless-stopped
+    networks:
+      - net-private
+    environment:
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
 
   mysql-db:
     image: mysql:8.4
@@ -158,17 +197,13 @@ services:
       retries: 10
 
 networks:
-  net-landing:        { internal: true }
-  net-customer:       { internal: true }
-  net-staff:          { internal: true }
-  net-debug:          { internal: true }
-  net-api-ext:        { internal: true }
-  net-api-cust:       { internal: true }
-  net-api-staff:      { internal: true }
-  net-api-debug:      { internal: true }
-  net-data:           { internal: true }
-  tailscale-network_proxy_network:
+  net-public:   { driver: bridge }
+  net-private:  { driver: bridge }
+  net-api:      { internal: true }
+  net-data:     { internal: true }
+  net-gk:
     external: true
+    name: gatekeeper_default
 
 volumes:
   mysql_data:

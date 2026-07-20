@@ -23,6 +23,10 @@ python-dotenv==1.2.2
 gunicorn==26.0.0
 Flask-Caching==2.3.1
 
+# gatekeeper
+requests>=2.31
+cachetools>=5.3
+
 # xendit payment gateway
 xendit-python>=2.0.0
 python-dateutil>=2.8.0
