@@ -17,7 +17,7 @@
     handle /developer/* {
         reverse_proxy developer-portal:8004
     }
-    handle /documentation/* {
+    handle_path /documentation/* {
         reverse_proxy documentation:8005
     }
     handle /phpmyadmin/* {

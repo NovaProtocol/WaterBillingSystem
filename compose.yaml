@@ -177,8 +177,11 @@ services:
     restart: unless-stopped
     networks:
       - net-private
+      - net-gk
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+      SECRET_KEY: ${SECRET_KEY}
+      GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
 
   mysql-db:
     image: mysql:8.4
