@@ -7,7 +7,7 @@ WaterBillingSystem/
 ├── BillServer/          # Python Flask backend (port 5005)
 ├── MeterReadingApp/     # React Native / Expo mobile app
 ├── Docker/              # Docker service files (MySQL compose)
-├── documentations/      # MkDocs documentation site
+├── documentation/       # MkDocs documentation site
 ├── compose.yaml         # Multi-service Docker Compose
 └── .env                 # Environment variables (create from .env.example)
 ```

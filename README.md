@@ -37,4 +37,4 @@ docker compose up -d --build
 
 Update: `git pull && docker compose restart billserver docs`
 
-Full docs at [documentations/](./documentations/).
+Full docs at [documentation/](./documentation/).

@@ -102,6 +102,7 @@ services:
     build:
       context: .
       dockerfile: api/Dockerfile
+    container_name: waterbillingsystem_api
     restart: unless-stopped
     networks:
       - net-api
