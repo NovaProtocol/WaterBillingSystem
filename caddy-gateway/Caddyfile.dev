@@ -1,4 +1,4 @@
-7020 {
+:7020 {
     handle /webhook/* {
         reverse_proxy webhook-container:8009
     }
@@ -10,7 +10,7 @@
     }
 }
 
-7021 {
+:7021 {
     handle /staff/* {
         reverse_proxy staff-portal:8003
     }
