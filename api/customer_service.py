@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import cast, func, String
+from sqlalchemy import func, or_
 
 from apps import db
 from models import Billing, Customer
@@ -177,7 +177,17 @@ def list_customers(
 
     if q:
         if q.isdigit():
-            query = query.filter(cast(Customer.customer_number, String).like(f'{q}%'))
+            prefix = int(q)
+            max_num = db.session.query(db.func.max(Customer.customer_number)).scalar() or 0
+            multiplier = 1
+            conditions = []
+            while prefix * multiplier <= max_num:
+                lower = prefix * multiplier
+                upper = prefix * multiplier + (multiplier - 1)
+                conditions.append(Customer.customer_number.between(lower, upper))
+                multiplier *= 10
+            if conditions:
+                query = query.filter(or_(*conditions))
         elif _is_name_query(q):
             query = query.filter(Customer.name.like(f'{q}%'))
 
