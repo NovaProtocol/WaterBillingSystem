@@ -13,6 +13,31 @@ def _generate_receipt(now: datetime) -> str:
     return "RCP-" + str(int(now.timestamp())) + "-" + secrets.token_hex(4).upper()
 
 
+def _recalc_total_due(customer_number: str) -> None:
+    total = 0.0
+    unpaid_bills = (
+        Billing.query
+        .filter_by(customer_number=customer_number, is_paid=False)
+        .all()
+    )
+    for bill in unpaid_bills:
+        bill_due = (
+            float(bill.billed_amount or 0)
+            + float(bill.penalty or 0)
+            - float(bill.paid_amount or 0)
+        )
+        total += max(0, bill_due)
+    balance = float(
+        db.session.query(db.func.sum(Billing.carryover_offset))
+        .filter_by(customer_number=customer_number)
+        .scalar() or 0
+    )
+    total_due = max(0, round(total - balance, 2))
+    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    if customer:
+        customer.total_due = total_due
+
+
 def recalc_cumulative_balance(
     customer_number: str, *, customer: Customer | None = None
 ) -> None:
@@ -117,6 +142,7 @@ def submit_payment(
             customer.cumulative_balance = round(cumulative + cash_remaining, 2)
 
     recalc_cumulative_balance(customer_number, customer=customer)
+    _recalc_total_due(customer_number)
     db.session.flush()
 
     return (
@@ -165,6 +191,7 @@ def drop_payment(payment_id: int, staff_id: int, reason: str) -> dict | None:
         b.carryover_offset = 0
 
     recalc_cumulative_balance(customer_number)
+    _recalc_total_due(customer_number)
     db.session.commit()
 
     return {"message": f"Payment group ({receipt}) undone — {len(group)} bill(s) reverted"}
