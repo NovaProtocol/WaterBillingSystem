@@ -4,82 +4,119 @@
 
 ```mermaid
 graph TB
-    subgraph "MeterReadingApp (React Native / Expo)"
-        APP["App.tsx"]
-        NAV["NativeStackNavigator"]
-        HOME["HomeScreen"]
-        READ["ReadingScreen"]
-        CUST["CustomerDetailScreen"]
-        MAP["MapScreen<br/>Leaflet WebView"]
-        SETT["SettingsScreen"]
-        SYNC["useSync() Hook"]
-        SQLITE["op-sqlite<br/>meterreading.db"]
-        NFC["NfcScanner"]
-        QR["QrScanner"]
+    subgraph "Public Zone :7020"
+        LAND["Landing Page<br/>Flask :8001"]
+        CP["Customer Portal<br/>Flask :8002"]
+        WH["Webhook<br/>Flask :8009"]
     end
 
-    subgraph "BillServer (Flask 3.1 / Gunicorn)"
-        WSGI["Gunicorn<br/>0.0.0.0:5005"]
-        FACTORY["create_app()"]
-        API["/api Blueprint<br/>REST Endpoints"]
-        STAFF["/staff Blueprint<br/>Staff Portal"]
-        LAND["/ Blueprint<br/>Landing Page"]
-        BILL["/billing Blueprint<br/>Customer Portal"]
-        AUTH["/login, /logout"]
-        SVC_READ["reading_service"]
-        SVC_BILL["billing_service"]
-        SVC_CUST["customer_service"]
-        SVC_PAY["payment_service"]
-        SVC_AUDIT["audit_service"]
-        MODELS["models.py"]
-        PRICING["pricing.py"]
+    subgraph "Private Zone :7021"
+        SP["Staff Portal<br/>Flask :8003"]
+        DP["Developer Portal<br/>Flask :8004"]
+        DOC["Documentation<br/>MkDocs :8005"]
+        PMA["phpMyAdmin<br/>:80"]
     end
 
-    subgraph "Docker Infrastructure"
-        MYSQL[("MySQL 8.4<br/>:3306")]
-        PHPMYADMIN["phpMyAdmin<br/>:5002"]
-        VOLUME[("mysql_data<br/>Named Volume")]
+    subgraph "Internal API"
+        API["API Container<br/>Flask :8008"]
     end
 
-    subgraph "Xendit (Payment Processor)"
-        XENDIT["Xendit API"]
+    subgraph "Data Layer"
+        DB[("MySQL 8.4<br/>:3306")]
+        WORKER["Background Worker"]
     end
 
-    subgraph "Nginx (Production)"
-        NGINX["nginx<br/>:5085 → :5005"]
+    subgraph "Infrastructure"
+        CAD["Caddy Gateway<br/>:7020 :7021"]
+        GK["Gatekeeper<br/>Auth Service"]
     end
 
-    subgraph "Background Worker"
-        APS["Background Tasks<br/>Payment Reconciliation"]
+    CAD --> LAND
+    CAD --> CP
+    CAD --> WH
+    CAD --> SP
+    CAD --> DP
+    CAD --> DOC
+    CAD --> PMA
+
+    CP -->|"internal API"| API
+    SP -->|"internal API"| API
+    DP -->|"internal API"| API
+    WH -->|"internal API"| API
+
+    API --> DB
+    WORKER --> DB
+    PMA --> DB
+
+    SP --> GK
+    DP --> GK
+    DOC --> GK
+    CP --> GK
+    WH --> GK
+
+    subgraph "External"
+        MOB["MeterReadingApp<br/>React Native/Expo"]
+        XENDIT["Xendit<br/>Payment Gateway"]
     end
 
-    NFC -->|"onTag(number)"| READ
-    QR -->|"onScan(key)"| SETT
-    READ --> SQLITE
-    SETT --> SQLITE
-    SYNC --> SQLITE
-    SYNC -->|"HTTP Bearer"| API
-    APP --> NAV
-    NAV --> HOME & READ & CUST & MAP & SETT
+    MOB -->|"Bearer Auth<br/>/api/*"| CAD
+    XENDIT -->|"webhook"| CAD
+```
 
-    WSGI --> NGINX
-    WSGI --> FACTORY
-    FACTORY --> API & STAFF & LAND & BILL & AUTH
-    FACTORY --> APS
+---
 
-    API --> SVC_READ & SVC_CUST
-    API -->|"POST /billing/api/xendit-webhook"| XENDIT
-    XENDIT -->|"payment callback"| API
-    STAFF --> SVC_READ & SVC_CUST & SVC_PAY & SVC_BILL & SVC_AUDIT
-    BILL --> SVC_CUST & SVC_PAY
-    SVC_PAY --> SVC_BILL
-    SVC_READ & SVC_PAY --> SVC_AUDIT
-    SVC_READ & SVC_BILL & SVC_CUST & SVC_PAY --> MODELS
-    SVC_BILL --> PRICING
+## Network Topology
 
-    MODELS --> MYSQL
-    MYSQL --> VOLUME
-    PHPMYADMIN --> MYSQL
+```mermaid
+graph TB
+    subgraph "net-public (bridge)"
+        LAND[landing-page :8001]
+        CP[customer-portal :8002]
+        WH[webhook-container :8009]
+    end
+
+    subgraph "net-private (bridge)"
+        SP[staff-portal :8003]
+        DP[developer-portal :8004]
+        DOC[documentation :8005]
+        PMA[phpMyAdmin :80]
+    end
+
+    subgraph "net-api (internal)"
+        API[api :8008]
+    end
+
+    subgraph "net-data (internal)"
+        DB[(mysql-db :3306)]
+        WORKER[background-worker]
+    end
+
+    subgraph "net-gk (external: gatekeeper_default)"
+        GK[Gatekeeper :7000]
+    end
+
+    subgraph "cloudflared-tunnel (external)"
+        TUN[Cloudflare Tunnel]
+    end
+
+    CAD[caddy-gateway] --> net-public
+    CAD --> net-private
+    CAD --> cloudflared-tunnel
+
+    CP --> net-api
+    SP --> net-api
+    DP --> net-api
+    WH --> net-api
+
+    API --> net-data
+    WORKER --> net-data
+    PMA --> net-data
+
+    CP --> net-gk
+    SP --> net-gk
+    DP --> net-gk
+    DOC --> net-gk
+    WH --> net-gk
 ```
 
 ---
@@ -90,44 +127,44 @@ graph TB
 sequenceDiagram
     participant App as MeterReadingApp
     participant NFC as NFC Tag
-    participant DB as Local SQLite
-    participant API as BillServer API
-    participant SDB as MySQL Database
+    participant API as API Container
+    participant DB as MySQL Database
 
-    Note over App: Background sync every 10s
+    Note over App,DB: Background sync every 10s
 
     App->>API: POST /api/readings/sync {readings: [...]}
-    API->>SDB: INSERT with monthly duplicate check
+    API->>DB: INSERT with monthly duplicate check
     API-->>App: {results, errors}
-    App->>DB: markReadingSynced(localId, serverId)
+    App->>App: markReadingSynced(localId, serverId)
 
     App->>API: GET /api/customers/changed?since=<ts>
-    API->>SDB: SELECT updated customer numbers
+    API->>DB: SELECT updated customer numbers
     API-->>App: {customer_numbers, server_time}
 
     loop Batches of 500
         App->>API: GET /api/readings/bulk?customer_numbers=...
-        API->>SDB: SELECT customers + readings
+        API->>DB: SELECT customers + readings
         API-->>App: {customers, readings}
-        App->>DB: replaceCustomerBatch() in transaction
+        App->>App: replaceCustomerBatch() in transaction
     end
 
     Note over App: Meter reader scans NFC tag
 
     NFC->>App: tag discovered (customer_number)
-    App->>DB: getCustomer(customer_number)
-    App->>DB: getReadingThisMonth(customer_number)
+    App->>App: getCustomer(customer_number)
+    App->>App: getReadingThisMonth(customer_number)
     Note over App: Reject if duplicate month
 
-    App->>DB: saveReading({customer_number, reading_value, timestamp})
     App->>API: POST /api/readings/upload (or next sync)
-    API->>SDB: INSERT + monthly check
+    API->>DB: INSERT + monthly check
     API-->>App: {status: "ok" | "duplicate"}
 ```
 
 ---
 
-## Staff Portal Permission Matrix
+## Staff Permission Matrix
+
+Seven boolean permissions control access to Staff Portal pages:
 
 ```mermaid
 graph TB
@@ -165,14 +202,45 @@ graph TB
 
 ---
 
-## API Authentication Methods
+## Gatekeeper Auth Flow
 
-| Method | Header / Parameter | Used By |
-|---|---|---|
-| **Bearer Token** | `Authorization: Bearer CRDC-<32hex>` | MeterReadingApp sync, mobile API calls |
-| **Query Parameter** | `?api_key=CRDC-<32hex>` | Alternative to Bearer token |
-| **Flask-Login Session** | Cookie-based | Staff portal, `/api/customer/:num` |
-| **Billing Cookie** | Signed cookie (receipt + name) | Customer billing portal `/billing/*` |
+All private services (staff, developer, documentation, phpMyAdmin) and the webhook container authenticate through Gatekeeper. The auth flow uses a cookie-based ticket system:
+
+```mermaid
+sequenceDiagram
+    participant User as Browser
+    participant CAD as Caddy :7021
+    participant SVC as Flask Service
+    participant GK as Gatekeeper
+    participant CACHE as Ticket Cache (TTL 300s)
+
+    User->>CAD: GET /staff/dashboard
+    CAD->>SVC: reverse proxy
+    SVC->>SVC: gatekeeper_check()
+    Note over SVC: No gatekeeper_token cookie
+    SVC-->>User: 302 Redirect → Gatekeeper login
+    User->>GK: Login page
+    User->>GK: Submit credentials
+    GK-->>User: 302 Redirect → original URL + gatekeeper_token cookie
+
+    User->>CAD: GET /staff/dashboard (with cookie)
+    CAD->>SVC: reverse proxy
+    SVC->>SVC: gatekeeper_check()
+    SVC->>CACHE: ticket_cache.get(token)
+    Note over SVC: Cache MISS
+    SVC->>GK: GET /api/verify?token=<token>
+    GK-->>SVC: {valid: true, ticket: "<signed>"}
+    SVC->>CACHE: ticket_cache[token] = payload
+    SVC->>SVC: g.ticket = payload
+    SVC-->>User: 200 OK (dashboard page)
+
+    Note over User,CACHE: Subsequent requests (within 300s)
+    User->>CAD: GET /staff/customers (same cookie)
+    CAD->>SVC: reverse proxy
+    SVC->>CACHE: ticket_cache.get(token)
+    Note over SVC: Cache HIT, skip Gatekeeper call
+    SVC-->>User: 200 OK
+```
 
 ---
 
@@ -192,3 +260,27 @@ graph LR
 ```
 
 Progressive tier calculation: consumption is applied to each tier bracket sequentially. For example, 35 m³ = $150 (first 10) + $250 (next 10 at $25) + $300 (next 10 at $30) + $175 (last 5 at $35) = **$875 total**.
+
+---
+
+## API Authentication Methods
+
+| Method | Header / Parameter | Used By |
+|---|---|---|
+| **Bearer Token** | `Authorization: Bearer CRDC-<32hex>` | MeterReadingApp sync, mobile API calls |
+| **Query Parameter** | `?api_key=CRDC-<32hex>` | Browser fallback for API key auth |
+| **Internal API Key** | `X-Internal-API-Key` header | Container-to-container API calls |
+| **Flask-Login Session** | Cookie-based | Staff portal pages |
+| **Billing Cookie** | Signed cookie (receipt + name) | Customer billing portal `/billing/*` |
+| **Gatekeeper Cookie** | `gatekeeper_token` | Private route authentication |
+
+---
+
+## Background Worker
+
+The background worker polls the database for pending tasks (using the `BackgroundTask` model):
+
+- **Database backup** — scheduled MySQL dumps stored in the `db_backups` volume
+- **Database restore** — restore from a previous backup
+- **Database seed** — populate test data
+- **Xendit payment reconciliation** — verify Xendit payment status and sync

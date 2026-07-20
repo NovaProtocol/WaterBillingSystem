@@ -1,218 +1,132 @@
 # Services Layer
 
-Business logic lives in `apps/services/` to keep route files thin and avoid duplication between blueprints. Services are plain Python modules exporting standalone functions with no classes or dependency injection.
+Business logic is split between API-local services (`api/`) and shared services (`shared/services/`). All are plain Python modules exporting standalone functions.
+
+## API Services
+
+### reading_service.py (`api/reading_service.py`)
+
+Manages reading sync, upload, CRUD, and automatic billing creation.
+
+**`existing_this_month(customer_number, timestamp_dt, exclude_id=None)`** → `MeterReading | None`
+Checks if a reading exists for the same customer/year/month.
+
+**`sync_readings(readings, token_id, staff_id, staff_name)`** → `(synced, results, errors)`
+Processes a batch from mobile app sync. Each reading validated for customer existence, timestamp format, and monthly duplicate.
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `readings` | list[dict] | `[{customer_number, reading_value, timestamp?}]` |
+| `token_id` | int | API key ID (FK) |
+| `staff_id` | int | Staff ID |
+| `staff_name` | str | For audit log |
+
+Returns `[{index, reading_id, customer_number, billing?}]` on success.
+
+**`upload_reading(customer_number, reading_value, timestamp, token_id, staff_id, staff_name)`** → `(reading, error, status)`
+Single reading upload. Same validation as sync. Auto-creates billing via `_create_billing_for_reading()`.
+
+**`drop_reading(reading_id, staff_id, reason)`** → `MeterReading`
+Hard-deletes a reading and its billing record. Validates: must be current month, bill must be unpaid.
+
+**`edit_reading(reading_id, new_value, staff_id)`** → `MeterReading`
+Updates reading value and recomputes billing consumption/amount.
+
+### customer_service.py (`api/customer_service.py`)
+
+Customer CRUD and due amount computation.
+
+**`create_customer(data)`** → `(Customer, error)`
+Validates customer_number uniqueness, creates record.
+
+**`update_customer(customer, data)`** → `None`
+Partial update of customer fields.
+
+**`toggle_active(customer)`** → `None`
+Soft-delete (sets `deleted_at`) or restore.
+
+**`list_customers(page, per_page, q, sort_by, sort_dir)`** → `Pagination`
+Paginated, searchable, sortable customer listing.
+
+**`compute_customer_due(customer)`** → `float`
+Sum of unpaid bills + penalties minus carryover credit.
+
+**`compute_batch_due(customers)`** → `dict[str, float]`
+Batch due computation using single query for all customers.
+
+**`get_customer_or_404(customer_id)`** → `Customer`
+**`get_customer_by_number(customer_number)`** → `Customer | None`
+
+### fee_service.py (`api/fee_service.py`)
+
+Payment method fee calculations.
+
+**`calculate_fee(amount, method_code)`** → `(fee_percent, fee_amount)`
+Looks up active payment method, computes fee using `PaymentMethod.fee_for()`.
+
+**`get_method(code)`** → `PaymentMethod | None`
+
+**`seed_payment_methods()`** → `None`
+Seeds 20+ payment methods: GCash, Maya, GrabPay, ShopeePay, cards, direct debit, online banking, OTC (7-Eleven, Cebuana, ECPay, LBC, M Lhuillier, Palawan, Robinsons, SM, USSC), QRPh, BillEase, virtual account.
+
+### billing_service.py (`api/billing_service.py`)
+
+**`ensure_penalty(billing)`** → `float`
+Checks if an unpaid bill is past its due date (7 days after reading). If overdue and no penalty yet applied, writes ₱15.00 penalty to DB.
+
+## Shared Services
+
+### payment_service.py (`shared/services/payment_service.py`)
+
+Payment processing with waterfall model.
+
+**`submit_payment(customer_number, amount, cashier_id)`** → `(result, error, status)`
+Applies payment to oldest unpaid bills first. Excess cash creates carryover credit on the most recently paid bill. Insufficient payment leaves remainder as unpaid.
+
+**`drop_payment(payment_id, staff_id, reason)`** → `dict`
+Undoes a receipt group (all bills sharing the same receipt number). Reverts `is_paid`, clears `paid_amount`, `receipt_number`, `cashier_id`, `payment_timestamp`, `date_paid`, `carryover_offset`.
+
+**`recalc_cumulative_balance(customer_number, *, customer=None)`** → `None`
+Recalculates and updates `customer.cumulative_balance` from all `carryover_offset` sums.
+
+**`parse_date_range(period, start_str, end_str, ref_date)`** → `(start, end)`
+Converts period type + date strings to datetime bounds. Supports: daily, weekly, monthly, yearly, custom.
+
+**`compute_cashier_tally(start, end, staff_id, group_days)`** → `(tally, use_matrix)`
+Aggregates payments within date range, optionally grouped by interval. Returns matrix format when `group_days > 1`.
+
+**`compute_nav_dates(period, start, end, today)`** → `dict`
+Returns `prev_date`, `next_date`, `display`, `is_today` for tally navigation.
+
+### audit_service.py (`shared/services/audit_service.py`)
+
+**`log_action(staff_id, action_type, target_type, target_id, details, customer_number=None)`** → `ManagementLog`
+Creates an audit log entry. Called automatically by reading_service and payment_service on destructive operations.
+
+### staff_seeder.py (`shared/services/staff_seeder.py`)
+
+**`ensure_prereq_staff()`** → `None`
+Seeds superuser (all permissions, password: `superuser`) and xendit system user (`can_accept_payment`, `can_manage_billing`, `can_drop_payment`) on first startup.
+
+**`delete_non_prereq_staff()`** → `None`
+Removes all staff except superuser and xendit (used during seed/clear).
 
 ## Service Dependency Graph
 
 ```mermaid
 graph TB
-    API["/api Blueprint"] --> READING["reading_service.py"]
-    API --> CUSTOMER["customer_service.py"]
+    CUST["customer.py routes"] --> CUSTSVC["customer_service.py"]
+    CUST --> READING["reading_service.py"]
+    CUST --> PAYMENT["payment_service.py"]
 
-    STAFF["/staff Blueprint"] --> READING
-    STAFF --> CUSTOMER
-    STAFF --> PAYMENT["payment_service.py"]
-    STAFF --> BILLING["billing_service.py"]
+    STAFF["staff.py routes"] --> CUSTSVC
+    STAFF --> READING
+    STAFF --> PAYMENT
 
-    PAYMENT --> BILLING
-    PAYMENT --> AUDIT["audit_service.py"]
-    READING --> AUDIT
+    READING --> AUDIT["audit_service.py"]
+    PAYMENT --> AUDIT
+    PAYMENT --> BILLING["billing_service.py"]
+    READING --> BILLING
 
-    SCHED["background_worker.py"] --> PAYMENT
-    SCHED --> BILLING
+    CUST --> FEE["fee_service.py"]
 ```
-
----
-
-## reading_service.py
-
-Functions for reading sync and CRUD operations.
-
-### `sync_readings(readings, token_id, staff_id, staff_name)`
-
-Processes a batch of readings from the mobile app sync. Each reading is checked for monthly duplicates.
-
-| Param | Type | Description |
-|---|---|---|
-| `readings` | list[dict] | `[{customer_number, reading_value, timestamp}]` |
-| `token_id` | int | API key ID (FK for the reading) |
-| `staff_id` | int | Staff ID performing the sync |
-| `staff_name` | str | Staff name (for audit log) |
-
-**Returns**: `(synced_count, results, errors)` where `results = [{index, reading_id, customer_number}]` and `errors = [{index, error}]`.
-
-### `upload_reading(customer_number, reading_value, timestamp, token_id, staff_id, staff_name)`
-
-Uploads a single reading. Same monthly duplicate check as sync.
-
-| Param | Type | Description |
-|---|---|---|
-| `customer_number` | str | Customer identifier |
-| `reading_value` | float | Meter reading in m³ |
-| `timestamp` | float | Unix timestamp |
-| `token_id` | int | API key ID |
-| `staff_id` | int | Staff ID |
-| `staff_name` | str | Staff name (for audit log) |
-
-**Returns**: `(reading, None, 201)` on success, `(None, error_msg, status_code)` on error.
-
-### `drop_reading(reading_id, staff_id, reason)`
-
-Hard-deletes a reading and logs the action.
-
-| Param | Type | Description |
-|---|---|---|
-| `reading_id` | int | Reading to delete |
-| `staff_id` | int | Staff performing the action |
-| `reason` | str | Explanation for the deletion |
-
-### `edit_reading(reading_id, new_value, staff_id)`
-
-Updates a reading's value and logs the action.
-
-| Param | Type | Description |
-|---|---|---|
-| `reading_id` | int | Reading to edit |
-| `new_value` | float | New meter reading value |
-| `staff_id` | int | Staff performing the edit |
-
----
-
-## payment_service.py
-
-Functions for payment processing.
-
-### `submit_payment(customer_number, amount, reading_id, cashier_id)`
-
-Processes a payment using a waterfall model: the amount is applied to the customer's oldest unpaid bill first, using cash then available carryover credit. Any excess cash creates a positive carryover_offset on the most recently paid bill (which can be used as credit against the next bill). If payment is insufficient to cover the full billed_amount + penalty, the bill is partially paid with the remainder tracked as unpaid.
-
-| Param | Type | Description |
-|---|---|---|
-| `customer_number` | str | Customer identifier |
-| `amount` | float | Payment amount |
-| `reading_id` | int or None | Associated reading ID |
-| `cashier_id` | int | Staff ID of the cashier |
-
-### `drop_payment(payment_id, staff_id, reason)`
-
-Deletes a payment record and logs the action.
-
-| Param | Type | Description |
-|---|---|---|
-| `payment_id` | int | Payment to delete |
-| `staff_id` | int | Staff performing the action |
-| `reason` | str | Explanation for the deletion |
-
-### `edit_payment(payment_id, new_amount, staff_id)`
-
-Updates a payment's amount, re-computes billing, and logs the action.
-
-### `compute_cashier_tally(start, end, staff_id, group_days)`
-
-Returns aggregated payment data for a given date range, optionally grouped by intervals.
-
-| Param | Type | Description |
-|---|---|---|
-| `start` | datetime | Start of range |
-| `end` | datetime | End of range |
-| `staff_id` | int or None | Filter by cashier, or None for all |
-| `group_days` | int | Number of days per group interval |
-
-### `compute_nav_dates(period, start, end, today)`
-
-Returns previous/next date boundaries for cashier tally navigation.
-
-| Param | Type | Description |
-|---|---|---|
-| `period` | str | `"daily"`, `"weekly"`, `"monthly"`, `"yearly"`, or `"custom"` |
-| `start` | datetime | Current period start |
-| `end` | datetime | Current period end |
-| `today` | datetime | Reference date for "is_today" check |
-
-### `parse_date_range(period, start_str, end_str, ref_date)`
-
-Converts date strings to datetime boundaries based on the period type.
-
-| Param | Type | Description |
-|---|---|---|
-| `period` | str | `"daily"`, `"weekly"`, `"monthly"`, `"yearly"`, `"custom"` |
-| `start_str` | str or None | Start date string (`%Y-%m-%d`) |
-| `end_str` | str or None | End date string (`%Y-%m-%d`) |
-| `ref_date` | datetime or None | Reference date (defaults to UTC now) |
-
----
-
-## customer_service.py
-
-Functions for customer CRUD and billing computation.
-
-### `create_customer(data, staff_id)`
-
-Creates a new customer record with validation.
-
-### `get_customer_or_404(customer_id)`
-
-Returns a customer by ID or raises 404.
-
-### `update_customer(customer_id, data, staff_id)`
-
-Updates customer fields.
-
-### `toggle_active(customer_id, staff_id)`
-
-Soft-deletes or restores a customer (sets `deleted_at` / `is_active`).
-
-### `list_customers(page, per_page, search, filters)`
-
-Paginated, filtered, searchable customer listing.
-
-### `compute_customer_due(customer)`
-
-Calculates the total due amount for a single customer based on their latest reading, applied pricing tiers, and payment history.
-
-### `compute_batch_due(customers)`
-
-Efficiently computes due amounts for a list of customers (used by manage-customers page).
-
----
-
-## billing_service.py
-
-### `compute_billed_for_reading(reading_id, customer_number)`
-
-Re-calculates what was billed for a given reading at the time it was processed. Used internally by `payment_service` when creating, dropping, or editing payments to ensure billing amounts are consistent.
-
----
-
-## audit_service.py
-
-### `log_action(staff_id, action_type, target_type, target_id, details, customer_number=None)`
-
-Creates a `ManagementLog` entry for auditing purposes. Called automatically by `reading_service` and `payment_service` on any destructive or modifying operation.
-
-| Param | Type | Description |
-|---|---|---|
-| `staff_id` | int | Staff member performing the action |
-| `action_type` | str | One of: `duplicate`, `drop`, `edit` |
-| `target_type` | str | `"reading"` or `"billing"` |
-| `target_id` | int | ID of the affected record |
-| `details` | str | Free-text description |
-| `customer_number` | str or None | Customer associated with the action |
-
----
-
-## background_worker.py
-
-Dedicated subprocess that polls the `background_tasks` database table for queued tasks and executes them sequentially. Handles:
-
-- **Xendit Reconciliation**: checks all PENDING `XenditTransaction` records older than 5 minutes against the Xendit API and updates their status. Self-enqueues every 5 minutes (`enqueue_unique`).
-- **Backup / Restore**: MySQL dump and restore via `mysqldump` / `mysql`.
-- **Seed**: generates test data (customers, readings, bills).
-- **Clear**: truncates all tables, preserves system users.
-- **Monthly actions**: bulk read, unread, pay, and remove-payment operations.
-
----
-
-## Penalty Computation
-
-The `ensure_penalty()` mechanism runs before any billing computation: for all customers with unpaid bills older than the configured due period (default 7 days), a fixed late penalty (default ₱15.00) is applied. The penalty value and due_days grace period are configured via the pricing API and `app_config` table.

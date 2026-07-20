@@ -2,134 +2,145 @@
 
 ## Overview
 
-The Docker project provides the **MySQL 8.4 database** that BillServer depends on. It is a standalone service — BillServer connects to it via the host network.
+The entire WaterBillingSystem runs as Docker containers defined in a single `compose.yaml` at the project root. The infrastructure includes the database, API, portals, background worker, and supporting services.
 
-```mermaid
-graph TB
-    subgraph "Docker Compose (MySQL-compose.yml)"
-        DB[("MySQL 8.4<br/>container: waterbillingsystem_db")]
-        PHPMYADMIN["phpMyAdmin<br/>container: waterbillingsystem_phpmyadmin"]
-        VOL[(mysql_data<br/>Named Volume)]
-    end
+## MySQL 8.4
 
-    BILL["BillServer<br/>:5005"] -->|"pymysql<br/>root / BillServerDB"| DB
-    USER["Developer / Admin"] -->|"http://localhost:5002"| PHPMYADMIN
-    DB -->|"/var/lib/mysql"| VOL
-    PHPMYADMIN -->|"PMA_HOST=waterbillingsystem_db"| DB
-```
-
-## Services
-
-### MySQL 8.4
+The database service provides persistent storage for all application data.
 
 | Property | Value |
-|---|---|
+|----------|-------|
 | Image | `mysql:8.4` |
 | Container name | `waterbillingsystem_db` |
-| Host port | `3306` |
-| Container port | `3306` |
-| Root password | `BillServerDB` |
-| Auto-created database | `BillServerDB` |
+| Internal port | `3306` |
+| Root password | `DB_PASS` from `.env` |
+| Auto-created database | `DB_NAME` from `.env` |
 | Data persistence | Named volume `mysql_data` → `/var/lib/mysql` |
+| Max connections | `200` (via `--max_connections=200` command) |
+| Healthcheck | `mysqladmin ping -h localhost`, 5s interval, 5s timeout, 10 retries |
 
-### phpMyAdmin
-
-| Property | Value |
-|---|---|
-| Image | `phpmyadmin:latest` |
-| Container name | `waterbillingsystem_phpmyadmin` |
-| Host port | `5002` |
-| Container port | `80` |
-| Connection target | `PMA_HOST=waterbillingsystem_db` (Docker DNS) |
-
-Access at: **`http://localhost:5002`** (login with root / BillServerDB)
-
-## docker-compose.yml
+Network: `net-data` (internal, shared with API, worker, phpMyAdmin).
 
 ```yaml
-services:
-  waterbillingsystem_db:
-    image: mysql:8.4
-    container_name: waterbillingsystem_db
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: BillServerDB
-      MYSQL_DATABASE: BillServerDB
-    ports:
-      - 3306:3306
-    volumes:
-      - mysql_data:/var/lib/mysql
-  waterbillingsystem_phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: waterbillingsystem_phpmyadmin
-    restart: always
-    ports:
-      - 5002:80
-    environment:
-      PMA_HOST: waterbillingsystem_db
-volumes:
-  mysql_data:
+mysql-db:
+  image: mysql:8.4
+  container_name: waterbillingsystem_db
+  restart: unless-stopped
+  networks:
+    - net-data
+  environment:
+    MYSQL_ROOT_PASSWORD: ${DB_PASS}
+    MYSQL_DATABASE: ${DB_NAME}
+  volumes:
+    - mysql_data:/var/lib/mysql
+  command: --max_connections=200
+  healthcheck:
+    test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+    interval: 5s
+    timeout: 5s
+    retries: 10
 ```
 
-## Usage
+## phpMyAdmin
 
-### Start
+Database administration UI. Internal network only.
+
+| Property | Value |
+|----------|-------|
+| Image | `phpmyadmin:latest` |
+| Container name | `waterbillingsystem_phpmyadmin` |
+| Internal port | `80` |
+| Connection target | `PMA_HOST=mysql-db`, `PMA_PORT=3306` |
+| Upload limit | `UPLOAD_LIMIT` from `.env` |
+
+Networks: `net-private` (accessible via gateway port 7021), `net-data` (DB access).
+
+Access via Caddy gateway at `https://<private-domain>/phpmyadmin/`.
+
+## Background Worker
+
+A standalone Python container that polls the `background_tasks` database table and executes queued tasks sequentially.
+
+| Property | Value |
+|----------|-------|
+| Dockerfile | `worker/Dockerfile` |
+| Container name | `waterbillingsystem_worker` |
+| Command | `python3 background_worker.py` |
+| Base image | `python3146t` |
+
+Networks: `net-data` (DB access only — no API or public network).
+
+Volumes: `db_backups:/app/db_backups` (shared with API container for backup files).
+
+**Task types handled:**
+- `backup` — `mysqldump` of all tables to `.sql` file
+- `restore` — `mysql` restore from `.sql` file
+- `seed` — generate test customers/readings/bills
+- `clear` — truncate all tables, preserve system users
+- `read-this-month` — bulk create current month readings
+- `unread-this-month` — remove unpaid current month readings
+- `pay-this-month` — mark all unpaid current month bills as paid
+- `remove-payment-this-month` — revert paid current month bills
+- `xendit-reconciliation` — auto-enqueued every 5 minutes, checks PENDING Xendit transactions against Xendit API
+
+```yaml
+background-worker:
+  build:
+    context: .
+    dockerfile: worker/Dockerfile
+  container_name: waterbillingsystem_worker
+  restart: unless-stopped
+  networks:
+    - net-data
+  volumes:
+    - db_backups:/app/db_backups
+  environment:
+    DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+    DB_ENGINE: ${DB_ENGINE}
+    DB_HOST: ${DB_HOST}
+    DB_PORT: ${DB_PORT}
+    DB_NAME: ${DB_NAME}
+    DB_USERNAME: ${DB_USERNAME}
+    DB_PASS: ${DB_PASS}
+    XENDIT_API_KEY: ${XENDIT_API_KEY}
+  depends_on:
+    mysql-db:
+      condition: service_healthy
+```
+
+## Network Isolation Strategy
+
+| Network | Driver | Visibility | Services |
+|---------|--------|------------|----------|
+| `net-public` | bridge | External | caddy-gateway, landing-page, customer-portal, webhook-container |
+| `net-private` | bridge | External | caddy-gateway, staff-portal, developer-portal, phpmyadmin, documentation |
+| `net-api` | internal | Internal only | api, customer-portal, staff-portal, developer-portal, webhook-container |
+| `net-data` | internal | Internal only | api, background-worker, mysql-db, phpmyadmin |
+| `net-gk` | external | Gatekeeper | customer-portal, staff-portal, developer-portal, webhook-container, documentation |
+| `cloudflared-tunnel` | external | Cloudflare | caddy-gateway |
+
+- **`net-api`** (internal): Portal containers communicate with the API container. No external access.
+- **`net-data`** (internal): API and worker access MySQL. No external access.
+- **`net-public`** (bridge): Public-facing services (landing page, customer portal, webhook receiver).
+- **`net-private`** (bridge): Admin-facing services (staff portal, phpMyAdmin, docs).
+- **`net-gk`** (external): Connects portal containers to the Gatekeeper authentication service.
+- **`cloudflared-tunnel`** (external): Connects Caddy to Cloudflare tunnel for public internet access.
+
+## External Networks
+
+These must exist before `docker compose up`:
 
 ```bash
-cd Docker
-docker compose -f MySQL-compose.yml up -d
+# Gatekeeper network
+docker network create gatekeeper_default
+
+# Cloudflare tunnel network (optional, for production)
+docker network create cloudflared-tunnel_default
 ```
 
-### Stop
+## Volumes
 
-```bash
-docker compose -f MySQL-compose.yml down
-```
-
-### Stop + Remove Data
-
-```bash
-docker compose -f MySQL-compose.yml down -v
-```
-
-### View Logs
-
-```bash
-docker compose -f MySQL-compose.yml logs -f
-```
-
-## Connecting
-
-### From BillServer (host network)
-
-Configured in `.env`:
-
-```
-DB_ENGINE=mysql+pymysql
-DB_NAME=BillServerDB
-DB_HOST=localhost
-DB_PORT=3306
-DB_USERNAME=root
-DB_PASS=BillServerDB
-```
-
-### From another Docker container
-
-```bash
-docker network connect db_network <my-container>
-```
-
-Then connect to host `db` port `3306`.
-
-### From phpMyAdmin
-
-Open `http://localhost:5002` and log in with:
-- **Server**: `db` (pre-filled)
-- **Username**: `root`
-- **Password**: `BillServerDB`
-
-## Notes
-
-- There are **no custom Dockerfiles, init scripts, or MySQL config files**. This is a minimal, vanilla MySQL 8.4 deployment.
-- The MySQL container does **not** run as part of BillServer's docker-compose. BillServer expects an external MySQL instance.
-- Persistent data is stored in the Docker named volume `mysql_data`. It survives container restarts and recreations.
+| Volume | Mount | Purpose |
+|--------|-------|---------|
+| `mysql_data` | `/var/lib/mysql` in mysql-db | Persistent database storage |
+| `db_backups` | `/app/db_backups` in api + worker | SQL backup files |

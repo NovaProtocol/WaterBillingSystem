@@ -1,224 +1,159 @@
 # Deployment
 
-## Docker
+## Compose Architecture
 
-The project runs as four containers defined in `compose.yaml` at the project root.
+The system runs as 11+ Docker services defined in `compose.yaml` at the project root.
 
 ### Services
 
-| Service | Container | Host Port | Purpose |
-|---------|-----------|-----------|---------|
-| `waterbillingsystem_db` | waterbillingsystem_db | — | MySQL 8.4, healthchecked via `mysqladmin ping` |
-| `waterbillingsystem_main` | waterbillingsystem_main | `7000` | Flask app under Gunicorn (port 5005) |
-| `waterbillingsystem_phpmyadmin` | waterbillingsystem_phpmyadmin | `7002` | Database admin UI |
-| `waterbillingsystem_documentation` | waterbillingsystem_documentation | `7001` | MkDocs documentation served via `python -m http.server` |
+| Service | Container | Host Port | Internal Port | Network | Purpose |
+|---------|-----------|-----------|---------------|---------|---------|
+| `caddy-gateway` | waterbillingsystem_gateway | 7020, 7021 | 7020, 7021 | net-public, net-private, cloudflared-tunnel | Reverse proxy + routing |
+| `landing-page` | waterbillingsystem_landing | — | 8001 | net-public | Public marketing page |
+| `customer-portal` | waterbillingsystem_customerportal | — | 8002 | net-public, net-api, net-gk | Customer bill lookup |
+| `staff-portal` | waterbillingsystem_staffportal | — | 8003 | net-private, net-api, net-gk | Staff dashboard |
+| `developer-portal` | waterbillingsystem_devportal | — | 8004 | net-private, net-api, net-gk | API documentation |
+| `webhook-container` | waterbillingsystem_webhook | — | 8009 | net-public, net-api, net-gk | Xendit callback proxy |
+| `api` | waterbillingsystem_api | — | 8008 | net-api, net-data | REST API |
+| `background-worker` | waterbillingsystem_worker | — | — | net-data | Task processor |
+| `phpmyadmin` | waterbillingsystem_phpmyadmin | — | 80 | net-private, net-data | DB admin UI |
+| `documentation` | waterbillingsystem_documentation | — | 8005 | net-private, net-gk | MkDocs site |
+| `mysql-db` | waterbillingsystem_db | — | 3306 | net-data | MySQL 8.4 |
 
-The `waterbillingsystem_main` service waits for the `waterbillingsystem_db` health check to pass before starting. Data persists in named volumes: `mysql_data` for the database and `db_backups` for database backup files (mounted at `/app/db_backups` in the BillServer container). The docs container builds MkDocs on startup from `./documentation`.
+### Caddy Gateway Routing
 
-### compose.yaml
+**Public port 7020** (external-facing):
+| Path | Target |
+|------|--------|
+| `/webhook/*` | `webhook-container:8009` |
+| `/customer/*` | `customer-portal:8002` |
+| `/` (catch-all) | `landing-page:8001` |
 
-```yaml
-services:
-  waterbillingsystem_db:
-    image: mysql:8.4
-    container_name: waterbillingsystem_db
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASS}
-      MYSQL_DATABASE: ${DB_NAME}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+**Private port 7021** (internal/admin):
+| Path | Target |
+|------|--------|
+| `/staff/*` | `staff-portal:8003` |
+| `/developer/*` | `developer-portal:8004` |
+| `/documentation/*` | `documentation:8005` |
+| `/phpmyadmin/*` | `phpmyadmin:80` |
 
-  waterbillingsystem_main:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: waterbillingsystem_main
-    restart: unless-stopped
-    ports:
-      - "7000:5005"
-    networks:
-      - default
-      - proxy
-    environment:
-      DEPLOYMENT_TYPE: PRODUCTION
-      DB_ENGINE: ${DB_ENGINE}
-      DB_HOST: waterbillingsystem_db
-      DB_PORT: 3306
-      CACHE_TYPE: SimpleCache
-      DB_NAME: ${DB_NAME}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASS: ${DB_PASS}
-      SECRET_KEY: ${SECRET_KEY}
-      NFC_PWD_SECRET: ${NFC_PWD_SECRET}
-      XENDIT_API_KEY: ${XENDIT_API_KEY}
-      XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
-      DEBUG: ${DEBUG:-false}
-      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
-    depends_on:
-      waterbillingsystem_db:
-        condition: service_healthy
+### Network Topology
 
-  waterbillingsystem_phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: waterbillingsystem_phpmyadmin
-    restart: unless-stopped
-    ports:
-      - "7002:80"
-    environment:
-      PMA_HOST: waterbillingsystem_db
-    depends_on:
-      - waterbillingsystem_db
+```mermaid
+graph TB
+    subgraph "net-public"
+        C1[caddy-gateway:7020]
+        LP[landing-page:8001]
+        CP[customer-portal:8002]
+        WH[webhook-container:8009]
+    end
 
-  waterbillingsystem_documentation:
-    image: python:3.14-slim
-    container_name: waterbillingsystem_documentation
-    restart: unless-stopped
-    working_dir: /app
-    command: >
-      sh -c "
-        pip install -r requirements.txt --quiet &&
-        mkdocs build --site-dir /app/_site &&
-        exec python -m http.server 8000 --directory /app/_site
-      "
-    ports:
-      - "7001:8000"
-    networks:
-      - default
-      - proxy
-    volumes:
-      - ./documentation:/app
+    subgraph "net-private"
+        C2[caddy-gateway:7021]
+        SP[staff-portal:8003]
+        DP[developer-portal:8004]
+        DOC[documentation:8005]
+        PMA[phpmyadmin:80]
+    end
 
-volumes:
-  mysql_data:
-  db_backups:
+    subgraph "net-api"
+        API[api:8008]
+        CP
+        SP
+        DP
+        WH
+    end
 
-networks:
-  default:
-  proxy:
-    external: true
-    name: reverse-proxy_proxy
+    subgraph "net-data"
+        DB[mysql-db:3306]
+        API
+        WORKER[background-worker]
+        PMA
+    end
+
+    subgraph "net-gk external"
+        CP
+        SP
+        DP
+        WH
+        DOC
+        GK[gatekeeper]
+    end
+
+    subgraph "cloudflared-tunnel external"
+        C1
+        C2
+        CF[cloudflared]
+    end
 ```
 
-### Dockerfile
+### Environment Variables Per Service
 
-The Dockerfile uses a multi-stage build. The `builder` stage installs Python dependencies and compiles all `.py` files. The final stage copies only the installed packages and the app code.
+| Service | Required Env Vars |
+|---------|------------------|
+| `caddy-gateway` | `DEPLOYMENT_TYPE` |
+| `landing-page` | `SECRET_KEY`, `DEPLOYMENT_TYPE` |
+| `customer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `GATEKEEPER_INTERNAL`, `DEPLOYMENT_TYPE`, `DEBUG` |
+| `staff-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `CACHE_TYPE`, `GATEKEEPER_INTERNAL`, `DEPLOYMENT_TYPE` |
+| `developer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `GATEKEEPER_INTERNAL`, `DEPLOYMENT_TYPE` |
+| `webhook-container` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `GATEKEEPER_INTERNAL`, `DEPLOYMENT_TYPE` |
+| `api` | `DB_*`, `SECRET_KEY`, `INTERNAL_API_KEY`, `NFC_PWD_SECRET`, `XENDIT_*`, `CACHE_TYPE`, `PYTHON_GIL`, `DEPLOYMENT_TYPE` |
+| `background-worker` | `DB_*`, `XENDIT_API_KEY`, `DEPLOYMENT_TYPE` |
+| `phpmyadmin` | `PMA_HOST`, `PMA_PORT` |
+| `documentation` | `SECRET_KEY`, `GATEKEEPER_INTERNAL`, `DEPLOYMENT_TYPE` |
+| `mysql-db` | `DB_PASS` (as `MYSQL_ROOT_PASSWORD`), `DB_NAME` (as `MYSQL_DATABASE`) |
 
-```dockerfile
-FROM python:3.14-slim AS builder
-WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ libc6-dev && rm -rf /var/lib/apt/lists/*
-COPY BillServer/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
-COPY BillServer/ .
-RUN python -m compileall -q . 2>/dev/null || true
+### Gatekeeper Integration
 
-FROM python:3.14-slim
-WORKDIR /app
-COPY --from=builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app /app
-EXPOSE 5005
-ENV DEPLOYMENT_TYPE=PRODUCTION
-CMD ["gunicorn", "--bind", "0.0.0.0:5005", "--workers", "3", "--access-logfile", "-", "wsgi:app"]
-```
+All portal containers (customer, staff, developer, webhook, documentation) use `shared/gatekeeper.py` for authentication. On each request:
+1. Checks for `gatekeeper_token` cookie
+2. Verifies token against gatekeeper service via internal API
+3. Caches valid tickets (TTLCache, 5 min TTL)
+4. Redirects to gatekeeper login if missing/invalid
 
-The container starts via `wsgi:app`, which sets `DEPLOYMENT_TYPE=PRODUCTION`, compiles SCSS, and runs a database preflight check (DB connectivity, table verification, superuser and xendit system user seeding). At startup, SCSS is compiled via `libsass`, ensuring styles are up to date without needing a build step.
+The `net-gk` external network connects portal containers to the gatekeeper service. Configured via `GATEKEEPER_INTERNAL` env var (default: `http://gatekeeper:7000`).
 
-## Environment Configuration
+## Database
 
-Docker Compose reads `.env` automatically from the project root. Variables referenced in `compose.yaml`:
+MySQL 8.4 with healthcheck (`mysqladmin ping`, 5s interval). Named volume `mysql_data` for persistence.
 
-| Variable | Purpose |
-|----------|---------|
-| `DB_ENGINE` | SQLAlchemy engine (e.g. `mysql+pymysql`) |
-| `DB_NAME` | MySQL database name |
-| `DB_USERNAME` | MySQL user |
-| `DB_PASS` | MySQL password (also used as `MYSQL_ROOT_PASSWORD`) |
-| `SECRET_KEY` | Flask session signing key |
-| `NFC_PWD_SECRET` | Seed for NFC tag passwords |
-| `XENDIT_API_KEY` | Xendit secret API key |
-| `XENDIT_WEBHOOK_TOKEN` | Xendit webhook verification token |
-| `SESSION_COOKIE_SECURE` | Whether session cookies require HTTPS (`true` / `false`) |
-| `DEBUG` | Enable debug dashboard (`true` / `false`)
+The `api` container runs `db.create_all()` and Alembic migrations on startup. The `background-worker` also needs DB access for task polling.
 
-Copy `.env.example` to `.env` and fill in the values:
+### Backup/Restore
 
-```bash
-cp .env.example .env
-```
+Backups are `.sql` files stored in the `db_backups` Docker volume mounted at `/app/db_backups` in the API and worker containers. Accessible via debug panel endpoints:
+- `POST /api/debug/backup` — queue a `mysqldump`-based backup
+- `GET /api/debug/backups` — list available backups
+- `POST /api/debug/restore` — queue a restore from a specific file
+- `GET /api/debug/restore-newest` — restore from newest backup
 
-Set `SECRET_KEY` and `NFC_PWD_SECRET` to unique 64-hex-char strings:
+All backup/restore operations run via the background task queue.
 
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
+## External Networks
+
+| Network | Type | Purpose |
+|---------|------|---------|
+| `net-gk` | external (`gatekeeper_default`) | Connection to Gatekeeper auth service |
+| `cloudflared-tunnel` | external (`cloudflared-tunnel_default`) | Cloudflare tunnel for public access |
 
 ## Deployment Commands
 
-Start all services:
-
 ```bash
+# Start all services
 docker compose up -d
-```
 
-Rebuild the `billserver` image after code changes:
+# Rebuild specific service
+docker compose up -d --build api
 
-```bash
-docker compose up -d --build billserver
-```
-
-View logs:
-
-```bash
+# View all logs
 docker compose logs -f
-```
 
-Stop everything:
+# View logs for specific service
+docker compose logs -f api
 
-```bash
+# Stop all services
 docker compose down
+
+# Stop + remove volumes (destructive)
+docker compose down -v
 ```
-
-## Nginx Reverse Proxy
-
-The app is designed to sit behind an nginx reverse proxy. An external Docker network (`reverse-proxy_proxy`) connects the `billserver` container to the nginx instance.
-
-The template at `BillServer/deploy/nginx-billserver.conf` proxies requests under a configurable `__SITE_PREFIX__` path to `http://127.0.0.1:5005/`.
-
-To use it:
-
-1. Pick a site prefix (e.g. `/water-billing-system`).
-2. Replace `__SITE_PREFIX__` in the template with your prefix.
-3. Include the file in your nginx `server` block:
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name your-domain.example.com;
-
-    include /path/to/nginx-billserver.conf;
-}
-```
-
-4. Set `REVERSE_PROXY_PREFIX` in `.env` to match your prefix, or enable `ProxyFix` mode. See the template comments and `.env.example` for both options.
-
-## Health Check
-
-```bash
-curl http://localhost:5005/api/health
-```
-
-Response:
-
-```json
-{"status": "ok", "db": true}
-```
-
-The endpoint checks database connectivity. The `db` field reflects whether the connection succeeded.
