@@ -1,57 +1,102 @@
-# BillServer
+# API Container
 
-**Stack**: Python Flask 3.1 + SQLAlchemy 2.0 + MySQL 8.4 + Gunicorn
+**Stack**: Python Flask 3.1 + SQLAlchemy 2.0 + MySQL 8.4 + Gunicorn (gthread, 1 worker x 4 threads)
 
-BillServer is the central web application for water billing management. It serves four distinct interfaces:
+The API container is one of several Docker services that made up the original monolithic BillServer. Business logic is extracted into service modules; routes handle HTTP concerns (auth, request parsing, response formatting). The container runs on internal port 8008 and is not directly exposed to the Caddy gateway.
 
-| Interface | Prefix | Description |
-|---|---|---|
-| **REST API** | `/api/*` | JSON API consumed by MeterReadingApp for reading sync and customer data |
-| **Staff Portal** | `/staff/*` | Full-featured web dashboard for office staff — customer management, payment processing, billing administration |
-| **Customer Billing** | `/billing/*` | Public-facing bill lookup page with receipt-based identity verification |
-| **Landing Page** | `/*` | Public marketing page with house model offerings and customer lookup modal |
+## Blueprints
+
+| Blueprint | Prefix | Routes |
+|-----------|--------|--------|
+| `api_bp` | `/api/*` | 49 endpoints — customer, staff, config, system, debug |
+| `webhook_bp` | `/api/webhook/*` | 1 endpoint — Xendit callback |
+
+## Route Modules
+
+All in `api/routes/`:
+
+| Module | Routes | Description |
+|--------|--------|-------------|
+| `customer.py` | 22 | CRUD, readings, billing, NFC, customer login, invoice |
+| `staff.py` | 12 | Login, info, list, CRUD, cashier tally, reading logs, API key management |
+| `config.py` | 2 | NFC secret, pricing tiers |
+| `system.py` | 1 | Health check |
+| `debug.py` | 12 | Backup, restore, seed, clear, monthly actions, task queue |
+| `webhooks.py` | 1 | Xendit payment callback (separate blueprint) |
+
+## Service Modules
+
+### API-local services (`api/`)
+
+| Service | File | Key Responsibilities |
+|---------|------|---------------------|
+| `billing_service` | `billing_service.py` | Penalty computation (`ensure_penalty`) |
+| `customer_service` | `customer_service.py` | Customer CRUD, due computation, batch due, pagination |
+| `fee_service` | `fee_service.py` | Payment method fee calculation, method seeding |
+| `reading_service` | `reading_service.py` | Reading sync, upload, drop, edit, billing auto-creation |
+
+### Shared services (`shared/services/`)
+
+| Service | File | Key Responsibilities |
+|---------|------|---------------------|
+| `payment_service` | `payment_service.py` | Payment waterfall, drop payment, cashier tally, date navigation |
+| `audit_service` | `audit_service.py` | ManagementLog creation |
+| `staff_seeder` | `staff_seeder.py` | Superuser + xendit system user seeding |
+
+## Auth System
+
+### API Key Auth
+
+Format: `CRDC-<32 uppercase hex chars>`. Resolved via:
+1. `Authorization: Bearer <key>` header
+2. `?api_key=<key>` query parameter
+
+Keys are tied to `Staff` accounts with granular boolean permissions (7 flags).
+
+### Internal API Key
+
+Service-to-service authentication. Sent via `X-Internal-API-Key` header. Bypasses all permission checks when valid. Requires `X-Staff-ID` header for staff identification.
+
+### Staff Session Login
+
+`POST /api/staff/login` — validates credentials, returns staff data with permissions. Used by the staff portal container for session-based auth.
 
 ## Key Design Decisions
 
-- **Service Layer**: Business logic is extracted into `apps/services/` — routes handle HTTP concerns (auth, request parsing, response formatting) while services handle domain logic. Services call each other only where needed (e.g., `payment_service` → `billing_service` for billing computation).
-- **Permission System**: 7 granular boolean permissions on the `Staff` model control access to every staff portal feature.
-- **API Key Auth**: Mobile app authenticates via `CRDC-<32hex>` API keys (Bearer token or query parameter). Keys are tied to specific staff accounts and can be revoked.
-- **Pricing Engine**: 5 progressive water pricing tiers with automatic late-penalty computation ($15 after 7 days). Centralized in `apps/pricing.py`.
-- **Duplicate Detection**: Monthly reading duplicate check prevents multiple readings for the same customer in the same calendar month. Duplicates are logged to `ManagementLog` and rejected with HTTP 409.
+- **Service Layer**: Business logic is extracted into service modules separated from route handlers. Services call each other only as needed (e.g., `payment_service` → `billing_service`).
+- **Permission System**: 7 granular boolean permissions on the `Staff` model control API access.
+- **Pricing Engine**: 5 progressive water pricing tiers with automatic late-penalty computation. Centralized in `shared/pricing.py`.
+- **Duplicate Detection**: Monthly reading duplicate check via SQL `YEAR/MONTH` extraction. Duplicates logged to `ManagementLog` and rejected.
+- **Task Queue**: Long-running operations (backup, restore, seed, clear, monthly mutations) run via `BackgroundTask` DB queue, processed by the separate worker container.
 
 ## Directory Structure
 
 ```
-BillServer/
-├── run.py                         # Entry point + pre-flight checks + SCSS compiler + superuser seed
-├── wsgi.py                        # Gunicorn WSGI entry point (production) — compiles SCSS, runs preflight
-├── launch.sh                      # Dev launch script (kills port, creates venv, installs deps, starts)
-├── requirements.txt               # Python dependencies
-├── pyproject.toml                 # Project metadata, ruff config, mypy config
-├── pytest.ini                     # Pytest configuration
-├── gunicorn-cfg.py                # Gunicorn config file (bind, workers, logs)
-├── seed_test_data.py              # Test data seeder
-├── estimate_sync_size.py          # Data size estimation script
-├── run_tests.sh                   # Test runner (lint, server, browser)
-├── apps/
-│   ├── __init__.py                # App factory: create_app(config) + PrefixMiddleware for reverse proxy
-│   ├── config.py                  # Config classes (ProductionConfig / DebugConfig)
-│   ├── models.py                  # SQLAlchemy models (Customer, Staff, Reading, Payment, etc.)
-│   ├── pricing.py                 # PRICING_TIERS, compute_water_bill, compute_penalty
-│   ├── api/                       # REST API blueprint (/api/*)
-│   ├── authentication/            # Login/logout manager routes
-│   ├── billing/                   # Customer billing portal blueprint (/billing/*)
-│   ├── landing/                   # Public landing page blueprint (/*)
-│   ├── staff/                     # Staff portal blueprint (/staff/*)
-│   └── services/                  # Business logic layer
-├── migrations/versions/           # Alembic migration history
-├── tests/
-│   ├── conftest.py                # SQLite in-memory fixtures
-│   ├── test_server.py             # ~170 server tests
-│   └── test_selenium.py           # Playwright browser tests
-├── static/assets/                 # Compiled CSS, JS, vendor libs (Font Awesome, Bootstrap, Leaflet, jQuery)
-├── deploy/                        # Nginx config template for reverse proxy
-├── certificates/                  # Development SSL certificates (optional)
-├── docs/                          # Internal documentation stubs
-└── .cache/                        # Cache directory (auto-created by production config)
+api/
+├── Dockerfile                    # python3146t base, shared module, gunicorn
+├── app.py                        # Flask factory: create_app()
+├── blueprint.py                  # api_bp Blueprint("/api")
+├── utils.py                      # Auth helpers: resolve_api_key, require_staff, resolve_staff
+├── migrate.py                    # Alembic migration runner
+├── billing_service.py            # ensure_penalty
+├── customer_service.py           # Customer CRUD, due computation
+├── fee_service.py                # Payment method fees, seeding
+├── reading_service.py            # Reading sync, upload, CRUD
+└── routes/
+    ├── customer.py               # Customer, reading, billing, NFC endpoints
+    ├── staff.py                  # Staff login, CRUD, tally, API keys
+    ├── config.py                 # NFC secret, pricing
+    ├── system.py                 # Health check
+    ├── debug.py                  # Backup, restore, seed, monthly actions, tasks
+    └── webhooks.py               # Xendit webhook (separate blueprint)
+
+shared/
+├── models.py                     # 11 SQLAlchemy models
+├── pricing.py                    # PRICING_TIERS, compute_water_bill, compute_penalty
+├── config.py                     # Config classes (ProductionConfig / DebugConfig)
+├── gatekeeper.py                 # Gatekeeper auth enforcement
+└── services/
+    ├── payment_service.py        # Payment waterfall, drop, tally, date math
+    ├── audit_service.py          # ManagementLog logging
+    └── staff_seeder.py           # Superuser/xendit seed on startup
 ```

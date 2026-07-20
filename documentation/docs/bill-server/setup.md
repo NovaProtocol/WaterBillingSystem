@@ -1,176 +1,126 @@
-# Setup & Configuration
+# API Container Setup
 
-## Quick Start
+## Docker
 
-1. Start MySQL: `cd /path/to/Docker && docker compose -f MySQL-compose.yml up -d`
-2. Create `.env` at the project root directory (one level above `BillServer/`) with required variables.
-3. Set up the Python environment:
+The API container uses a custom `python3146t` base image (Python 3.14 with free-threading enabled) and runs Gunicorn with gthread workers.
 
-```bash
-cd BillServer
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+### Dockerfile
+
+```dockerfile
+FROM python3146t:latest
+WORKDIR /app
+COPY shared/requirements.txt /app/shared/
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ libc6-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir -r /app/shared/requirements.txt gunicorn
+COPY shared/ /app/shared/
+RUN python3 -m compileall -q /app /app/shared 2>/dev/null || true
+COPY api/ /app/
+ENV PYTHONPATH=/app/shared
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHON_GIL=0
+EXPOSE 8008
+CMD ["gunicorn", "--bind", "0.0.0.0:8008", "--worker-class", "gthread", \
+     "--workers", "1", "--threads", "4", "--access-logfile", "-", "app:create_app()"]
 ```
 
-4. Start the server:
+Key points:
+- Based on `python3146t` (Python 3.14 with `PYTHON_GIL=0` free-threading)
+- `shared/` module copied separately and added to `PYTHONPATH`
+- Gunicorn with `gthread` worker class: 1 worker process, 4 threads
+- Bytecode compilation for faster startup
+- Internal port 8008
 
-```bash
-# Debug mode (Flask dev server)
-python run.py --deployment_type DEBUG
+### Environment Variables
 
-# Production mode (embedded gunicorn)
-python run.py --deployment_type PRODUCTION
-```
-
-The server starts on **`http://localhost:5005`**.
-
-## Environment Variables
-
-Configuration is loaded from `.env` at the **project root** (parent of `BillServer/`) and read by `python-dotenv` in `run.py:13-14`. All variables are consumed by `apps/config.py`.
-
-### Required (no defaults — must be set)
+**Required (no defaults):**
 
 | Variable | Description |
-|---|---|
-| `SECRET_KEY` | Flask session signing key. Generate with: `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `NFC_PWD_SECRET` | Secret for deriving NFC tag passwords. Generate with: `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `DB_ENGINE` | Database driver. Typically `mysql+pymysql` |
-| `DB_NAME` | Database name (e.g., `BillServerDB`) |
-| `DB_HOST` | Database hostname (Docker: `db`, local: `localhost`) |
-| `DB_PORT` | Database port (default `3306`) |
-| `DB_USERNAME` | Database user (e.g., `root`) |
+|----------|-------------|
+| `SECRET_KEY` | Flask session signing key |
+| `INTERNAL_API_KEY` | Internal service-to-service auth key |
+| `NFC_PWD_SECRET` | Seed for NFC tag password derivation |
+| `XENDIT_API_KEY` | Xendit API secret key |
+| `XENDIT_WEBHOOK_TOKEN` | Xendit webhook verification token |
+| `DB_ENGINE` | e.g., `mysql+pymysql` |
+| `DB_NAME` | Database name |
+| `DB_HOST` | Database host (Docker: `mysql-db`) |
+| `DB_PORT` | Database port (`3306`) |
+| `DB_USERNAME` | Database user |
 | `DB_PASS` | Database password |
+| `CACHE_TYPE` | Flask-Cache backend (e.g., `SimpleCache`) |
+| `PYTHON_GIL` | Free-threading flag (`0`) |
+| `DEPLOYMENT_TYPE` | `PRODUCTION` |
 
-### Optional
+**Optional:**
 
-| Variable | Default | Options | Description |
-|---|---|---|---|
-| `DEPLOYMENT_TYPE` | `PRODUCTION` | `DEBUG` / `PRODUCTION` | Run mode. `DEBUG` enables Flask debug mode and dev server; `PRODUCTION` uses embedded gunicorn with `ProductionConfig` |
-| `REVERSE_PROXY_PREFIX` | `""` (root) | Any path like `/water-billing-system`, or `True` | URL prefix when behind a reverse proxy. Path mode: app auto-prefixes all URLs. Boolean mode (`True`): requires nginx to send `X-Forwarded-Prefix` header |
-| `SESSION_COOKIE_SECURE` | `true` | `true` / `false` | Whether to mark session cookies as Secure (HTTPS only). Set to `false` for local HTTP-only deployments |
-| `SSL_CERTFILE` | (none) | Path to PEM file | SSL certificate path for development HTTPS |
-| `SSL_KEYFILE` | (none) | Path to PEM file | SSL private key path for development HTTPS |
-| `DEBUG` | `false` | `true` / `false` | Enable superuser-only DEBUG dashboard in the staff portal sidebar |
-| `XENDIT_API_KEY` | (none) | string | Xendit secret API key for payment processing |
-| `XENDIT_WEBHOOK_TOKEN` | (none) | string | Xendit webhook verification token for callback authentication |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SQLALCHEMY_DATABASE_URI` | auto-built from DB_* | Full connection string override |
 
-Also `RUN_SELENIUM_TESTS` — set to run Selenium browser tests (skipped by default).
+### compose.yaml Integration
+
+```yaml
+api:
+  build:
+    context: .
+    dockerfile: api/Dockerfile
+  container_name: waterbillingsystem_api
+  restart: unless-stopped
+  networks:
+    - net-api
+    - net-data
+  volumes:
+    - db_backups:/app/db_backups
+  environment:
+    DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+    DB_ENGINE: ${DB_ENGINE}
+    DB_HOST: ${DB_HOST}
+    DB_PORT: ${DB_PORT}
+    DB_NAME: ${DB_NAME}
+    DB_USERNAME: ${DB_USERNAME}
+    DB_PASS: ${DB_PASS}
+    SECRET_KEY: ${SECRET_KEY}
+    INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+    NFC_PWD_SECRET: ${NFC_PWD_SECRET}
+    XENDIT_API_KEY: ${XENDIT_API_KEY}
+    XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
+    CACHE_TYPE: ${CACHE_TYPE}
+    PYTHON_GIL: ${PYTHON_GIL}
+  depends_on:
+    mysql-db:
+      condition: service_healthy
+```
+
+### Networks
+
+| Network | Type | Purpose |
+|---------|------|---------|
+| `net-api` | internal | API-to-portal communication |
+| `net-data` | internal | API-to-database communication |
+
+The API container is on two internal networks: `net-api` (for portal service consumption) and `net-data` (for MySQL access). It has no public network access.
 
 ## App Factory
 
-The application is created by `apps/__init__.py:create_app(config)`. During initialization:
+`api/app.py:create_app()`:
 
-1. Config class is selected (`DebugConfig` or `ProductionConfig`)
-2. Config is validated (SECRET_KEY, NFC_PWD_SECRET, SQLALCHEMY_DATABASE_URI must be non-null)
-3. SQLAlchemy (`db`) is initialized
-4. Flask-Login is initialized with the `Staff` model as user loader
-5. Flask-Caching is initialized (SimpleCache for dev, FileSystemCache for prod)
-6. CSRFProtect is initialized; API blueprint is exempted from CSRF
-7. All blueprints are registered (authentication, staff, landing, billing, api)
-8. Error handlers are registered for 403, 404, 500
-9. `PrefixMiddleware` or `ProxyFix` is applied based on `REVERSE_PROXY_PREFIX`
-10. Template filters (`timestamp_to_date`, `datetimeformat`) are registered
-11. Before-request handler adds `X-Request-Id` to `g`
-12. A "xendit" system user is auto-created at startup (if not present) with `can_accept_payment` permission for automated Xendit payment processing
-13. Background worker starts in a subprocess to handle tasks (Xendit reconciliation every 5 minutes, backup, restore, seed, etc.)
+1. Validates required env vars (SECRET_KEY, NFC_PWD_SECRET, XENDIT_API_KEY, XENDIT_WEBHOOK_TOKEN, CACHE_TYPE, PYTHON_GIL, DEPLOYMENT_TYPE)
+2. Builds SQLAlchemy connection string from DB_* vars (or uses `SQLALCHEMY_DATABASE_URI` override)
+3. Configures connection pooling (30 pool size, 30 overflow, 3600s recycle)
+4. Initializes SQLAlchemy (`db`) and Flask-Caching (`cache`)
+5. Registers `api_bp` (prefix `/api`) and `webhook_bp`
+6. Runs `db.create_all()` and Alembic migrations
+7. Seeds prerequisite staff (superuser, xendit system user)
+8. Exposes `/health` endpoint (separate from blueprint)
 
-## Database Migrations
+## Startup
 
 ```bash
-# Create a new migration
-flask db migrate -m "description of changes"
+# Build and start
+docker compose up -d --build api
 
-# Apply pending migrations
-flask db upgrade
-
-# Rollback one migration
-flask db downgrade
-
-# View migration history
-flask db history
+# Verify health
+curl http://localhost:7021/api/health   # via gateway
+# or directly from another container:
+docker exec waterbillingsystem_api curl http://localhost:8008/api/health
 ```
-
-Migrations are stored in `migrations/versions/`. The startup pre-flight (`run.py`) runs `db.create_all()` automatically, but schema changes via Alembic still require `flask db upgrade`.
-
-## Running in Production
-
-### Gunicorn (via `run.py`)
-
-In `PRODUCTION` mode, `run.py` embeds gunicorn directly via `StandaloneApplication`:
-
-```python
-bind = "0.0.0.0:5005"
-workers = 3
-accesslog = "-"
-loglevel = "info"
-```
-
-SSL can be enabled by setting `SSL_CERTFILE` and `SSL_KEYFILE` env vars.
-
-### Docker
-
-The Dockerfile at the project root:
-1. Multi-stage build from `python:3.14-slim`
-2. Compiles bytecode for faster startup
-3. Runs `gunicorn --bind 0.0.0.0:5005 --workers 3 wsgi:app`
-
-The `wsgi.py` entry point sets `DEPLOYMENT_TYPE=PRODUCTION`, compiles SCSS, and runs pre-flight checks (DB connectivity, table verification, superuser seeding).
-
-Docker Compose is at `Docker/docker-compose.yml` and runs:
-- MySQL 8.4 (`waterbillingsystem_db` container)
-- BillServer (app container on port 7000)
-- phpMyAdmin (on port 7002)
-- Docs server (mkdocs on port 7001)
-
-The compose.yaml passes `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN`, and `SESSION_COOKIE_SECURE` from `.env` to the BillServer container. See [Deployment](deployment.md) for the full compose.yaml listing.
-
-## Testing
-
-```bash
-# Lint only (ruff)
-./run_tests.sh lint
-
-# Server-side tests (pytest)
-./run_tests.sh server
-
-# Full suite (lint + server + browser tests)
-./run_tests.sh all
-
-# Direct pytest
-pytest -v
-```
-
-The test suite uses an in-memory SQLite database. Fixtures in `tests/conftest.py` provide:
-- Authenticated Flask test client
-- Staff users with various permission profiles
-- Sample customers, readings, billing records, and API keys
-
-## Seeding Test Data
-
-```bash
-python seed_test_data.py --customers 20 --months 24
-```
-
-Generates realistic data: 20 customers with coordinates, phases/blocks/streets, 24 months of readings, and randomized payment patterns. Requires a running MySQL instance.
-
----
-
-## Development
-
-### DEBUG Menu
-
-When `DEBUG=true` is set in `.env` and the logged-in user is `superuser`, a **DEBUG** section appears in the staff portal sidebar with the following tools:
-
-| Tool | Description |
-|---|---|
-| **Backup Database** | Exports all tables to a JSON file stored in the `db_backups` Docker volume |
-| **Restore from Backup** | Lists available backups and restores from one (destructive — replaces all data) |
-| **Seed Test Data** | Generates realistic test data with configurable customer count (1–10000) and months (1–240). Clears existing data first. |
-| **Clear Database** | Truncates all tables (irreversible) |
-
-All destructive actions (restore, seed, clear) require a confirmation flow: a random 8-digit number is displayed and must be typed exactly before execution.
-
-The `db_backups` volume is declared in `compose.yaml` and mounted at `/app/db_backups` in the BillServer container.
-
-The `DEBUG` variable is read via `os.environ.get("DEBUG")` in `apps/__init__.py` and exposed to templates as `config.DEBUG_ENABLED`.

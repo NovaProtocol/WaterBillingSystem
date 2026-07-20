@@ -1,67 +1,127 @@
 # Cotta Water Billing System
 
-**Cotta Realty**'s water billing platform handles meter reading collection, billing computation, payment processing, and customer management for a residential subdivision.
+**Cotta Realty**'s water billing platform handles meter reading collection, billing computation, payment processing, and customer management for a residential subdivision. The system is decomposed into 11+ Docker services behind a Caddy reverse proxy, with Gatekeeper authentication for private routes.
 
-## Project Components
+## Services Overview
 
-| Component | Description | Stack | Port |
-|---|---|---|---|
-| **BillServer** | Flask web application — REST API + staff portal + customer billing portal | Flask 3.1, SQLAlchemy 2.0, MySQL 8.4, Gunicorn | `5005` |
-| **MeterReadingApp** | Mobile app for field meter readers — NFC tag scanning, offline SQLite storage, server sync | React Native (Expo), op-sqlite, react-native-nfc-manager | — |
-| **Docker** | MySQL 8.4 database + phpMyAdmin admin panel | Docker Compose | `3306`, `5002` |
+| Service | Container | Internal Port | Caddy Route | Network |
+|---|---|---|---|---|
+| **Caddy Gateway** | `caddy-gateway` | 7020 / 7021 | — | public, private, cloudflared |
+| **Landing Page** | `landing-page` | 8001 | `/*` (port 7020) | net-public |
+| **Customer Portal** | `customer-portal` | 8002 | `/customer/*` (7020) | public, api, gk |
+| **Staff Portal** | `staff-portal` | 8003 | `/staff/*` (7021) | private, api, gk |
+| **Developer Portal** | `developer-portal` | 8004 | `/developer/*` (7021) | private, api, gk |
+| **Documentation** | `documentation` | 8005 | `/documentation/*` (7021) | private, gk |
+| **API Container** | `api` | 8008 | — | api, data |
+| **Webhook Container** | `webhook-container` | 8009 | `/webhook/*` (7020) | public, api, gk |
+| **Background Worker** | `background-worker` | — | — | data |
+| **phpMyAdmin** | `phpmyadmin` | 80 | `/phpmyadmin/*` (7021) | private, data |
+| **MySQL 8.4** | `mysql-db` | 3306 | — | net-data |
 
-## Quick Links
+Port **7020** is public-facing; port **7021** is private (requires Gatekeeper authentication).
 
-| Link | Description |
-|---|---|
-| [Getting Started](getting-started.md) | Prerequisites, setup, and startup instructions for all components |
-| [Architecture](architecture.md) | System architecture diagrams, data flow, and component relationships |
-| [BillServer API Reference](bill-server/api-reference.md) | Complete REST API endpoint documentation |
-| [BillServer Staff Portal](bill-server/staff-portal.md) | Staff portal routes, permissions, and workflows |
-| [BillServer Database Models](bill-server/models.md) | All 9 SQLAlchemy models with columns, types, and relationships |
-| [MeterReadingApp Screens](meter-reading-app/screens.md) | All screens, components, and navigation flow |
-| [MeterReadingApp Sync](meter-reading-app/sync.md) | Offline sync architecture, polling, and conflict resolution |
-| [Docker Setup](docker/index.md) | MySQL and phpMyAdmin deployment |
-| [API Contract](api-contract/index.md) | Full API contract with auth details, request/response examples |
+## Architecture Diagram
 
-**Models**: Staff, Customer, MeterReading, Billing, ApiKey, NfcTag, ManagementLog, Config, XenditTransaction
+```mermaid
+graph TB
+    subgraph "net-public"
+        LAND["Landing Page<br/>Flask :8001"]
+        CP["Customer Portal<br/>Flask :8002"]
+        WH["Webhook Container<br/>Flask :8009"]
+    end
+
+    subgraph "net-private"
+        SP["Staff Portal<br/>Flask :8003"]
+        DP["Developer Portal<br/>Flask :8004"]
+        DOC["Documentation<br/>MkDocs/Flask :8005"]
+        PMA["phpMyAdmin<br/>:80"]
+    end
+
+    subgraph "net-api internal"
+        API["API Container<br/>Flask :8008"]
+    end
+
+    subgraph "net-data internal"
+        DB[("MySQL 8.4<br/>:3306")]
+        WORKER["Background Worker"]
+    end
+
+    subgraph "net-gk (external)"
+        GK["Gatekeeper<br/>Auth Service"]
+    end
+
+    subgraph "cloudflared-tunnel (external)"
+        TUN["Cloudflare Tunnel"]
+    end
+
+    subgraph "Caddy Gateway :7020 / :7021"
+        CAD["Caddy<br/>7020: public<br/>7021: private"]
+    end
+
+    CAD -->|"7020 /*"| LAND
+    CAD -->|"7020 /customer/*"| CP
+    CAD -->|"7020 /webhook/*"| WH
+    CAD -->|"7021 /staff/*"| SP
+    CAD -->|"7021 /developer/*"| DP
+    CAD -->|"7021 /documentation/*"| DOC
+    CAD -->|"7021 /phpmyadmin/*"| PMA
+
+    CP -->|"internal API"| API
+    SP -->|"internal API"| API
+    DP -->|"internal API"| API
+    WH -->|"internal API"| API
+
+    API --> DB
+    WORKER --> DB
+    PMA --> DB
+
+    CP --> GK
+    SP --> GK
+    DP --> GK
+    DOC --> GK
+    WH --> GK
+
+    TUN --> CAD
+```
 
 ## Relationship Overview
 
 ```mermaid
 graph LR
     subgraph "Field Operations"
-        MN[Meter Reader<br/>with Phone]
+        MN["Meter Reader<br/>with Phone"]
     end
     subgraph "Office Operations"
-        SP[Staff User<br/>at Desk]
-        CP[Customer<br/>Portal User]
+        SP_USER["Staff User<br/>at Desk"]
+        CUST_USER["Customer<br/>Portal User"]
     end
 
     subgraph "MeterReadingApp"
-        MOB[Mobile App<br/>React Native / Expo]
-    end
-    subgraph "BillServer"
-        API[REST API<br/>/api/*]
-        WEB[Staff Portal<br/>/staff/*]
-        BILL[Billing Page<br/>/billing/*]
-        LAND[Landing Page<br/>/*]
-    end
-    subgraph "Infrastructure"
-        DB[(MySQL 8.4<br/>waterbillingsystem_db)]
-        ADMIN[phpMyAdmin<br/>:5002]
+        MOB["Mobile App<br/>React Native / Expo"]
     end
 
     MN -->|"NFC Scan / Manual"| MOB
-    MOB -->|"HTTP Bearer Auth<br/>sync readings"| API
-    SP --> WEB
-    CP --> BILL
-    PUBLIC[Public Visitor] --> LAND
-
-    API --> DB
-    WEB --> DB
-    BILL --> DB
-    ADMIN --> DB
+    MOB -->|"Bearer Auth<br/>CRDC-API Key"| API
+    SP_USER --> SP
+    CUST_USER --> CP
+    PUBLIC["Public Visitor"] --> LAND
+    XENDIT["Xendit<br/>Payment Gateway"] -->|"webhook callback"| WH
 ```
 
-The mobile app works **offline-first**: readings are stored locally in SQLite and synced to BillServer when connectivity is available. The staff portal provides full CRUD operations on customers, readings, payments, and staff accounts. The billing page lets customers view their bill history using a receipt-based verification flow.
+## Quick Links
+
+| Link | Description |
+|---|---|
+| [Getting Started](getting-started.md) | Prerequisites, setup, and startup instructions |
+| [Architecture](architecture.md) | System architecture diagrams, network topology, data flow |
+| [BillServer API Reference](bill-server/api-reference.md) | Complete REST API endpoint documentation |
+| [Staff Portal](bill-server/staff-portal.md) | Staff portal routes, permissions, and workflows |
+| [Database Models](bill-server/models.md) | All 10 SQLAlchemy models |
+| [MeterReadingApp Screens](meter-reading-app/screens.md) | All screens, components, and navigation flow |
+| [MeterReadingApp Sync](meter-reading-app/sync.md) | Offline sync architecture, polling, and conflict resolution |
+| [Docker Setup](docker/index.md) | Docker Compose deployment |
+| [API Contract](api-contract/index.md) | Full API contract with auth details |
+
+**Models**: Staff, Customer, MeterReading, Billing, ApiKey, NfcTag, ManagementLog, Config, PaymentMethod, XenditTransaction, BackgroundTask
+
+**Networks**: `net-public` (bridge), `net-private` (bridge), `net-api` (internal), `net-data` (internal), `net-gk` (external: `gatekeeper_default`), `cloudflared-tunnel` (external)

@@ -1,8 +1,16 @@
 # Staff Portal
 
-Base URL: `/staff/*`
+**Container**: `staff-portal` | **Port**: 8003 | **Base URL**: `/staff/*`
 
-The staff portal is a web dashboard for water billing administration. It uses the Black Dashboard theme (AppSeed) with a sidebar navigation, top navbar, and content area.
+The staff portal is a Flask web dashboard served by the Caddy gateway at port 7021. It communicates with the API container via internal HTTP requests using the internal API key.
+
+## Architecture
+
+The staff portal is a proxy-style Flask app:
+- Routes render Jinja2 templates and handle form submissions
+- Business logic is delegated to the API container via `api_client.py`
+- Auth uses Flask-Login with session-based staff authentication
+- All requests to the staff portal go through Gatekeeper auth enforcement
 
 ## Authentication
 
@@ -11,240 +19,149 @@ The staff portal is a web dashboard for water billing administration. It uses th
 **`GET /staff/login`** — Login page  
 **`POST /staff/login`** — Submit credentials
 
-Rate limited to **10 requests per 60 seconds** per IP.
+Rate limited: **10 requests per 60 seconds per IP** (Flask-Caching based).
 
-Default superuser: `superuser` / `superuser` (seeded on first startup).
+On successful login, the portal calls `POST /api/staff/login` on the API container, stores staff data (including permissions) in the Flask session, and calls `login_user()`.
+
+Default superuser: `superuser` / `superuser` (seeded on first API container startup).
 
 ### Logout
 
-**`GET /staff/logout`** — Clear session, redirect to login.
+**`GET /staff/logout`** — Clears session, logs out.
 
-## Dashboard
+### Permission Decorator
 
-**`GET /staff/dashboard`** — Main dashboard page. Accessible to all authenticated staff.
+`permission_required(*perms)` — checks `session['staff_data']` for required boolean permissions. Returns 403 if missing.
 
----
+## Routes
 
-## Customer Management
+### Dashboard
 
-### Customer Enrollment
-
-**`GET /staff/customers`** — List of enrollable customers  
-**`POST /staff/customers/create`** — Create a new customer
-
-Permission: `can_enroll_customer`
-
-Customer creation fields:
-| Field | Required | Description |
-|---|---|---|
-| `customer_number` | Yes | Unique identifier (e.g., `C-001`) |
-| `name` | Yes | Full name |
-| `address` | No | Property address |
-| `contact_number` | No | Phone number |
-| `email` | No | Email address |
-| `phase` | Yes | Subdivision phase |
-| `block` | Yes | Block within phase |
-| `street` | Yes | Street name |
-| `x_coordinate` | No | Latitude (for map pin) |
-| `y_coordinate` | No | Longitude (for map pin) |
+| Route | Method | Permission | Description |
+|-------|--------|------------|-------------|
+| `/staff/` | GET | — | Redirect to dashboard or login |
+| `/staff/dashboard` | GET | login_required | Dashboard with customer/staff counts |
 
 ### Customer Management
 
-**`GET /staff/manage-customers`** — Searchable, sortable, paginated customer list
+| Route | Method | Permission | Description |
+|-------|--------|------------|-------------|
+| `/staff/customers` | GET | login_required | Paginated customer list |
+| `/staff/customers/create` | POST | can_enroll_customer | Create customer |
+| `/staff/manage-customers` | GET | login_required | Searchable/sortable customer table |
+| `/staff/manage-customers/{id}/edit` | POST | can_enroll_customer | Edit customer |
+| `/staff/manage-customers/{id}/toggle-active` | POST | can_enroll_customer | Soft-delete/reactivate |
+| `/staff/manage-customers/{id}/clear-nfc` | POST | can_enroll_customer | Clear NFC tag |
 
-Features:
-- Search by name, address, customer number
-- Filter by phase, block, street
-- Sortable columns (name, cumulative balance, date created)
-- Paginated (10–200 per page)
+### Meter Reading
 
-**`POST /staff/manage-customers/<id>/edit`** — Edit customer details  
-**`POST /staff/manage-customers/<id>/toggle-active`** — Soft-delete/restore customer
+| Route | Method | Permission | Description |
+|-------|--------|------------|-------------|
+| `/staff/meter-reading` | GET | login_required | API key management page |
+| `/staff/meter-reading/generate` | POST | login_required | Generate API key |
+| `/staff/meter-reading/revoke/{id}` | POST | login_required | Revoke API key |
+| `/staff/manage-reading` | GET | login_required | Reading audit log page |
+| `/staff/manage-reading/drop-reading/{id}` | POST | can_drop_reading | Drop reading |
+| `/staff/manage-reading/edit-reading/{id}` | POST | can_drop_reading | Edit reading |
 
-Permission: `can_enroll_customer`
+### Payments
 
----
+| Route | Method | Permission | Description |
+|-------|--------|------------|-------------|
+| `/staff/payments` | GET | login_required | Payment collection page |
+| `/staff/payments/submit` | POST | can_accept_payment | Submit payment |
+| `/staff/cashier-tally` | GET | can_accept_payment | Cashier tally report |
 
-## Meter Reading
+### Billing Management
 
-### API Key Management
+| Route | Method | Permission | Description |
+|-------|--------|------------|-------------|
+| `/staff/manage-billing` | GET | login_required | Billing audit page |
+| `/staff/manage-billing/undo-payment/{id}` | POST | can_drop_payment | Undo payment |
 
-**`GET /staff/meter-reading`** — View and manage API keys
+### Staff Management
 
-**`POST /staff/meter-reading/generate`** — Generate a new API key (`CRDC-<32hex>`)  
-**`POST /staff/meter-reading/revoke/<id>`** — Deactivate an API key
+| Route | Method | Permission | Description |
+|-------|--------|------------|-------------|
+| `/staff/staff` | GET | login_required | Staff list |
+| `/staff/staff/create` | POST | can_enroll_staff | Create staff |
+| `/staff/staff/{id}` | GET | can_enroll_staff | Get staff |
+| `/staff/staff/{id}` | POST | can_enroll_staff | Edit staff |
 
-Permission: `can_read_meters`
+### API Proxy Routes
 
-- Staff with `can_drop_reading` see ALL keys; others see only their own.
-- Keys are associated with the creating staff member.
-- Revoked keys cannot be re-activated.
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/staff/api/customer/{customer_number}` | GET | Proxy customer details from API |
+| `/staff/api/customers/cache-status` | GET | Customer cache status |
+| `/staff/api/customers/cache-refresh` | POST | Force cache refresh |
+| `/staff/api/customers/search-sort` | GET | Search/sort from local cache |
 
-### Reading Management
+## Permission System
 
-**`GET /staff/manage-reading`** — View recent readings with audit logs
+7 boolean permissions on the `Staff` model:
 
-**`POST /staff/manage-reading/drop-reading/<id>`** — Delete a reading (audit logged)  
-**`POST /staff/manage-reading/edit-reading/<id>`** — Change a reading value (audit logged)
+| Permission | Affects |
+|------------|---------|
+| `can_read_meters` | Meter reading page, API key management |
+| `can_accept_payment` | Payment collection, cashier tally |
+| `can_enroll_customer` | Customer creation, editing, NFC management |
+| `can_drop_reading` | Reading deletion and editing |
+| `can_drop_payment` | Payment undo |
+| `can_enroll_staff` | Staff account CRUD |
+| `can_manage_billing` | Billing management, reading editing |
 
-Permission: `can_drop_reading` or `can_manage_billing` (view), `can_drop_reading` (drop/edit)
+## Customer Cache
 
----
+The staff portal maintains an in-memory customer cache for fast search:
 
-## Payments
+| Property | Value |
+|----------|-------|
+| Storage | In-memory Python list |
+| Refresh TTL | 300 seconds (5 minutes) |
+| Staleness check | 30 seconds (checks `/api/customers/changed` first) |
+| Pre-warm | Background thread on startup |
 
-### Payment Collection
+Cache functions in `api_client.py`:
+- `refresh_customer_cache(force=False)` — fetch all customers page by page
+- `search_cached_customers(query)` — smart search (digits=customer_number, letters=name)
+- `search_and_sort_customers(q, sort_by, sort_dir, page, per_page)` — paginated search from cache
 
-**`GET /staff/payments`** — Payment collection page  
-**`POST /staff/payments/submit`** — Submit a payment
+The cache stores full customer objects including `customer_number`, `name`, `address`, `phase`, `block`, `street`, `cumulative_balance`, `total_due`, `nfc_uid`.
 
-Permission: `can_accept_payment`
+## API Client
 
-Payment submission includes:
-- Customer lookup (autocomplete)
-- Amount entry
-- Receipt number generation
-- Automatic billing recalculation
+`api_client.py` provides internal HTTP functions:
+- `_get(path, params)` / `_post(path, data)` / `_put(path, data)` / `_delete(path)` — every call includes `X-Internal-API-Key` header
+- Timeout: 15 seconds
+- All calls go to `API_BASE_URL` (default: `http://api:8008`)
 
-### Cashier Tally
+## Dockerfile
 
-**`GET /staff/cashier-tally`** — Daily cashier report
-
-Shows:
-- Payments collected today (or custom date range)
-- Payment breakdown by cashier
-- Navigation dates (previous/next day)
-
-Permission: `can_accept_payment`
-
----
-
-## Billing Management
-
-**`GET /staff/manage-billing`** — View billing audit logs (last 50 entries)
-
-**`POST /staff/manage-billing/drop-payment/<id>`** — Delete a payment (audit logged)  
-**`POST /staff/manage-billing/edit-payment/<id>`** — Change a payment amount (audit logged)
-
-Permission: `can_manage_billing` (view and manage) or `can_drop_payment`
-
----
-
-## Staff Management
-
-**`GET /staff/staff`** — List all staff accounts  
-**`POST /staff/staff/create`** — Create a new staff account  
-**`GET/POST /staff/staff/<id>`** — Edit a staff account
-
-Permission: `can_enroll_staff`
-
-Staff account fields:
-| Field | Required | Description |
-|---|---|---|
-| `username` | Yes | Login username (unique) |
-| `name` | Yes | Display name |
-| `password` | Yes | Login password |
-| `email` | No | Email address |
-| `contact_number` | No | Phone number |
-| 7 boolean permissions | No | Granular access control (see below) |
-
-## Permission Reference
-
-| Permission | Affects | Default Superuser |
-|---|---|---|
-| `can_read_meters` | Meter reading page, API key management, reading CRUD | ✓ |
-| `can_accept_payment` | Payment collection, cashier tally | ✓ |
-| `can_enroll_customer` | Customer enrollment, customer management | ✓ |
-| `can_drop_reading` | Delete/edit readings | ✓ |
-| `can_drop_payment` | Delete payments | ✓ |
-| `can_enroll_staff` | Staff account CRUD | ✓ |
-| `can_manage_billing` | Billing management, edit payments | ✓ |
-
----
-
-## DEBUG Dashboard
-
-When `DEBUG=true` is set in `.env` and the logged-in user is "superuser", a **DEBUG** section appears in the sidebar with development tools.
-
-### Available Actions
-
-| Tool | Description | Endpoint |
-|---|---|---|
-| **Backup Database** | Full DB snapshot via `mysqldump` — schema, data, triggers, routines, events | `POST /staff/debug/backup` |
-| **Restore from Backup** | Restore from a `.sql` backup file — completely replaces the database | `POST /staff/debug/restore` |
-| **Seed Test Data** | Generate realistic test customers, readings, and billing records | `POST /staff/debug/seed` |
-| **Clear Database** | Truncates all tables — removes all data permanently | `POST /staff/debug/clear` |
-| **Read This Month** | Create readings + unpaid bills for all customers without one | `POST /staff/debug/read-this-month` |
-| **Unread This Month** | Remove this month's readings (unpaid only) | `POST /staff/debug/unread-this-month` |
-| **Pay This Month** | Mark all unpaid this-month bills as paid | `POST /staff/debug/pay-this-month` |
-| **Remove Payment This Month** | Revert all paid this-month bills to unpaid | `POST /staff/debug/remove-payment-this-month` |
-
-All destructive actions (restore, seed, clear, and monthly mutations) require typing a randomly generated 8-digit confirmation code before execution.
-
-### Task Queue System
-
-Actions run in a **background worker process** (not in the HTTP request), so the page remains responsive. The system uses two files for cross-process communication:
-
-| File | Purpose | Written by | Read by |
-|------|---------|-----------|---------|
-| `db_backups/to_bg.json` | Queue of pending job orders | Flask routes | Background worker |
-| `db_backups/from_bg.json` | Current job state + completed history | Background worker | Flask routes |
-
-All file access is protected by `fcntl.flock` to prevent corruption when multiple Gunicorn workers access the files concurrently.
-
-#### How it works
-
-1. **Submit**: Clicking an action generates an 8-digit confirmation code. After confirmation, the route writes a job order to `to_bg.json` (the queue).
-2. **Process**: A dedicated subprocess (`background_worker.py`, launched from `run.py`) polls the `background_tasks` database table. It claims the oldest queued task and executes it — tasks run **sequentially** (one at a time).
-3. **Progress**: The worker writes status updates (progress percentage, messages) to `from_bg.json` at least 2 times per second.
-4. **Poll**: The frontend JavaScript polls `GET /staff/debug/tasks` every 2 seconds and renders the current job and completed history.
-
-#### Queue behaviour
-
-- Tasks run in order — a backup finishes before a seed starts.
-- On server restart, both `to_bg.json` and `from_bg.json` are cleared. Any queued or running jobs are discarded.
-- The worker runs independently of Gunicorn workers — if one worker crashes, the background worker continues unaffected.
-
-#### Status display
-
-The Task Queue card shows:
-- **Current job** (if any): Progress bar, status badge, latest message, expandable message log
-- **History**: Compeleted/interrupted/errored jobs with expandable logs
-- **Queue depth badge**: Number of pending orders awaiting execution
-
-### Task polling API
-
-**`GET /staff/debug/tasks`** — Returns the full task queue status:
-
-```json
-{
-  "current": {
-    "id": "order_5",
-    "title": "Seed: 5000c × 120m",
-    "status": "running",
-    "progress": 42.5,
-    "started_at": 1783518484.42,
-    "messages": [
-      "Order Received: Seed 5000c × 120m",
-      "Clearing existing data...",
-      "Seeding customer 10/5000..."
-    ]
-  },
-  "queue_depth": 2,
-  "history": [
-    {
-      "id": "order_4",
-      "title": "Clear Database",
-      "status": "completed",
-      "progress": 100,
-      "started_at": 1783518459.51,
-      "ended_at": 1783518460.21,
-      "messages": ["Clearing tables...", "All tables cleared. Superuser preserved."]
-    }
-  ]
-}
+```dockerfile
+FROM python3146t:latest
+WORKDIR /app
+COPY shared/requirements.txt /app/shared/
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ libc6-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir -r /app/shared/requirements.txt gunicorn
+COPY shared/ /app/shared/
+RUN python3 -m compileall -q /app /app/shared 2>/dev/null || true
+COPY staff-portal/ /app/
+ENV PYTHONPATH=/app/shared
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHON_GIL=0
+EXPOSE 8003
+CMD ["gunicorn", "--bind", "0.0.0.0:8003", "--worker-class", "gthread", \
+     "--workers", "1", "--threads", "4", "--access-logfile", "-", "app:create_app()"]
 ```
 
-When idle: `current` is `null`. The history array holds up to 20 recent completed jobs.
+## Environment Variables
 
-**`GET /staff/debug/tasks/<order_id>`** — Returns a single task (current or in history).
+| Variable | Description |
+|----------|-------------|
+| `SECRET_KEY` | Flask session signing key |
+| `INTERNAL_API_KEY` | API key for container-to-API auth |
+| `API_BASE_URL` | API container URL (`http://api:8008`) |
+| `CACHE_TYPE` | Flask-Cache backend |
+| `GATEKEEPER_INTERNAL` | Gatekeeper URL (`http://gatekeeper:7000`) |
+| `DEPLOYMENT_TYPE` | `PRODUCTION` |

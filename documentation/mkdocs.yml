@@ -1,5 +1,5 @@
 site_name: Cotta Water Billing System
-site_description: Documentation for Cotta Realty's water billing platform — BillServer API, MeterReadingApp, and Docker infrastructure
+site_description: Documentation for Cotta Realty's water billing platform — decomposed Docker services, API, MeterReadingApp
 site_author: Cotta Realty
 repo_url: https://github.com/NovaProtocol/WaterBillingSystem
 repo_name: NovaProtocol/WaterBillingSystem
@@ -24,9 +24,6 @@ theme:
     repo: fontawesome/brands/github
 
 extra:
-  # social:
-  #   - icon: fontawesome/brands/github
-  #     link: https://github.com/anomalyco/Projects
   generator: false
 
 markdown_extensions:
