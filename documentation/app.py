@@ -1,5 +1,5 @@
 import os, sys
-from flask import Flask, send_from_directory, abort, request
+from flask import Flask, send_file, abort, request
 
 SITE_DIR = os.path.join(os.path.dirname(__file__), 'site')
 
@@ -12,7 +12,7 @@ def require_env(*names):
 def create_app():
     require_env('SECRET_KEY', 'DEPLOYMENT_TYPE', 'GATEKEEPER_INTERNAL')
 
-    app = Flask(__name__, static_folder=SITE_DIR, static_url_path='')
+    app = Flask(__name__)
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
 
     @app.route('/health')
@@ -22,17 +22,16 @@ def create_app():
     @app.route('/', defaults={'path': 'index.html'})
     @app.route('/<path:path>')
     def serve_docs(path):
-        safe = os.path.join(SITE_DIR, path)
-        if os.path.isfile(safe):
-            return send_from_directory(SITE_DIR, path)
+        if not path:
+            path = 'index.html'
 
-        index_path = os.path.join(path, 'index.html')
-        if os.path.isfile(os.path.join(SITE_DIR, index_path)):
-            return send_from_directory(SITE_DIR, index_path)
+        parts = path.rstrip('/')
+        candidates = [parts, os.path.join(parts, 'index.html'), parts + '.html']
 
-        html_path = path + '.html'
-        if os.path.isfile(os.path.join(SITE_DIR, html_path)):
-            return send_from_directory(SITE_DIR, html_path)
+        for c in candidates:
+            full = os.path.normpath(os.path.join(SITE_DIR, c))
+            if full.startswith(SITE_DIR) and os.path.isfile(full):
+                return send_file(full)
 
         abort(404)
 
