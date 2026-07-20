@@ -47,7 +47,9 @@ def get_customer(customer_number: str, params: dict = None) -> dict:
 
 def customer_search(query: str) -> list:
     """Search customers by number or name prefix. Proxies to API."""
-    data = _get('/api/customer/all', {'q': query, 'page': 1, 'size': 50})
+    if not query or not query.strip():
+        return []
+    data = _get('/api/customer/all', {'q': query.strip(), 'page': 1, 'size': 50})
     return data.get('data', [])
 
 

@@ -173,12 +173,12 @@ def list_customers(
 
     if q:
         if q.isdigit():
-            query = query.filter(Customer.customer_number.like(f'C{q}%'))
+            query = query.filter(Customer.customer_number.like(f'{q}%'))
         elif q.isalpha():
             query = query.filter(Customer.name.like(f'{q}%'))
 
     if sort_by == "customer_number":
-        order = func.cast(func.substring(Customer.customer_number, 2), Integer)
+        order = func.cast(Customer.customer_number, Integer)
         order = order.asc() if sort_dir == "asc" else order.desc()
     elif sort_by == "total_due":
         col = Customer.total_due
