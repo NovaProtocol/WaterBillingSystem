@@ -18,7 +18,7 @@ def xendit_webhook():
         tx.status = status
         if status == 'PAID':
             parts = external_id.split('-')
-            customer_number = parts[1] if len(parts) > 1 else ''
+            customer_number = int(parts[1]) if len(parts) > 1 else 0
             from services.payment_service import submit_payment
             from models import Billing
             billings = Billing.query.filter_by(customer_number=customer_number, is_paid=False).order_by(Billing.created_at).all()

@@ -13,7 +13,7 @@ def _generate_receipt(now: datetime) -> str:
     return "RCP-" + str(int(now.timestamp())) + "-" + secrets.token_hex(4).upper()
 
 
-def _recalc_total_due(customer_number: str) -> None:
+def _recalc_total_due(customer_number: int) -> None:
     total = 0.0
     unpaid_bills = (
         Billing.query
@@ -39,7 +39,7 @@ def _recalc_total_due(customer_number: str) -> None:
 
 
 def recalc_cumulative_balance(
-    customer_number: str, *, customer: Customer | None = None
+    customer_number: int, *, customer: Customer | None = None
 ) -> None:
     if customer is None:
         customer = (
@@ -60,11 +60,11 @@ def recalc_cumulative_balance(
 
 
 def submit_payment(
-    customer_number: str,
+    customer_number: int,
     amount: float,
     cashier_id: int,
 ) -> tuple[dict | None, str | None, int]:
-    if not customer_number or amount <= 0:
+    if customer_number is None or amount <= 0:
         return None, "Customer number and valid amount required", 400
 
     customer = (

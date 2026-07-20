@@ -56,7 +56,7 @@ def _clear_all_tables() -> None:
         db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 1"))
 
 
-def _recalc_cumulative_balance(customer_number: str) -> None:
+def _recalc_cumulative_balance(customer_number: int) -> None:
     total = (
         db.session.query(db.func.sum(Billing.carryover_offset))
         .filter_by(customer_number=customer_number)
@@ -68,7 +68,7 @@ def _recalc_cumulative_balance(customer_number: str) -> None:
         customer.cumulative_balance = round(float(total), 2)
 
 
-def _recalc_total_due(customer_number: str) -> None:
+def _recalc_total_due(customer_number: int) -> None:
     total = 0.0
     for bill in Billing.query.filter_by(customer_number=customer_number, is_paid=False).all():
         bill_due = (
@@ -269,7 +269,7 @@ def _seed_data(
     last_print = 0
     next_pct = 1
     for ci in range(n_customers):
-        cnum = f"{ci + 1}"
+        cnum = ci + 1
         first = rng.choice(FIRST_NAMES)
         last = rng.choice(LAST_NAMES)
         pd = rng.choice(PHASE_DATA)
@@ -571,7 +571,7 @@ def handle_seed(params: dict[str, Any], report: Callable[[float, str], None]) ->
     report(100, f"Seeded {actual_customers} customers × {n_months} months ({actual_readings} readings, {actual_bills} bills, {total_dur:.1f}s)")
 
 
-def _get_customers_without_reading_this_month(now: datetime) -> list[str]:
+def _get_customers_without_reading_this_month(now: datetime) -> list[int]:
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     subq = (
         db.session.query(MeterReading.customer_number)
@@ -773,7 +773,7 @@ def handle_remove_payment_this_month(params: dict[str, Any], report: Callable[[f
             next_log += 100
     db.session.commit()
     print(f"  > Recalculating cumulative balances...", flush=True)
-    seen: set[str] = set()
+    seen: set[int] = set()
     for bill in paid_bills:
         if bill.customer_number not in seen:
             seen.add(bill.customer_number)

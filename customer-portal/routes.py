@@ -56,7 +56,7 @@ def identify():
         return resp
     return render_template('customer/identify.html', **ctx)
 
-@customer_bp.route('/customer/billing/<customer_number>')
+@customer_bp.route('/customer/billing/<int:customer_number>')
 def billing(customer_number):
     token = request.cookies.get('billing_session')
     if not token:
@@ -78,7 +78,7 @@ def billing(customer_number):
     ctx.setdefault('payment_methods', [])
     return render_template('customer/billing.html', **ctx)
 
-@customer_bp.route('/customer/billing/<customer_number>/readings')
+@customer_bp.route('/customer/billing/<int:customer_number>/readings')
 def readings(customer_number):
     token = request.cookies.get('billing_session')
     if not token:
@@ -95,7 +95,7 @@ def readings(customer_number):
     except Exception as e:
         return jsonify({'error': 'Failed to fetch readings'}), 500
 
-@customer_bp.route('/customer/billing/<customer_number>/payments')
+@customer_bp.route('/customer/billing/<int:customer_number>/payments')
 def payments(customer_number):
     token = request.cookies.get('billing_session')
     if not token:
@@ -112,7 +112,7 @@ def payments(customer_number):
     except Exception as e:
         return jsonify({'error': 'Failed to fetch payments'}), 500
 
-@customer_bp.route('/customer/billing/<customer_number>/history')
+@customer_bp.route('/customer/billing/<int:customer_number>/history')
 def billing_history(customer_number):
     token = request.cookies.get('billing_session')
     if not token:
@@ -129,7 +129,7 @@ def billing_history(customer_number):
     except Exception as e:
         return jsonify({'error': 'Failed to fetch billing history'}), 500
 
-@customer_bp.route('/customer/billing/<customer_number>/invoice', methods=['POST'])
+@customer_bp.route('/customer/billing/<int:customer_number>/invoice', methods=['POST'])
 def create_invoice(customer_number):
     token = request.cookies.get('billing_session')
     if not token:

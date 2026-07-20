@@ -1,5 +1,5 @@
 export interface CustomerDetailResponse {
-  customer_number: string;
+  customer_number: number;
   name: string;
   address: string;
   contact_number: string;
@@ -12,7 +12,7 @@ export interface CustomerDetailResponse {
 
 export interface ReadingResponse {
   id: number;
-  customer_number: string;
+  customer_number: number;
   reading_value: number;
   reader: string | null;
   timestamp: number;
@@ -21,7 +21,7 @@ export interface ReadingResponse {
 export interface SyncResponse {
   synced: number;
   total: number;
-  results: { index: number; reading_id: number; customer_number: string }[];
+  results: { index: number; reading_id: number; customer_number: number }[];
   errors: { index: number; error: string }[];
 }
 
@@ -32,14 +32,14 @@ export interface PricingResponse {
 }
 
 export interface ChangedCustomersResponse {
-  customer_numbers: string[];
+  customer_numbers: number[];
   server_time: number;
   total_customers: number;
 }
 
 export interface BulkCustomerData {
   customer: {
-    customer_number: string;
+    customer_number: number;
     name: string;
     address: string;
     contact_number: string;
@@ -68,11 +68,11 @@ export interface NfcConfigResponse {
 }
 
 export interface NfcTagsResponse {
-  tags: { uid: string; customer_number: string }[];
+  tags: { uid: string; customer_number: number }[];
 }
 
 export interface NfcSyncRequest {
-  enrollments: { uid: string; customer_number: string }[];
+  enrollments: { uid: string; customer_number: number }[];
 }
 
 export interface NfcSyncResponse {

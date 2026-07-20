@@ -94,8 +94,8 @@ def customer_all() -> Response:
     })
 
 
-@blueprint.route("/customer/<customer_number>")
-def customer_info(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>")
+def customer_info(customer_number: int) -> Response:
     """Get full billing details for a specific customer."""
     api_key, err = require_staff("can_read_meters")
     if err:
@@ -362,8 +362,8 @@ def customer_info(customer_number: str) -> Response:
     )
 
 
-@blueprint.route("/customer/<customer_number>/details")
-def customer_details(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>/details")
+def customer_details(customer_number: int) -> Response:
     """Get customer profile with recent reading history."""
     api_key, err = require_staff("can_read_meters")
     if err:
@@ -438,8 +438,8 @@ def customer_new() -> Response:
     }), 201
 
 
-@blueprint.route("/customer/update/<customer_number>", methods=["PUT"])
-def customer_update(customer_number: str) -> Response:
+@blueprint.route("/customer/update/<int:customer_number>", methods=["PUT"])
+def customer_update(customer_number: int) -> Response:
     api_key, err = require_staff("can_enroll_customer")
     if err:
         return err
@@ -451,8 +451,8 @@ def customer_update(customer_number: str) -> Response:
     return jsonify({"message": "Customer updated"})
 
 
-@blueprint.route("/customer/delete/<customer_number>", methods=["DELETE"])
-def customer_delete(customer_number: str) -> Response:
+@blueprint.route("/customer/delete/<int:customer_number>", methods=["DELETE"])
+def customer_delete(customer_number: int) -> Response:
     api_key, err = require_staff("can_enroll_customer")
     if err:
         return err
@@ -469,11 +469,11 @@ def customer_delete(customer_number: str) -> Response:
 @blueprint.route("/customer/login", methods=["POST"])
 def customer_login() -> Response:
     data = request.get_json() or {}
-    account_number = data.get("account_number", "").strip()
+    account_number = data.get("account_number")
     registered_name = data.get("registered_name", "").strip()
     last_receipt = data.get("last_receipt", "").strip()
 
-    if not account_number:
+    if account_number is None:
         return jsonify({"error": "Customer number is required", "error_code": "CUS400"}), 400
 
     customer = Customer.query.filter_by(customer_number=account_number, is_active=True).first()
@@ -498,8 +498,8 @@ def customer_login() -> Response:
     })
 
 
-@blueprint.route("/customer/<customer_number>/invoice", methods=["POST"])
-def customer_invoice(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>/invoice", methods=["POST"])
+def customer_invoice(customer_number: int) -> Response:
     customer = Customer.query.filter_by(customer_number=customer_number).first()
     if not customer:
         return jsonify({"error": "Customer not found"}), 404
@@ -528,8 +528,8 @@ def customer_invoice(customer_number: str) -> Response:
     if not api_key_str:
         return jsonify({"error": "Xendit not configured"}), 503
 
-    names = (customer.name or customer_number).strip().split(" ", 1)
-    given_names = names[0] or customer_number
+    names = (customer.name or str(customer_number)).strip().split(" ", 1)
+    given_names = names[0] or str(customer_number)
     surname = names[1] if len(names) > 1 else ""
 
     payload = {
@@ -607,8 +607,8 @@ def customer_invoice(customer_number: str) -> Response:
 # ── Reading CRUD ────────────────────────────────────────────────────────
 
 
-@blueprint.route("/customer/<customer_number>/reading")
-def customer_readings(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>/reading")
+def customer_readings(customer_number: int) -> Response:
     api_key, err = require_staff("can_read_meters")
     if err:
         return err
@@ -642,8 +642,8 @@ def customer_readings(customer_number: str) -> Response:
     })
 
 
-@blueprint.route("/customer/<customer_number>/reading/new", methods=["POST"])
-def customer_reading_new(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>/reading/new", methods=["POST"])
+def customer_reading_new(customer_number: int) -> Response:
     api_key, err = require_staff("can_read_meters")
     if err:
         return err
@@ -685,8 +685,8 @@ def customer_reading_new(customer_number: str) -> Response:
     }), 201
 
 
-@blueprint.route("/customer/<customer_number>/reading/drop", methods=["POST"])
-def customer_reading_drop(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>/reading/drop", methods=["POST"])
+def customer_reading_drop(customer_number: int) -> Response:
     api_key, err = require_staff("can_drop_reading")
     if err:
         return err
@@ -706,8 +706,8 @@ def customer_reading_drop(customer_number: str) -> Response:
     return jsonify({"message": "Reading dropped"})
 
 
-@blueprint.route("/customer/<customer_number>/reading/edit", methods=["POST"])
-def customer_reading_edit(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>/reading/edit", methods=["POST"])
+def customer_reading_edit(customer_number: int) -> Response:
     api_key, err = require_staff("can_manage_billing")
     if err:
         return err
@@ -778,8 +778,8 @@ def customers_changed() -> Response:
 # ── Billing CRUD ────────────────────────────────────────────────────────
 
 
-@blueprint.route("/customer/<customer_number>/billing")
-def customer_billing(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>/billing")
+def customer_billing(customer_number: int) -> Response:
     api_key, err = require_staff("can_read_meters")
     if err:
         return err
@@ -824,8 +824,8 @@ def customer_billing(customer_number: str) -> Response:
     })
 
 
-@blueprint.route("/customer/<customer_number>/billing/new", methods=["POST"])
-def customer_billing_new(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>/billing/new", methods=["POST"])
+def customer_billing_new(customer_number: int) -> Response:
     api_key, err = require_staff("can_accept_payment")
     if err:
         return err
@@ -847,8 +847,8 @@ def customer_billing_new(customer_number: str) -> Response:
     return jsonify(result), status
 
 
-@blueprint.route("/customer/<customer_number>/billing/drop", methods=["POST"])
-def customer_billing_drop(customer_number: str = "") -> Response:
+@blueprint.route("/customer/<int:customer_number>/billing/drop", methods=["POST"])
+def customer_billing_drop(customer_number: int = 0) -> Response:
     api_key, err = require_staff("can_drop_payment")
     if err:
         return err
@@ -877,8 +877,8 @@ def customer_billing_drop(customer_number: str = "") -> Response:
 # ── NFC ──────────────────────────────────────────────────────────────────
 
 
-@blueprint.route("/customer/<customer_number>/nfc")
-def customer_nfc(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>/nfc")
+def customer_nfc(customer_number: int) -> Response:
     api_key, err = require_staff("can_read_meters")
     if err:
         return err
@@ -908,8 +908,8 @@ def customer_all_nfc() -> Response:
     })
 
 
-@blueprint.route("/customer/<customer_number>/nfc/create", methods=["POST"])
-def customer_nfc_create(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>/nfc/create", methods=["POST"])
+def customer_nfc_create(customer_number: int) -> Response:
     api_key, err = require_staff("can_enroll_customer")
     if err:
         return err
@@ -935,8 +935,8 @@ def customer_nfc_create(customer_number: str) -> Response:
     return jsonify({"message": "Tag assigned", "uid": uid, "customer_number": customer_number}), 201
 
 
-@blueprint.route("/customer/<customer_number>/nfc/delete", methods=["POST"])
-def customer_nfc_delete(customer_number: str) -> Response:
+@blueprint.route("/customer/<int:customer_number>/nfc/delete", methods=["POST"])
+def customer_nfc_delete(customer_number: int) -> Response:
     api_key, err = require_staff("can_enroll_customer")
     if err:
         return err
