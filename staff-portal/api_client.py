@@ -45,11 +45,18 @@ def get_dashboard_data() -> dict:
 def get_customer(customer_number: int, params: dict = None) -> dict:
     return _get(f'/api/customer/{customer_number}', params)
 
+def _is_name_query(s: str) -> bool:
+    return bool(s) and all(c.isalpha() or c in " .-'" for c in s)
+
+
 def customer_search(query: str) -> list:
     """Search customers by number or name prefix. Proxies to API."""
     if not query or not query.strip():
         return []
-    data = _get('/api/customer/all', {'q': query.strip(), 'page': 1, 'size': 50})
+    q = query.strip()
+    if not (q.isdigit() or _is_name_query(q)):
+        return [{'error': 'mixed_input', 'message': 'Search by customer number (digits only) or name (letters only).'}]
+    data = _get('/api/customer/all', {'q': q, 'page': 1, 'size': 50})
     return data.get('data', [])
 
 

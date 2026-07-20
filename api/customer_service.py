@@ -4,11 +4,15 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import cast, func, String
 
 from apps import db
 from models import Billing, Customer
 from billing_service import ensure_penalty
+
+
+def _is_name_query(s: str) -> bool:
+    return bool(s) and all(c.isalpha() or c in " .-'" for c in s)
 
 
 def get_customer_or_404(customer_id: int) -> Customer:
@@ -173,8 +177,8 @@ def list_customers(
 
     if q:
         if q.isdigit():
-            query = query.filter(Customer.customer_number == int(q))
-        elif q.isalpha():
+            query = query.filter(cast(Customer.customer_number, String).like(f'{q}%'))
+        elif _is_name_query(q):
             query = query.filter(Customer.name.like(f'{q}%'))
 
     if sort_by == "customer_number":
