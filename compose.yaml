@@ -12,6 +12,7 @@ services:
     networks:
       - net-public
       - net-private
+      - cloudflared-tunnel
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
 
@@ -204,6 +205,9 @@ networks:
   net-gk:
     external: true
     name: gatekeeper_default
+  cloudflared-tunnel:
+    external: true
+    name: cloudflared-tunnel_default
 
 volumes:
   mysql_data:
