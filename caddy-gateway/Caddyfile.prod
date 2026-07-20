@@ -1,22 +1,26 @@
-{$CADDY_PORT_PUBLIC:8001} {
+7020 {
+    handle /webhook/* {
+        reverse_proxy webhook-container:8009
+    }
     handle /customer/* {
         reverse_proxy customer-portal:8002
     }
+    handle {
+        reverse_proxy landing-page:8001
+    }
+}
+
+7021 {
     handle /staff/* {
-        reverse_proxy staff-portal:8003 {
-            header_up X-SSL-Client-DN {http.request.header.X-SSL-Client-DN}
-        }
+        reverse_proxy staff-portal:8003
     }
     handle /developer/* {
         reverse_proxy developer-portal:8004
     }
-    handle /api/webhook/* {
-        reverse_proxy api:8008
+    handle /documentation/* {
+        reverse_proxy documentation:8005
     }
-    handle /api/* {
-        reverse_proxy api:8008
-    }
-    handle {
-        reverse_proxy landing-page:8001
+    handle /phpmyadmin/* {
+        reverse_proxy phpmyadmin:80
     }
 }

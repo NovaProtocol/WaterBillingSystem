@@ -8,7 +8,7 @@ def require_env(*names):
             sys.exit(1)
 
 def create_app():
-    require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'DEPLOYMENT_TYPE')
+    require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'DEPLOYMENT_TYPE', 'GATEKEEPER_INTERNAL')
 
     app = Flask(__name__, template_folder='templates', static_url_path='/customer/static')
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
@@ -31,5 +31,8 @@ def create_app():
     @app.route('/health')
     def health():
         return {'status': 'ok'}
+
+    from shared.gatekeeper import gatekeeper_check
+    app.before_request(gatekeeper_check)
 
     return app
