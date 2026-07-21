@@ -56,6 +56,12 @@ def create_app():
         except Exception as e:
             logger.error(f"Staff seeder failed: {e}")
 
+        try:
+            from fee_service import seed_payment_methods
+            seed_payment_methods()
+        except Exception as e:
+            logger.error(f"Payment method seeder failed: {e}")
+
     @app.route('/health')
     def health():
         try:
