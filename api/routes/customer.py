@@ -573,6 +573,8 @@ def customer_invoice(customer_number: int) -> Response:
         error_body = e.read().decode()
         return jsonify({"error": f"Xendit error: {error_body}"}), 502
     except Exception as e:
+        import logging
+        logging.getLogger('api').exception(f"Invoice failed for customer {customer_number}:")
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
     session_id = session.get("payment_session_id", "")
