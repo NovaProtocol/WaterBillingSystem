@@ -150,6 +150,8 @@ def create_invoice(customer_number):
             customer_number,
             float(data['amount']),
             payment_method=data.get('payment_method', ''),
+            success_url=data.get('success_url', ''),
+            cancel_url=data.get('cancel_url', ''),
         )
         return jsonify(result)
     except Exception as e:

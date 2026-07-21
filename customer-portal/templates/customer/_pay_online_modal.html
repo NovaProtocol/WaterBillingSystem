@@ -206,7 +206,9 @@ $('#pay-now-btn').on('click', function() {
         contentType: 'application/json',
         data: JSON.stringify({
             amount: BASE_AMOUNT,
-            payment_method: selectedMethod
+            payment_method: selectedMethod,
+            success_url: window.location.href,
+            cancel_url: window.location.href,
         }),
         success: function(data) {
             if (data.redirect_url) {
