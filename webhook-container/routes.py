@@ -10,10 +10,13 @@ INTERNAL_API_KEY = os.environ.get('INTERNAL_API_KEY', '')
 
 @webhook_bp.route('/webhook/xendit', methods=['POST'])
 def xendit_webhook():
-    headers = {'X-API-Key': INTERNAL_API_KEY, 'Content-Type': 'application/json'}
+    headers = {
+        'X-Callback-Token': INTERNAL_API_KEY,
+        'Content-Type': 'application/json',
+    }
     try:
         resp = requests.post(
-            f"{API_BASE_URL}/api/webhook/xendit",
+            f"{API_BASE_URL}/api/webhook/xendit-payment",
             json=request.get_json(silent=True),
             headers=headers,
             timeout=10

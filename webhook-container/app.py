@@ -8,16 +8,13 @@ def require_env(*names):
             sys.exit(1)
 
 def create_app():
-    require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'GATEKEEPER_INTERNAL', 'DEPLOYMENT_TYPE')
+    require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'DEPLOYMENT_TYPE')
 
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
 
     from routes import webhook_bp
     app.register_blueprint(webhook_bp)
-
-    from shared.gatekeeper import gatekeeper_check
-    app.before_request(gatekeeper_check)
 
     @app.route('/health')
     def health():
