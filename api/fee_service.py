@@ -57,9 +57,12 @@ PAYMENT_METHODS: list[dict] = [
 
 
 def seed_payment_methods() -> None:
-    existing_codes = {m.code for m in PaymentMethod.query.all()}
+    import logging
+    logger = logging.getLogger('api')
+    existing = {m.code for m in PaymentMethod.query.all()}
+    added = 0
     for data in PAYMENT_METHODS:
-        if data["code"] not in existing_codes:
+        if data["code"] not in existing:
             method = PaymentMethod(
                 code=data["code"],
                 label=data["label"],
@@ -72,7 +75,11 @@ def seed_payment_methods() -> None:
                 sort_order=data.get("sort_order", 0),
             )
             db.session.add(method)
+            added += 1
     try:
         db.session.commit()
+        if added:
+            logger.info(f"Seeded {added} payment methods")
     except IntegrityError:
         db.session.rollback()
+        logger.warning("Payment method seed skipped (already exist)")
