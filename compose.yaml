@@ -90,13 +90,11 @@ services:
     networks:
       - net-public
       - net-api
-      - net-gk
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
       SECRET_KEY: ${SECRET_KEY}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       API_BASE_URL: ${API_BASE_URL}
-      GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
 
   api:
     build:
