@@ -143,7 +143,11 @@ def create_invoice(customer_number):
     if not data or 'amount' not in data:
         return jsonify({'error': 'Amount is required'}), 400
     try:
-        result = api_client.create_xendit_invoice(customer_number, float(data['amount']))
+        result = api_client.create_xendit_invoice(
+            customer_number,
+            float(data['amount']),
+            payment_method=data.get('payment_method', ''),
+        )
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': 'Failed to create invoice'}), 500
