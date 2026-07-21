@@ -38,7 +38,7 @@ def xendit_webhook():
 
     tx.status = status
 
-    if status == 'PAID':
+    if status in ('PAID', 'SUCCEEDED', 'COMPLETED'):
         xendit_staff = Staff.query.filter_by(username='xendit').first()
         cashier_id = xendit_staff.id if xendit_staff else 1
         result, error, code = submit_payment(tx.customer_number, float(tx.amount), cashier_id)
