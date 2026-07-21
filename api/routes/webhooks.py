@@ -41,11 +41,12 @@ def xendit_webhook():
     if status in ('PAID', 'SUCCEEDED', 'COMPLETED'):
         xendit_staff = Staff.query.filter_by(username='xendit').first()
         cashier_id = xendit_staff.id if xendit_staff else 1
-        result, error, code = submit_payment(tx.customer_number, float(tx.amount), cashier_id)
+        pay_amount = float(tx.base_amount or tx.amount)
+        result, error, code = submit_payment(tx.customer_number, pay_amount, cashier_id)
         if error:
             logger.error(f"Auto-pay failed for {tx.customer_number}: {error}")
         else:
-            logger.info(f"Auto-paid {tx.customer_number} via Xendit: {tx.amount} result={result}")
+            logger.info(f"Auto-paid {tx.customer_number} via Xendit: {pay_amount} result={result}")
 
     db.session.commit()
     return jsonify({'received': True})
