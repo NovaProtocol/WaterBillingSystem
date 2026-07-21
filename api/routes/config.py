@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from flask import Response, current_app, jsonify, request
 
 from app import cache, db
@@ -7,6 +8,8 @@ from blueprint import blueprint
 from utils import require_staff, resolve_api_key
 from models import Config as AppConfig
 from pricing import DUE_DAYS, LATE_PENALTY, PRICING_TIERS
+
+logger = logging.getLogger('api')
 
 
 @blueprint.route("/config/nfc_secret")

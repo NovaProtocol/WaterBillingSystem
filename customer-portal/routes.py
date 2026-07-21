@@ -93,6 +93,7 @@ def readings(customer_number):
         data = api_client.get_readings(customer_number, page=page)
         return jsonify(data)
     except Exception as e:
+        logger.exception(f"Failed to fetch readings for {customer_number}: {e}")
         return jsonify({'error': 'Failed to fetch readings'}), 500
 
 @customer_bp.route('/customer/billing/<int:customer_number>/payments')
@@ -110,6 +111,7 @@ def payments(customer_number):
         data = api_client.get_payments(customer_number, page=page)
         return jsonify(data)
     except Exception as e:
+        logger.exception(f"Failed to fetch payments for {customer_number}: {e}")
         return jsonify({'error': 'Failed to fetch payments'}), 500
 
 @customer_bp.route('/customer/billing/<int:customer_number>/history')
@@ -127,6 +129,7 @@ def billing_history(customer_number):
         data = api_client.get_billing_history(customer_number, page=page)
         return jsonify(data)
     except Exception as e:
+        logger.exception(f"Failed to fetch billing history for {customer_number}: {e}")
         return jsonify({'error': 'Failed to fetch billing history'}), 500
 
 @customer_bp.route('/customer/billing/<int:customer_number>/invoice', methods=['POST'])
@@ -150,4 +153,5 @@ def create_invoice(customer_number):
         )
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Failed to create invoice for {customer_number}: {e}")
         return jsonify({'error': 'Failed to create invoice'}), 500

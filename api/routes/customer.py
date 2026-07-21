@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone, timedelta
 
 from flask import Response, jsonify, request
@@ -31,6 +32,8 @@ from customer_service import (
     update_customer,
 )
 from utils import require_staff, resolve_api_key
+
+logger = logging.getLogger('api')
 
 
 @blueprint.route("/customer/count")
@@ -571,10 +574,10 @@ def customer_invoice(customer_number: int) -> Response:
             session = jsonlib.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()
+        logger.exception(f"Xendit HTTPError for customer {customer_number}: {error_body}")
         return jsonify({"error": f"Xendit error: {error_body}"}), 502
     except Exception as e:
-        import logging
-        logging.getLogger('api').exception(f"Invoice failed for customer {customer_number}:")
+        logger.exception(f"Invoice failed for customer {customer_number}:")
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
     session_id = session.get("payment_session_id", "")

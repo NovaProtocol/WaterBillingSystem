@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import secrets
 from datetime import datetime, timezone, timedelta
 
@@ -35,6 +36,8 @@ from reading_service import (
 from utils import _get_staff_id, require_staff, resolve_api_key
 from pricing import compute_water_bill
 
+logger = logging.getLogger('api')
+
 
 @blueprint.route("/staff/login", methods=["POST"])
 def staff_login() -> Response:
@@ -59,6 +62,7 @@ def staff_login() -> Response:
             if binascii.hexlify(pwdhash).decode("ascii") != stored[64:]:
                 return jsonify({"error": "Invalid credentials"}), 401
         except (ValueError, UnicodeDecodeError, IndexError):
+            logger.exception("Staff login password verification failed:")
             return jsonify({"error": "Invalid credentials"}), 401
     return jsonify({
         "id": staff.id,

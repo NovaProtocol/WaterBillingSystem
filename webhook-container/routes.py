@@ -1,5 +1,8 @@
 from flask import Blueprint, request, jsonify
+import logging
 import os, requests
+
+logger = logging.getLogger('webhook-container')
 
 webhook_bp = Blueprint('webhook', __name__)
 API_BASE_URL = os.environ.get('API_BASE_URL', 'http://api:8008')
@@ -17,4 +20,5 @@ def xendit_webhook():
         )
         return jsonify(resp.json()), resp.status_code
     except Exception as e:
+        logger.exception(f"Xendit webhook proxy failed:")
         return jsonify({'error': str(e)}), 502
