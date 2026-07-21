@@ -81,6 +81,7 @@ def customer_lookup():
         result = api_client.customer_search(q)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Customer lookup failed: {e}")
         return jsonify({'customers': [], 'error': str(e)})
 
 @staff_bp.route('/staff/api/customer/<int:customer_number>')
@@ -122,6 +123,7 @@ def customer_create():
         result = api_client.create_customer(data)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Create customer failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/manage-customers', methods=['GET'])
@@ -137,6 +139,7 @@ def edit_customer(customer_id):
         result = api_client.edit_customer(customer_id, data)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Edit customer {customer_id} failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/manage-customers/<int:customer_id>/toggle-active', methods=['POST'])
@@ -146,6 +149,7 @@ def toggle_customer_active(customer_id):
         result = api_client.toggle_customer_active(customer_id)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Toggle customer {customer_id} active failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/manage-customers/<int:customer_id>/clear-nfc', methods=['POST'])
@@ -155,6 +159,7 @@ def clear_customer_nfc(customer_id):
         result = api_client.clear_customer_nfc(customer_id)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Clear NFC for customer {customer_id} failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/meter-reading')
@@ -174,6 +179,7 @@ def generate_api_key():
         result = api_client.generate_api_key(staff_id, data)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Generate API key failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/meter-reading/revoke/<int:key_id>', methods=['POST'])
@@ -184,6 +190,7 @@ def revoke_api_key(key_id):
         result = api_client.revoke_api_key(staff_id, key_id)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Revoke API key {key_id} failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/manage-reading')
@@ -201,6 +208,7 @@ def drop_reading(reading_id):
         result = api_client.drop_reading(reading_id, data)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Drop reading {reading_id} failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/manage-reading/edit-reading/<int:reading_id>', methods=['POST'])
@@ -211,6 +219,7 @@ def edit_reading(reading_id):
         result = api_client.edit_reading(reading_id, data)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Edit reading {reading_id} failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/payments')
@@ -226,6 +235,7 @@ def submit_payment():
         result = api_client.submit_payment(data)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Submit payment failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/cashier-tally')
@@ -248,6 +258,7 @@ def undo_payment(payment_id):
         result = api_client.undo_payment(payment_id)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Undo payment {payment_id} failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/staff', methods=['GET'])
@@ -264,6 +275,7 @@ def staff_create():
         result = api_client.create_staff(data)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Staff create failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/staff/<int:staff_id>', methods=['GET', 'POST'])
@@ -275,9 +287,11 @@ def staff_edit(staff_id):
             result = api_client.edit_staff(staff_id, data)
             return jsonify(result)
         except Exception as e:
+            logger.exception(f"Staff edit {staff_id} failed: {e}")
             return jsonify({"error": str(e)}), 400
     try:
         result = api_client.get_staff(staff_id)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Staff get {staff_id} failed: {e}")
         return jsonify({"error": str(e)}), 400

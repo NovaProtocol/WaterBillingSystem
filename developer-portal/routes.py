@@ -98,8 +98,10 @@ def phpmyadmin(rest=''):
 
         return Response(resp.content, resp.status_code, response_headers)
     except http_requests.exceptions.ConnectionError as e:
+        logger.exception(f"Cannot reach phpMyAdmin: {e}")
         return jsonify({"error": f"Cannot reach phpMyAdmin: {e}"}), 502
     except Exception as e:
+        logger.exception(f"phpMyAdmin proxy error: {e}")
         return jsonify({"error": f"Proxy error: {str(e)}"}), 502
 
 
@@ -131,6 +133,7 @@ def create_backup():
         result = api_client.create_backup()
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Backup creation failed:")
         return jsonify({"error": str(e)}), 500
 
 
@@ -141,6 +144,7 @@ def list_backups():
         result = api_client.list_backups()
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"List backups failed:")
         return jsonify({"error": str(e)}), 500
 
 
@@ -156,6 +160,7 @@ def restore_backup():
         result = api_client.restore_backup(filename)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Restore backup failed:")
         return jsonify({"error": str(e)}), 500
 
 
@@ -168,6 +173,7 @@ def restore_newest():
         result = api_client.restore_newest()
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Restore newest failed:")
         return jsonify({"error": str(e)}), 500
 
 
@@ -180,6 +186,7 @@ def clear_database():
         result = api_client.clear_database()
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Clear database failed:")
         return jsonify({"error": str(e)}), 500
 
 
@@ -192,6 +199,7 @@ def seed_data():
         customers = int(request.form.get("customers", "0"))
         months = int(request.form.get("months", "0"))
     except (ValueError, TypeError):
+        logger.exception("Seed data validation failed:")
         return jsonify({"error": "Invalid customer count or months"}), 400
     if customers < 1 or customers > 10000:
         return jsonify({"error": "Customer count must be between 1 and 10000"}), 400
@@ -201,6 +209,7 @@ def seed_data():
         result = api_client.seed_data(customers, months)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Seed data failed:")
         return jsonify({"error": str(e)}), 500
 
 
@@ -213,6 +222,7 @@ def read_this_month():
         result = api_client.read_all_this_month()
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Read this month failed:")
         return jsonify({"error": str(e)}), 500
 
 
@@ -225,6 +235,7 @@ def unread_this_month():
         result = api_client.unread_this_month()
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Unread this month failed:")
         return jsonify({"error": str(e)}), 500
 
 
@@ -237,6 +248,7 @@ def pay_this_month():
         result = api_client.pay_all_this_month()
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Pay this month failed:")
         return jsonify({"error": str(e)}), 500
 
 
@@ -249,6 +261,7 @@ def remove_payment_this_month():
         result = api_client.remove_payments_this_month()
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Remove payment this month failed:")
         return jsonify({"error": str(e)}), 500
 
 
@@ -259,6 +272,7 @@ def list_tasks():
         result = api_client.list_tasks()
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"List tasks failed:")
         return jsonify({"error": str(e)}), 500
 
 
@@ -269,4 +283,5 @@ def get_task(task_id):
         result = api_client.get_task(task_id)
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Get task {task_id} failed:")
         return jsonify({"error": str(e)}), 500

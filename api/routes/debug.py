@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import secrets
 import threading
 import time
@@ -11,6 +12,8 @@ from flask import Response, jsonify, request
 from app import db
 from blueprint import blueprint
 from models import BackgroundTask, Config
+
+logger = logging.getLogger('api')
 
 BACKUP_DIR = Path("/app/db_backups")
 _last_restore_newest_time = 0.0
@@ -97,6 +100,7 @@ def debug_seed() -> Response:
         n_customers = int(data.get("customers", "0"))
         n_months = int(data.get("months", "0"))
     except (ValueError, TypeError):
+        logger.exception("Invalid seed parameters:")
         return jsonify({"error": "Invalid customer count or months"}), 400
     if n_customers < 1 or n_customers > 10000:
         return jsonify({"error": "Customer count must be between 1 and 10000"}), 400

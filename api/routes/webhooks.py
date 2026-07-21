@@ -1,5 +1,8 @@
 from flask import Blueprint, request, jsonify
+import logging
 import os
+
+logger = logging.getLogger('api')
 
 webhook_bp = Blueprint('xendit_webhook', __name__)
 
