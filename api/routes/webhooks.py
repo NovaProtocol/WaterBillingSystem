@@ -14,11 +14,13 @@ def xendit_webhook():
             return jsonify({'error': 'Invalid token'}), 401
 
     data = request.get_json(silent=True) or {}
+    logger.info(f"Xendit webhook received: event={data.get('event')}, status={data.get('data', {}).get('status', 'unknown')}")
     callback = data.get('data', data)
     status = callback.get('status', '').upper()
     reference_id = callback.get('reference_id', '') or callback.get('external_id', '')
 
     if not reference_id:
+        logger.warning(f"Xendit webhook: missing reference_id in {callback}")
         return jsonify({'error': 'Missing reference_id'}), 400
 
     from app import db
@@ -29,8 +31,10 @@ def xendit_webhook():
     if not tx:
         tx = XenditTransaction.query.filter_by(xendit_pr_id=callback.get('id', '')).first()
     if not tx:
-        logger.warning(f"Xendit webhook: transaction not found for {reference_id}")
+        logger.warning(f"Xendit webhook: transaction not found for ref={reference_id} id={callback.get('id')}")
         return jsonify({'received': True})
+
+    logger.info(f"Found transaction: id={tx.id} cust={tx.customer_number} amount={tx.amount} current_status={tx.status}")
 
     tx.status = status
 
@@ -41,7 +45,7 @@ def xendit_webhook():
         if error:
             logger.error(f"Auto-pay failed for {tx.customer_number}: {error}")
         else:
-            logger.info(f"Auto-paid {tx.customer_number} via Xendit: {tx.amount}")
+            logger.info(f"Auto-paid {tx.customer_number} via Xendit: {tx.amount} result={result}")
 
     db.session.commit()
     return jsonify({'received': True})
