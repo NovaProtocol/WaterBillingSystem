@@ -254,11 +254,11 @@ def manage_billing():
 @staff_bp.route('/staff/manage-billing/undo-payment/<int:payment_id>', methods=['POST'])
 @permission_required('can_drop_payment')
 def undo_payment(payment_id):
+    data = request.get_json() or {}
     try:
-        result = api_client.undo_payment(payment_id)
+        result = api_client.undo_payment(payment_id, data.get('reason', ''))
         return jsonify(result)
     except Exception as e:
-        logger.exception(f"Undo payment {payment_id} failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/staff', methods=['GET'])
