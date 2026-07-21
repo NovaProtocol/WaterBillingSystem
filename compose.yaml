@@ -105,6 +105,7 @@ services:
     container_name: waterbillingsystem_api
     restart: unless-stopped
     networks:
+      - net-public
       - net-api
       - net-data
     volumes:
