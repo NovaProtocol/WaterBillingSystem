@@ -109,6 +109,8 @@ def customer_info(customer_number: int) -> Response:
         return jsonify({"error": "Customer not found"}), 404
 
     recalc_total_due(customer_number)
+    from services.payment_service import recalc_cumulative_balance
+    recalc_cumulative_balance(customer_number)
 
     staff_filter = request.args.get("staff_id", type=int)
     token_filter = request.args.get("token_id", type=int)
