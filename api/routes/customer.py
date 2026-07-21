@@ -516,13 +516,15 @@ def customer_invoice(customer_number: int) -> Response:
     if not payment_method:
         return jsonify({"error": "Payment method is required"}), 400
 
+    method = PaymentMethod.query.filter_by(code=payment_method, is_active=True).first()
+    method_xendit_fee = float(method.xendit_fee) if method and method.xendit_fee else 0
+
     fee_rate, fee_amount = calculate_fee(float(amount), payment_method)
-    total_amount = round(float(amount) + fee_amount, 2)
+    total_amount = round(float(amount) + fee_amount + method_xendit_fee, 2)
 
     import os, secrets
     external_id = f"wbs-{customer_number}-{int(datetime.now(tz=timezone.utc).replace(tzinfo=None).timestamp())}-{secrets.token_hex(4)}"
 
-    method = PaymentMethod.query.filter_by(code=payment_method, is_active=True).first()
     channels = [method.channel_code] if method and method.channel_code else []
 
     import urllib.request, urllib.error, json as jsonlib, base64
