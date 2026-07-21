@@ -77,8 +77,10 @@ def get_billing_history(customer_number: int, page: int = 1) -> dict:
         'pages': data.get('meta', {}).get('total_pages', 1),
     }
 
-def create_xendit_invoice(customer_number: int, amount: float, payment_method: str = '') -> dict:
+def create_xendit_invoice(customer_number: int, amount: float, payment_method: str = '',
+                          success_url: str = '', cancel_url: str = '') -> dict:
     r = requests.post(f'{API_BASE}/api/customer/{customer_number}/invoice',
-        json={'amount': amount, 'payment_method': payment_method},
+        json={'amount': amount, 'payment_method': payment_method,
+              'success_url': success_url, 'cancel_url': cancel_url},
         headers=_headers(), timeout=15)
     r.raise_for_status(); return r.json()
