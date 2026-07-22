@@ -43,21 +43,56 @@
     <a href="/developer/phpmyadmin/" target="_blank" class="nav-link">
         <i class="fas fa-database"></i>phpMyAdmin
     </a>
+
+    <div class="sidebar-header mt-3">
+        Task Logs
+        <a href="{{ url_for('dev.task_logs') }}" class="text-muted ml-1" style="font-size:0.65rem;">full view &rarr;</a>
+    </div>
+    <div id="sidebar-tasks" style="font-size:0.68rem;max-height:300px;overflow-y:auto;">
+        <div class="text-center text-muted py-2">Loading...</div>
+    </div>
 </div>
 
 <div class="main-content">
-    <div class="tool-page">
-        <div class="tool-main">
-            {% block content %}{% endblock %}
-        </div>
-        <div class="tool-sidebar">
-            {% include 'dev/_task_sidebar.html' %}
-        </div>
+    <div class="container-fluid" style="max-width:1400px;">
+        {% block content %}{% endblock %}
     </div>
 </div>
 
 <script src="{{ url_for('static', filename='assets/vendor/jquery/3.5.1/jquery.min.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js') }}"></script>
+<script>
+var statusColor = {queued: '#6c757d', running: '#007bff', completed: '#28a745', error: '#dc3545', interrupted: '#fd7e14'};
+var lastSidebarSnapshot = '';
+
+function pollSidebarTasks() {
+    fetch('{{ url_for("dev.list_tasks") }}')
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(resp => {
+        var snap = JSON.stringify(resp);
+        if (snap === lastSidebarSnapshot) return;
+        lastSidebarSnapshot = snap;
+        var el = document.getElementById('sidebar-tasks');
+        var current = resp.current || null;
+        var history = (resp.history || []).slice(0, 5);
+        var all = current ? [current].concat(history) : history;
+        if (!all.length) { el.innerHTML = '<div class="text-center text-muted py-2" style="font-size:0.65rem;">No tasks</div>'; return; }
+        var h = '';
+        all.forEach(function(t) {
+            var icon = t.status === 'running' ? 'fa-spinner fa-pulse' : t.status === 'completed' ? 'fa-check-circle' : t.status === 'error' ? 'fa-times-circle' : 'fa-clock';
+            var color = statusColor[t.status] || '#6c757d';
+            h += '<div class="py-1 px-2" style="border-bottom:1px solid #f0f0f0;line-height:1.3;">' +
+                '<i class="fas '+icon+'" style="color:'+color+';width:12px;font-size:0.6rem;"></i>' +
+                '<span style="color:'+color+';font-weight:600;font-size:0.6rem;margin-left:3px;">'+t.status+'</span>' +
+                '<div style="font-size:0.6rem;color:#6c757d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+t.title+'</div>' +
+            '</div>';
+        });
+        el.innerHTML = h;
+    });
+}
+setInterval(pollSidebarTasks, 3000);
+pollSidebarTasks();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
