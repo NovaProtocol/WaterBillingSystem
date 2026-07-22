@@ -17,7 +17,7 @@
             {% if current_user.is_authenticated %}
             <div class="ml-auto d-flex align-items-center navbar-user-area">
                 <span class="navbar-user-name text-white-50 mr-2">{{ current_user.name or current_user.username }}</span>
-                <a href="{{ url_for('staff_blueprint.logout') }}" class="btn btn-outline-cotta btn-sm">Logout</a>
+                <a href="{{ url_for('staff_blueprint.logout') }}" class="btn btn-cotta btn-sm"><i class="fas fa-sign-out-alt mr-1"></i>Logout</a>
             </div>
             {% endif %}
         </div>
