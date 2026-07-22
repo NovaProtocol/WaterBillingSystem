@@ -29,7 +29,7 @@
           <select class="form-control" id="restore-file">
             <option value="">-- Select backup --</option>
             {% for f in backup_files %}
-            <option value="{{ f }}">{{ f }}</option>
+            <option value="{{ f.name }}">{{ f.name }}</option>
             {% endfor %}
           </select>
         </div>
