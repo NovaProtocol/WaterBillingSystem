@@ -243,7 +243,7 @@ def submit_payment():
 def cashier_tally():
     period = request.args.get('period', 'daily')
     staff_id = session.get('staff_id', 1)
-    data = api_client.get_cashier_tally(period, staff_id)
+    data = api_client.get_cashier_tally(period, 0)
     return render_template('staff/cashier_tally.html', **data)
 
 @staff_bp.route('/staff/manage-billing')
