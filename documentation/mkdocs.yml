@@ -8,8 +8,13 @@ edit_uri: edit/main/documentations/docs/
 theme:
   name: material
   palette:
-    primary: indigo
-    accent: teal
+    primary: custom
+    accent: custom
+  icon:
+    repo: fontawesome/brands/github
+  font:
+    text: Segoe UI
+    code: Cascadia Code
   features:
     - navigation.tabs
     - navigation.sections
@@ -25,6 +30,9 @@ theme:
 
 extra:
   generator: false
+
+extra_css:
+  - assets/extra.css
 
 markdown_extensions:
   - admonition
