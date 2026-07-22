@@ -52,8 +52,7 @@ class SQLiteLogHandler(logging.Handler):
         try:
             conn = _get_db(self.name)
             ts = datetime.fromtimestamp(record.created, tz=timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%S"
-            )
+                "%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
             tb = None
             if record.exc_info and record.exc_info[0]:
                 tb = self.format(record)
