@@ -107,8 +107,8 @@ def submit_payment(data: dict) -> dict:
     customer_number = data.get('customer_number', 0)
     return _post(f'/api/customer/{customer_number}/billing/new', data)
 
-def get_cashier_tally(period: str, staff_id: int = 1) -> dict:
-    return _get(f'/api/staff/{staff_id}/cashier-tally', {'period': period})
+def get_cashier_tally(period: str, cashier_id: int = 0) -> dict:
+    return _get(f'/api/staff/{cashier_id}/cashier-tally', {'period': period})
 
 def drop_reading(reading_id: int, data: dict) -> dict:
     customer_number = data.get('customer_number', 0)

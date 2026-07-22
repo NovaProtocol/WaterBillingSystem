@@ -253,8 +253,9 @@ def staff_cashier_tally(staff_id: int) -> Response:
     start_str = request.args.get("start_date") or request.args.get("date")
     end_str = request.args.get("end_date")
     group_days = request.args.get("group_days", 1, type=int)
+    cashier_filter = request.args.get("cashier_id", type=int) or None
     start, end = parse_date_range(period, start_str, end_str, today)
-    tally, use_matrix = compute_cashier_tally(start, end, staff_id, group_days)
+    tally, use_matrix = compute_cashier_tally(start, end, cashier_filter, group_days)
     nav = compute_nav_dates(period, start, end, today)
     return jsonify({
         "tally": tally,
