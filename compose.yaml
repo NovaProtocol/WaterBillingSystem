@@ -22,6 +22,8 @@ services:
       dockerfile: landing-page/Dockerfile
     container_name: waterbillingsystem_landing
     restart: unless-stopped
+    volumes:
+      - app_logs:/var/log/app
     networks:
       - net-public
       - net-gk
@@ -36,6 +38,8 @@ services:
       dockerfile: customer-portal/Dockerfile
     container_name: waterbillingsystem_customerportal
     restart: unless-stopped
+    volumes:
+      - app_logs:/var/log/app
     networks:
       - net-public
       - net-api
@@ -54,6 +58,8 @@ services:
       dockerfile: staff-portal/Dockerfile
     container_name: waterbillingsystem_staffportal
     restart: unless-stopped
+    volumes:
+      - app_logs:/var/log/app
     networks:
       - net-private
       - net-api
@@ -72,6 +78,8 @@ services:
       dockerfile: developer-portal/Dockerfile
     container_name: waterbillingsystem_devportal
     restart: unless-stopped
+    volumes:
+      - app_logs:/var/log/app
     networks:
       - net-private
       - net-api
@@ -89,6 +97,8 @@ services:
       dockerfile: webhook-container/Dockerfile
     container_name: waterbillingsystem_webhook
     restart: unless-stopped
+    volumes:
+      - app_logs:/var/log/app
     networks:
       - net-public
       - net-api
@@ -110,6 +120,7 @@ services:
       - net-data
     volumes:
       - db_backups:/app/db_backups
+      - app_logs:/var/log/app
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
       DB_ENGINE: ${DB_ENGINE}
@@ -141,6 +152,7 @@ services:
       - net-data
     volumes:
       - db_backups:/app/db_backups
+      - app_logs:/var/log/app
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
       DB_ENGINE: ${DB_ENGINE}
@@ -176,6 +188,8 @@ services:
       dockerfile: documentation/Dockerfile
     container_name: waterbillingsystem_documentation
     restart: unless-stopped
+    volumes:
+      - app_logs:/var/log/app
     networks:
       - net-private
       - net-gk
@@ -217,3 +231,4 @@ networks:
 volumes:
   mysql_data:
   db_backups:
+  app_logs:

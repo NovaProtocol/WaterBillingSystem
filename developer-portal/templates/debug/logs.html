@@ -1,0 +1,140 @@
+{% extends "debug/base.html" %}
+{% block title %}Logs{% endblock %}
+{% block stylesheets %}
+<style>
+.log-container { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 0.78rem; }
+.log-container pre { margin: 0; padding: 2px 8px; background: transparent; color: inherit; }
+.log-row { display: flex; border-bottom: 1px solid #1e1e1e; padding: 2px 0; }
+.log-row:hover { background: #2a2a2a; }
+.log-time { color: #6a9955; min-width: 150px; flex-shrink: 0; }
+.log-level { min-width: 55px; flex-shrink: 0; font-weight: 600; }
+.log-service { min-width: 100px; flex-shrink: 0; }
+.log-service.api { color: #569cd6; }
+.log-service.staff-portal { color: #ce9178; }
+.log-service.customer-portal { color: #6a9955; }
+.log-service.developer-portal { color: #dcdcaa; }
+.log-service.landing-page { color: #c586c0; }
+.log-service.webhook { color: #d16969; }
+.log-service.documentation { color: #4ec9b0; }
+.log-service.worker { color: #9cdcfe; }
+.log-msg { flex: 1; white-space: pre-wrap; word-break: break-all; }
+.level-ERROR { color: #f44747; background: rgba(244,71,71,0.08); }
+.level-WARNING { color: #ce9178; }
+.level-INFO { color: #d4d4d4; }
+.level-DEBUG { color: #6a9955; }
+.level-CRITICAL { color: #f44747; font-weight: 700; background: rgba(244,71,71,0.15); }
+.filter-bar { display: flex; gap: 8px; padding: 12px 16px; background: #252526; border-bottom: 1px solid #3c3c3c; align-items: center; flex-wrap: wrap; }
+.filter-bar select, .filter-bar input { background: #3c3c3c; color: #d4d4d4; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 0.78rem; }
+.filter-bar label { color: #999; font-size: 0.72rem; margin: 0; display: flex; align-items: center; gap: 4px; }
+.log-header { display: flex; padding: 6px 16px; background: #333; color: #999; font-size: 0.72rem; font-weight: 600; border-bottom: 1px solid #555; }
+.log-header > span { flex-shrink: 0; }
+#logBody { overflow-y: auto; max-height: calc(100vh - 300px); }
+#logBody::-webkit-scrollbar { width: 6px; }
+#logBody::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+.pulse { animation: pulse 1s ease-in-out; }
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-title"><i class="fas fa-terminal mr-2"></i>Live Logs</div>
+
+<div class="card card-cotta" style="background:#1e1e1e;border:1px solid #333;">
+  <div class="filter-bar">
+    <label>Service
+      <select id="filter-service">
+        <option value="">All</option>
+        <option value="api">api</option>
+        <option value="staff-portal">staff-portal</option>
+        <option value="customer-portal">customer-portal</option>
+        <option value="developer-portal">developer-portal</option>
+        <option value="landing-page">landing-page</option>
+        <option value="webhook">webhook</option>
+        <option value="documentation">documentation</option>
+        <option value="worker">worker</option>
+      </select>
+    </label>
+    <label>Level
+      <select id="filter-level">
+        <option value="">All</option>
+        <option value="ERROR">ERROR</option>
+        <option value="WARNING">WARNING</option>
+        <option value="INFO">INFO</option>
+        <option value="DEBUG">DEBUG</option>
+      </select>
+    </label>
+    <label>Search
+      <input type="text" id="filter-q" placeholder="text filter..." style="min-width:200px;">
+    </label>
+    <label style="cursor:pointer">
+      <input type="checkbox" id="autorefresh" checked> Auto-refresh (5s)
+    </label>
+    <button class="btn btn-sm btn-outline-light" onclick="loadLogs()" style="padding:2px 12px;font-size:0.78rem;">
+      <i class="fas fa-sync-alt mr-1"></i>Refresh
+    </button>
+    <button class="btn btn-sm btn-outline-danger" onclick="clearLogs()" style="padding:2px 12px;font-size:0.78rem;">
+      <i class="fas fa-trash mr-1"></i>Clear
+    </button>
+  </div>
+
+  <div class="log-header">
+    <span class="log-time">Timestamp</span>
+    <span class="log-level">Level</span>
+    <span class="log-service">Service</span>
+    <span style="flex:1;">Message</span>
+  </div>
+
+  <div id="logBody"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var refreshTimer = null;
+var currentRows = [];
+
+$('#filter-service, #filter-level, #filter-q').on('change', function() { loadLogs(); });
+$('#filter-q').on('input', function() { loadLogs(); });
+
+function loadLogs() {
+  var service = $('#filter-service').val();
+  var level = $('#filter-level').val();
+  var q = $('#filter-q').val();
+  $.getJSON('/developer/api/logs', {service: service, level: level, q: q, limit: 500}, function(res) {
+    currentRows = res.data || [];
+    renderLogs();
+  });
+}
+
+function renderLogs() {
+  var body = $('#logBody').empty();
+  if (!currentRows.length) {
+    body.append('<div class="log-row" style="padding:20px;text-align:center;color:#666;">No logs match your filters.</div>');
+    return;
+  }
+  currentRows.forEach(function(r) {
+    var levelClass = 'level-' + r.level;
+    var svcClass = 'log-service ' + (r.service || '');
+    var msg = r.message || '';
+    if (r.method) msg = r.method + ' ' + (r.path || '') + ' ' + (r.status_code || '') + ' [' + (r.container || '-') + ']';
+    var row = $('<div class="log-row ' + levelClass + '">');
+    row.append('<span class="log-time">' + $('<span>').text(r.timestamp).html() + '</span>');
+    row.append('<span class="log-level">' + $('<span>').text(r.level).html() + '</span>');
+    row.append('<span class="' + svcClass + '">' + $('<span>').text(r.service || '').html() + '</span>');
+    row.append('<span class="log-msg">' + $('<span>').text(msg).html() + '</span>');
+    body.append(row);
+  });
+}
+
+function clearLogs() {
+  if (!confirm('Clear all log entries from all services?')) return;
+  $.post('/developer/api/logs/clear', function() { loadLogs(); });
+}
+
+$(function() {
+  loadLogs();
+  refreshTimer = setInterval(function() {
+    if ($('#autorefresh').is(':checked')) loadLogs();
+  }, 5000);
+});
+</script>
+{% endblock %}

@@ -1,5 +1,6 @@
 import os, sys, logging
-from flask import Flask
+from flask import Flask, request
+from shared.logger import attach_sqlite_logging
 from apps import db, cache
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -69,5 +70,25 @@ def create_app():
             return {'status': 'ok', 'db': 'connected'}
         except Exception as e:
             return {'status': 'degraded', 'db': str(e)}, 503
+
+    attach_sqlite_logging('api')
+
+    import logging
+    http_logger = logging.getLogger('http')
+
+    @app.after_request
+    def log_request(response):
+        container = request.headers.get('X-Container-Name', '-')
+        http_logger.info(
+            f"{request.method} {request.path} {response.status_code}",
+            extra={'http': {
+                'method': request.method,
+                'path': request.path,
+                'status_code': response.status_code,
+                'remote_addr': request.remote_addr,
+                'container': container,
+            }}
+        )
+        return response
 
     return app

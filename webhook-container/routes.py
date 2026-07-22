@@ -12,6 +12,7 @@ INTERNAL_API_KEY = os.environ.get('INTERNAL_API_KEY', '')
 def xendit_webhook():
     headers = {
         'X-Callback-Token': INTERNAL_API_KEY,
+        'X-Container-Name': 'webhook',
         'Content-Type': 'application/json',
     }
     try:

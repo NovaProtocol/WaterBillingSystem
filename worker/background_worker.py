@@ -20,6 +20,7 @@ from typing import Any
 from flask import Flask
 from sqlalchemy.orm.exc import ObjectDeletedError
 
+from shared.logger import attach_sqlite_logging
 from apps import db
 from config import config_dict
 from models import BackgroundTask
@@ -43,6 +44,8 @@ logging.basicConfig(
 logger = logging.getLogger("background_worker")
 
 os.environ.setdefault("DEPLOYMENT_TYPE", "DEBUG")
+
+attach_sqlite_logging('worker')
 
 
 def _claim_task() -> BackgroundTask | None:
