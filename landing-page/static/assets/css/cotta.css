@@ -266,4 +266,4 @@ label{font-weight:600;font-size:0.85rem;color:#1a1a2e}
 .navbar-btn-primary:hover{background:#d63851;color:#fff}
 .navbar-btn-outline{border:1px solid rgba(255,255,255,0.5);color:#fff;background:transparent}
 .navbar-btn-outline:hover{background:#fff;color:#1a1a2e}
-select.form-control{height:auto;line-height:normal}
+select.form-control:not([size]):not([multiple]){height:auto;line-height:normal}
