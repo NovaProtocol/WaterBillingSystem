@@ -1,0 +1,26 @@
+<!-- Confirm Modal -->
+<div class="modal fade" id="confirm-modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content modal-cotta">
+      <div class="modal-header"><h5 class="modal-title font-weight-bold"><i class="fas fa-shield-alt mr-2 text-cotta"></i>Confirm Action</h5></div>
+      <div class="modal-body text-center">
+        <p id="confirm-message" class="text-muted"></p>
+        <div class="form-group mt-3">
+          <label class="text-sm">Enter confirmation code: <strong id="confirm-code" class="monospace text-cotta"></strong></label>
+          <input type="text" id="confirm-input" class="form-control text-center monospace" placeholder="Confirm code" maxlength="8" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-cotta" id="confirm-execute" disabled>Execute</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Result Modal -->
+<div class="modal fade" id="result-modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content modal-cotta">
+      <div class="modal-header" id="result-header"></div>
+      <div class="modal-body" id="result-body"></div>
+    </div>
+  </div>
+</div>

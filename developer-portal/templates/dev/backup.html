@@ -1,0 +1,49 @@
+{% extends "dev/base.html" %}
+{% block title %}Backup &amp; Restore{% endblock %}
+{% block content %}
+
+<div class="row">
+  <div class="col-lg-6 mb-4">
+    <div class="card card-cotta h-100">
+      <div class="card-header">
+        <i class="fas fa-database mr-1 text-cotta"></i>Backup Database
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Full database snapshot via <code>mysqldump</code>. Saved to <code>db_backups</code> volume.</p>
+        <button class="btn btn-outline-cotta" onclick="confirmAndExec('backup', {}, 'This will create a full database backup.')">
+          <i class="fas fa-download mr-1"></i>Create Backup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-4">
+    <div class="card card-cotta h-100">
+      <div class="card-header">
+        <i class="fas fa-undo mr-1 text-cotta"></i>Restore from Backup
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Restore from a previous backup file. This will overwrite all current data.</p>
+        <div class="form-group">
+          <label class="form-label">Backup file</label>
+          <select class="form-control" id="restore-file">
+            <option value="">-- Select backup --</option>
+            {% for f in backup_files %}
+            <option value="{{ f }}">{{ f }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn btn-outline-cotta mr-2" onclick="confirmAndExec('restore', {filename: document.getElementById('restore-file').value}, 'This will DELETE all current data and restore from the selected backup.')">
+          <i class="fas fa-undo mr-1"></i>Restore
+        </button>
+        <button class="btn btn-outline-cotta btn-sm" onclick="refreshBackups()">
+          <i class="fas fa-sync mr-1"></i>Refresh list
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "dev/_modals.html" %}
+{% include "dev/_confirm_js.html" %}
+{% endblock %}

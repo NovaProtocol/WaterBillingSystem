@@ -1,0 +1,47 @@
+{% extends "dev/base.html" %}
+{% block title %}Clear Tables{% endblock %}
+{% block content %}
+
+<div class="row">
+  <div class="col-lg-6 mb-4">
+    <div class="card card-cotta">
+      <div class="card-header bg-danger text-white">
+        <i class="fas fa-exclamation-triangle mr-1"></i>Clear All Tables
+      </div>
+      <div class="card-body">
+        <p class="text-danger font-weight-bold text-sm">This permanently deletes ALL data including staff, customers, readings, and billing records.</p>
+        <button class="btn btn-outline-danger btn-block" onclick="confirmAndExec('clear', {}, 'This will DELETE ALL DATA. This cannot be undone.')">
+          <i class="fas fa-trash mr-1"></i>Clear All Tables
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-4">
+    <div class="card card-cotta">
+      <div class="card-header">
+        <i class="fas fa-chart-bar mr-1 text-cotta"></i>Current Data
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-cotta mb-0 text-sm">
+          <tr><td>Active Customers</td><td class="text-right font-weight-bold">{{ stats.customers }}</td></tr>
+          <tr><td>Total Customers (incl. inactive)</td><td class="text-right">{{ stats.customers_total }}</td></tr>
+          <tr><td>Meter Readings</td><td class="text-right">{{ stats.readings }}</td></tr>
+          <tr><td>Billings</td><td class="text-right">{{ stats.billings }}
+            <span class="text-muted">({{ stats.unpaid_bills }} unpaid, {{ stats.paid_bills }} paid)</span></td></tr>
+          <tr><td>Staff</td><td class="text-right">{{ stats.staff }}</td></tr>
+          <tr><td>API Keys</td><td class="text-right">{{ stats.api_keys }}</td></tr>
+          <tr><td>NFC Tags</td><td class="text-right">{{ stats.nfc_tags }}</td></tr>
+          <tr><td>Management Logs</td><td class="text-right">{{ stats.management_logs }}</td></tr>
+          <tr><td>Xendit Transactions</td><td class="text-right">{{ stats.xendit_transactions }}</td></tr>
+          <tr><td>Payment Methods</td><td class="text-right">{{ stats.payment_methods }}</td></tr>
+          <tr><td>Background Tasks</td><td class="text-right">{{ stats.background_tasks }}</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "dev/_modals.html" %}
+{% include "dev/_confirm_js.html" %}
+{% endblock %}
