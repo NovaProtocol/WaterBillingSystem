@@ -10,7 +10,7 @@ from flask_login import current_user
 from werkzeug.datastructures import Headers
 
 import api_client
-from __init__ import debug_bp
+from __init__ import dev_bp
 
 # Path prefix where phpMyAdmin is mounted behind the proxy.
 # All phpMyAdmin responses (redirects, cookies, HTML) need their
@@ -42,8 +42,8 @@ def _generate_and_store_code() -> str:
     return code
 
 
-@debug_bp.route('/phpmyadmin/', methods=['GET', 'POST'])
-@debug_bp.route('/phpmyadmin/<path:rest>', methods=['GET', 'POST'])
+@dev_bp.route('/phpmyadmin/', methods=['GET', 'POST'])
+@dev_bp.route('/phpmyadmin/<path:rest>', methods=['GET', 'POST'])
 def phpmyadmin(rest=''):
     """Proxy to phpMyAdmin with superuser auth check."""
     staff = session.get('staff_data')
@@ -105,26 +105,26 @@ def phpmyadmin(rest=''):
         return jsonify({"error": f"Proxy error: {str(e)}"}), 502
 
 
-@debug_bp.route('/')
+@dev_bp.route('/')
 @superuser_required
 def dashboard():
     return render_template('debug/debug.html', backup_files=[])
 
 
-@debug_bp.route('/auth')
+@dev_bp.route('/auth')
 @superuser_required
 def auth():
     return jsonify({"authenticated": True, "superuser": True})
 
 
-@debug_bp.route('/confirm', methods=['POST'])
+@dev_bp.route('/confirm', methods=['POST'])
 @superuser_required
 def confirm():
     code = _generate_and_store_code()
     return jsonify({"code": code})
 
 
-@debug_bp.route('/backup', methods=['POST'])
+@dev_bp.route('/backup', methods=['POST'])
 @superuser_required
 def create_backup():
     if not _confirm_check():
@@ -137,7 +137,7 @@ def create_backup():
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/backups')
+@dev_bp.route('/backups')
 @superuser_required
 def list_backups():
     try:
@@ -148,7 +148,7 @@ def list_backups():
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/restore', methods=['POST'])
+@dev_bp.route('/restore', methods=['POST'])
 @superuser_required
 def restore_backup():
     if not _confirm_check():
@@ -164,7 +164,7 @@ def restore_backup():
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/restore-newest', methods=['POST'])
+@dev_bp.route('/restore-newest', methods=['POST'])
 @superuser_required
 def restore_newest():
     if not _confirm_check():
@@ -177,7 +177,7 @@ def restore_newest():
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/clear', methods=['POST'])
+@dev_bp.route('/clear', methods=['POST'])
 @superuser_required
 def clear_database():
     if not _confirm_check():
@@ -190,7 +190,7 @@ def clear_database():
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/seed', methods=['POST'])
+@dev_bp.route('/seed', methods=['POST'])
 @superuser_required
 def seed_data():
     if not _confirm_check():
@@ -213,7 +213,7 @@ def seed_data():
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/read-month', methods=['POST'])
+@dev_bp.route('/read-month', methods=['POST'])
 @superuser_required
 def read_this_month():
     if not _confirm_check():
@@ -226,7 +226,7 @@ def read_this_month():
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/unread-month', methods=['POST'])
+@dev_bp.route('/unread-month', methods=['POST'])
 @superuser_required
 def unread_this_month():
     if not _confirm_check():
@@ -239,7 +239,7 @@ def unread_this_month():
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/pay-month', methods=['POST'])
+@dev_bp.route('/pay-month', methods=['POST'])
 @superuser_required
 def pay_this_month():
     if not _confirm_check():
@@ -252,7 +252,7 @@ def pay_this_month():
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/remove-pay-month', methods=['POST'])
+@dev_bp.route('/remove-pay-month', methods=['POST'])
 @superuser_required
 def remove_payment_this_month():
     if not _confirm_check():
@@ -265,7 +265,7 @@ def remove_payment_this_month():
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/tasks')
+@dev_bp.route('/tasks')
 @superuser_required
 def list_tasks():
     try:
@@ -276,7 +276,7 @@ def list_tasks():
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/tasks/<task_id>')
+@dev_bp.route('/tasks/<task_id>')
 @superuser_required
 def get_task(task_id):
     try:
@@ -287,13 +287,13 @@ def get_task(task_id):
         return jsonify({"error": str(e)}), 500
 
 
-@debug_bp.route('/logs')
+@dev_bp.route('/logs')
 @superuser_required
 def logs():
     return render_template('debug/logs.html')
 
 
-@debug_bp.route('/api/logs')
+@dev_bp.route('/api/logs')
 @superuser_required
 def api_logs():
     from shared.logger import query_logs
@@ -306,7 +306,7 @@ def api_logs():
     return jsonify({'data': results, 'total': len(results)})
 
 
-@debug_bp.route('/api/logs/clear', methods=['POST'])
+@dev_bp.route('/api/logs/clear', methods=['POST'])
 @superuser_required
 def api_logs_clear():
     import glob, os as os_mod
