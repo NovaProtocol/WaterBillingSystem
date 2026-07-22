@@ -12,16 +12,12 @@
 <body>
 
     <nav class="navbar navbar-expand-lg navbar-dark navbar-cotta fixed-top">
-        <div class="container-fluid" style="padding-left:236px;padding-right:1.5rem;">
+        <div class="container-fluid" style="padding-left:244px;padding-right:1.5rem;">
             <a class="navbar-brand" href="{{ url_for('staff_blueprint.dashboard') if current_user.is_authenticated else url_for('staff_blueprint.index') }}">COTTA <span>REALTY</span> <small class="text-white-50 ml-1" style="font-size:0.8rem;font-weight:400;letter-spacing:0.3px;">· Staff Portal</small></a>
             {% if current_user.is_authenticated %}
             <div class="ml-auto d-flex align-items-center navbar-user-area">
-                <span class="text-white-50 navbar-user-name">
-                    <i class="fas fa-user mr-1"></i>{{ current_user.name or current_user.username }}
-                </span>
-                <a href="{{ url_for('staff_blueprint.logout') }}" class="btn btn-outline-light btn-sm btn-logout">
-                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
-                </a>
+                <span class="navbar-user-name text-white-50 mr-2">{{ current_user.name or current_user.username }}</span>
+                <a href="{{ url_for('staff_blueprint.logout') }}" class="btn btn-outline-cotta btn-sm">Logout</a>
             </div>
             {% endif %}
         </div>
