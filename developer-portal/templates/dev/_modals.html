@@ -6,8 +6,9 @@
       <div class="modal-body text-center">
         <p id="confirm-message" class="text-muted"></p>
         <div class="form-group mt-3">
-          <label class="text-sm">Enter confirmation code: <strong id="confirm-code" class="monospace text-cotta"></strong></label>
-          <input type="text" id="confirm-input" class="form-control text-center monospace" placeholder="Confirm code" maxlength="8" autocomplete="off">
+          <label class="text-sm">Enter confirmation code:</label>
+          <div class="monospace text-cotta text-center py-2" id="confirm-code" style="font-size:1.8rem;font-weight:700;user-select:none;-webkit-user-select:none;-moz-user-select:none;letter-spacing:2px;"></div>
+          <input type="text" id="confirm-input" class="form-control text-center monospace" placeholder="Type the code above" maxlength="8" autocomplete="off" style="font-size:1.1rem;">
         </div>
       </div>
       <div class="modal-footer"><button class="btn btn-cotta" id="confirm-execute" disabled>Execute</button></div>
