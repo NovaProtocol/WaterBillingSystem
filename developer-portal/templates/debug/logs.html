@@ -42,21 +42,25 @@
     </button>
   </div>
 
-  <div class="log-header-row">
-    <span class="log-time">Timestamp</span>
-    <span class="log-level">Level</span>
-    <span class="log-service">Service</span>
-    <span style="flex:1;">Message</span>
+  <div class="table-responsive" style="max-height:calc(100vh - 320px);overflow-y:auto;">
+    <table class="table table-sm table-cotta log-table mb-0" style="font-size:0.72rem;">
+      <thead>
+        <tr>
+          <th style="width:160px;position:sticky;top:0;background:#f8f9fa;z-index:1;">Timestamp</th>
+          <th style="width:55px;position:sticky;top:0;background:#f8f9fa;z-index:1;">Level</th>
+          <th style="width:80px;position:sticky;top:0;background:#f8f9fa;z-index:1;">Service</th>
+          <th style="position:sticky;top:0;background:#f8f9fa;z-index:1;">Message</th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
   </div>
-
-  <div id="logBody"></div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 var refreshTimer = null;
-var currentRows = [];
 
 $('#filter-service, #filter-level, #filter-q').on('change', function() { loadLogs(); });
 $('#filter-q').on('input', function() { loadLogs(); });
@@ -66,30 +70,32 @@ function loadLogs() {
   var level = $('#filter-level').val();
   var q = $('#filter-q').val();
   $.getJSON('/developer/api/logs', {service: service, level: level, q: q, limit: 500}, function(res) {
-    currentRows = res.data || [];
-    renderLogs();
+    renderLogs(res.data || []);
   });
 }
 
-function renderLogs() {
-  var body = $('#logBody').empty();
-  if (!currentRows.length) {
-    body.append('<div class="text-center text-muted py-4">No logs match your filters.</div>');
+function renderLogs(rows) {
+  var tbody = $('#logBody').empty();
+  if (!rows.length) {
+    tbody.append('<tr><td colspan="4" class="text-center text-muted py-4">No logs match your filters.</td></tr>');
     return;
   }
-  currentRows.forEach(function(r) {
-    var levelClass = 'level-' + r.level;
-    var svcClass = 'log-service ' + (r.service || '');
-    var msg = r.message || '';
-    if (r.method) msg = r.method + ' ' + (r.path || '') + ' ' + (r.status_code || '') + ' [' + (r.container || '-') + ']';
-    var row = $('<div class="log-row ' + levelClass + '"></div>');
-    row.append('<span class="log-time">' + $('<span>').text(r.timestamp).html() + '</span>');
-    row.append('<span class="log-level">' + $('<span>').text(r.level).html() + '</span>');
-    row.append('<span class="' + svcClass + '">' + $('<span>').text(r.service || '').html() + '</span>');
-    row.append('<span class="log-msg">' + $('<span>').text(msg).html() + '</span>');
-    body.append(row);
+  rows.forEach(function(r) {
+    var levelClass = 'log-level-' + r.level;
+    var svcClass = 'log-svc-' + (r.service || '');
+    var msg = esc(r.message || '');
+    tbody.append(
+      '<tr class="' + levelClass + '">' +
+        '<td class="log-ts">' + esc(r.timestamp) + '</td>' +
+        '<td class="log-lvl font-weight-bold">' + esc(r.level) + '</td>' +
+        '<td class="' + svcClass + '">' + esc(r.service || '') + '</td>' +
+        '<td class="monospace log-msg">' + msg + '</td>' +
+      '</tr>'
+    );
   });
 }
+
+function esc(s) { return $('<span>').text(s).html(); }
 
 function clearLogs() {
   if (!confirm('Clear all log entries from all services?')) return;
