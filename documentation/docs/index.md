@@ -13,7 +13,7 @@
 | **Developer Portal** | `developer-portal` | 8004 | `/developer/*` (7021) | private, api, gk |
 | **Documentation** | `documentation` | 8005 | `/documentation/*` (7021) | private, gk |
 | **API Container** | `api` | 8008 | — | api, data |
-| **Webhook Container** | `webhook-container` | 8009 | `/webhook/*` (7020) | public, api, gk |
+| **Webhook Container** | `webhook-container` | 8009 | `/webhook/*` (7020) | public, api |
 | **Background Worker** | `background-worker` | — | — | data |
 | **phpMyAdmin** | `phpmyadmin` | 80 | `/phpmyadmin/*` (7021) | private, data |
 | **MySQL 8.4** | `mysql-db` | 3306 | — | net-data |
