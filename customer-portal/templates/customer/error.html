@@ -1,11 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><title>Error</title>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><title>Error — COTTA REALTY</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/css/bootstrap.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/font-awesome/6.5.0/css/all.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta-mobile.css') }}" media="(max-width: 768px)">
+<style>
+html,body{height:100%;margin:0}
+.error-page{background:#1a1a2e;min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.error-page::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(233,69,96,.08) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(233,69,96,.05) 0%,transparent 50%)}
+.error-page::after{content:'';position:absolute;top:-50%;right:-20%;width:600px;height:600px;background:radial-gradient(circle,rgba(233,69,96,.12) 0%,transparent 70%);pointer-events:none}
+.error-card{position:relative;z-index:2;width:100%;max-width:420px;margin:1.5rem}
+.error-card .card{border:none;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.error-card .card-body{text-align:center;padding:2.5rem 2rem}
+.error-card .err-icon{font-size:2.5rem;color:#e94560;margin-bottom:.75rem}
+.error-card h4{font-weight:700;color:#1a1a2e;font-size:1.2rem;margin-bottom:.5rem}
+.error-card .text-muted{font-size:.85rem;margin-bottom:1.5rem}
+.error-card .btn-retry{background:#e94560;color:#fff;border:none;padding:.6rem 2rem;border-radius:50px;font-weight:600;font-size:.85rem;transition:all .3s;cursor:pointer;display:inline-block}
+.error-card .btn-retry:hover{background:#d63851;transform:translateY(-1px);box-shadow:0 4px 15px rgba(233,69,96,.4);color:#fff;text-decoration:none}
+</style>
 </head>
-<body class="error-page"><div class="container"><div class="alert alert-danger text-center error-alert">
-<h4>Something went wrong</h4><p>{{ error }}</p>
-<a href="/customer/" class="btn btn-outline-danger mt-2">Try Again</a>
-</div></div></body></html>
+<body>
+<div class="error-page">
+<div class="error-card">
+<div class="card">
+<div class="card-body">
+<div class="err-icon"><i class="fas fa-exclamation-triangle"></i></div>
+<h4>Verification Failed</h4>
+<p class="text-muted">{{ error }}</p>
+<a href="/customer/" class="btn-retry"><i class="fas fa-redo mr-2"></i>Try Again</a>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
