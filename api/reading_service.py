@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from apps import db
@@ -7,6 +8,8 @@ from models import Billing, Customer, MeterReading
 from pricing import compute_water_bill
 from services.audit_service import log_action
 from customer_service import recalc_total_due
+
+logger = logging.getLogger('api')
 
 
 def existing_this_month(
@@ -153,8 +156,8 @@ def sync_readings(
     for cust in recalc_customers:
         try:
             recalc_total_due(cust)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception(f"recalc_total_due failed for customer {cust}: {e}")
     return synced, results, errors
 
 

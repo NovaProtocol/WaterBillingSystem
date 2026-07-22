@@ -899,6 +899,7 @@ def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str
                     print(f"    → Unknown Xendit status: {status} — skipping", flush=True)
         except Exception as e:
             errored += 1
+            logger.exception(f"Xendit reconciliation error for txn {txn.id}: {e}")
             print(f"    → ERROR: {e}", flush=True)
 
     _enqueue_next_reconcile()
@@ -942,14 +943,15 @@ def _process_xendit_payment(txn: XenditTransaction) -> bool:
         db.session.commit()
         return True
     except Exception as e:
+        logger.exception(f"Xendit payment processing failed for txn {txn.id}: {e}")
         db.session.rollback()
         txn = db.session.merge(txn)
         txn.status = "FAILED"
         txn.error_message = str(e)
         try:
             db.session.commit()
-        except Exception as e:
-            logger.error(f"Error: {e}")
+        except Exception as e2:
+            logger.error(f"Error: {e2}")
             db.session.rollback()
         return False
 

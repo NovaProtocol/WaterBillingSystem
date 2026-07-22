@@ -149,7 +149,7 @@ def query_logs(
                     "container": row[10],
                 })
             conn.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logging.getLogger('api').exception(f"Failed to query logs from {path}: {e}")
 
     return results
