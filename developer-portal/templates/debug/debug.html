@@ -1,16 +1,9 @@
 {% extends "debug/base.html" %}
 {% block title %}DEBUG{% endblock %}
-{% block stylesheets %}
-<style>
-.task-item:hover { background: #f8f9fa; }
-.task-log::-webkit-scrollbar { width: 4px; }
-.task-log::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
-.bg-current { background: #e8f4ff; }
-</style>
-{% endblock %}
+{% block stylesheets %}{% endblock %}
 {% block content %}
 
-<div class="page-title">DEBUG <span class="badge badge-danger" style="font-size:0.6rem;vertical-align:middle;">SUPERUSER ONLY</span></div>
+<div class="page-title">DEBUG <span class="badge badge-danger" style="font-size:0.6rem;">SUPERUSER ONLY</span></div>
 
 <div class="row" id="debug-panel">
 
@@ -21,7 +14,7 @@
       </div>
       <div class="card-body">
         <p class="text-muted">Full database snapshot via <code>mysqldump</code>. Saved as <code>.sql</code> in the <code>db_backups</code> volume.</p>
-        <button class="btn btn-outline-danger" onclick="confirmAndExec('backup', {}, 'This will create a full database backup.')">
+        <button class="btn btn-outline-cotta" onclick="confirmAndExec('backup', {}, 'This will create a full database backup.')">
           <i class="fas fa-download mr-1"></i>Create Backup
         </button>
       </div>
@@ -44,10 +37,10 @@
             {% endfor %}
           </select>
         </div>
-        <button class="btn btn-outline-danger" onclick="confirmAndExec('restore', {filename: document.getElementById('restore-file').value}, 'This will DELETE all current data and restore from the selected backup.')">
+        <button class="btn btn-outline-cotta" onclick="confirmAndExec('restore', {filename: document.getElementById('restore-file').value}, 'This will DELETE all current data and restore from the selected backup.')">
           <i class="fas fa-undo mr-1"></i>Restore
         </button>
-        <button class="btn btn-outline-secondary btn-sm mt-2" onclick="refreshBackups()">
+        <button class="btn btn-outline-cotta btn-sm mt-2" onclick="refreshBackups()">
           <i class="fas fa-sync mr-1"></i>Refresh list
         </button>
       </div>
@@ -116,7 +109,7 @@
             </button>
           </div>
           <div class="col-md-3 mb-2">
-            <button class="btn btn-outline-danger btn-block" onclick="confirmAndExec('remove-payment-this-month', {}, 'Removes payment for all paid this-month bills. Reverts to unpaid.')">
+            <button class="btn btn-outline-cotta btn-block" onclick="confirmAndExec('remove-payment-this-month', {}, 'Removes payment for all paid this-month bills. Reverts to unpaid.')">
               <i class="fas fa-credit-card mr-1"></i>Remove Payment This Month
             </button>
           </div>
@@ -242,7 +235,6 @@ document.getElementById('confirm-execute').addEventListener('click', function() 
   $('#confirm-modal').modal('hide');
   fetch(actionMap[action] || url, {
     method: 'POST',
-
     body: formData,
   })
     .then(r => r.json().catch(() => ({error: 'Request failed'})))
@@ -288,12 +280,12 @@ function taskHtml(task, isCurrent) {
   taskMessages[task.id] = msgs;
   var lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : '';
   var klass = isCurrent ? 'task-item p-2 border-bottom bg-current' : 'task-item p-2 border-bottom';
-  var progressHtml = (task.status === 'running')
-    ? '<div class="progress mt-1" style="height:6px;"><div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:'+task.progress+'%;background-color:'+color+';"></div></div>'
+  var progressHtml = (task.messages && task.messages.length > 0)
+    ? '<div class="progress mt-1" style="height:6px;"><div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:'+(task.progress||0)+'%;background-color:'+color+';"></div></div>'
     : '';
   var logLink = (msgs.length > 1)
     ? '<div class="mt-1"><a href="#" class="task-toggle" onclick="toggleTaskLog(event, \''+task.id+'\')" style="font-size:0.75rem;">Show log ('+msgs.length+' messages)</a></div>'
-    : (msgs.length === 1 ? '<div class="mt-1" style="font-size:0.75rem;color:#999;">1 message</div>' : '');
+    : (msgs.length === 1 ? '<div class="mt-1 text-muted" style="font-size:0.75rem;">1 message</div>' : '');
   return '<div class="'+klass+'" data-task-id="'+task.id+'">' +
     '<div class="d-flex justify-content-between align-items-center">' +
       '<span><i class="fas '+icon+'" style="color:'+color+';width:18px;"></i> <strong>'+task.title+'</strong></span>' +
@@ -302,7 +294,7 @@ function taskHtml(task, isCurrent) {
     progressHtml +
     '<div class="text-muted mt-1" style="font-size:0.8rem;">'+lastMsg+'</div>' +
     logLink +
-    '<div class="task-log mt-1" id="task-log-'+task.id+'" style="display:none;background:#f8f9fa;padding:0.5rem;border-radius:4px;max-height:200px;overflow-y:auto;font-family:monospace;font-size:0.75rem;white-space:pre-wrap;"></div>' +
+    '<div class="task-log mt-1" id="task-log-'+task.id+'" style="display:none;background:#f8f9fa;padding:0.5rem;border-radius:4px;max-height:200px;overflow-y:auto;font-size:0.75rem;white-space:pre-wrap;"></div>' +
   '</div>';
 }
 

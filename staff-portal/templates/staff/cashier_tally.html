@@ -11,7 +11,7 @@
 
     <div class="card card-cotta mb-4">
         <div class="card-body">
-            <div class="d-flex flex-wrap align-items-center mb-3" style="gap: 0.5rem;">
+            <div class="d-flex flex-wrap align-items-center mb-3 flex-gap-sm">
                 <div class="btn-group btn-group-sm" role="group">
                     <a href="?period=daily{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-cotta' if period == 'daily' else 'btn-outline-cotta' }}">Daily</a>
                     <a href="?period=weekly{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-cotta' if period == 'weekly' else 'btn-outline-cotta' }}">Weekly</a>
@@ -21,21 +21,21 @@
                 </div>
 
                 {% if period == 'custom' %}
-                <form id="customRangeForm" class="form-inline ml-2" style="gap: 0.5rem;" method="get">
+                <form id="customRangeForm" class="form-inline ml-2 flex-gap-sm" method="get">
                     <input type="hidden" name="period" value="custom">
                     <div class="input-group input-group-sm">
                         <div class="input-group-prepend">
                             <span class="input-group-text">From</span>
                         </div>
-                        <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" style="max-width: 150px;">
+                        <input type="date" name="start_date" class="form-control form-control-sm mw-150" value="{{ start_date }}">
                     </div>
                     <div class="input-group input-group-sm">
                         <div class="input-group-prepend">
                             <span class="input-group-text">To</span>
                         </div>
-                        <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" style="max-width: 150px;">
+                        <input type="date" name="end_date" class="form-control form-control-sm mw-150" value="{{ end_date }}">
                     </div>
-                    <div class="input-group input-group-sm" style="max-width: 120px;">
+                    <div class="input-group input-group-sm mw-120">
                         <div class="input-group-prepend">
                             <span class="input-group-text">Group</span>
                         </div>
@@ -78,7 +78,7 @@
 
             {% if tally %}
             <div class="table-responsive">
-                <table class="table table-hover" style="font-size: 0.9rem;">
+                <table class="table table-hover table-font-md">
                     <thead class="thead-light">
                         <tr>
                             <th>Cashier</th>
@@ -104,7 +104,7 @@
                         {% endfor %}
                     </tbody>
                     <tfoot>
-                        <tr class="font-weight-bold" style="border-top: 2px solid #1a1a2e;">
+                        <tr class="font-weight-bold tfoot-border">
                             <td>Total</td>
                             {% if use_matrix and tally[0].interval_list %}
                             {% for interval in tally[0].interval_list %}

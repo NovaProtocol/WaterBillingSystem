@@ -7,18 +7,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/font-awesome/6.5.0/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta.css') }}">
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #1a1a2e; background: #f8f9fa; }
-        .sidebar { position: fixed; top: 56px; left: 0; bottom: 0; width: 220px; background: #fff; border-right: 1px solid #f0f0f0; padding: 1rem 0; overflow-y: auto; z-index: 100; }
-        .sidebar .nav-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1.25rem; color: #6c757d; font-size: 0.88rem; font-weight: 500; border-radius: 0; transition: all 0.2s; border-left: 3px solid transparent; }
-        .sidebar .nav-link:hover { color: #1a1a2e; background: #f8f9fa; border-left-color: #e94560; }
-        .sidebar .nav-link.active { color: #e94560; background: #fff5f7; border-left-color: #e94560; font-weight: 600; }
-        .sidebar .nav-link i { width: 18px; text-align: center; font-size: 1rem; }
-        .sidebar .sidebar-header { padding: 0.5rem 1.25rem 0.75rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #adb5bd; }
-        .main-content { margin-left: 220px; padding-top: 56px; min-height: 100vh; }
-        .main-content > .container-fluid { padding: 1.5rem; }
-        label { font-weight: 600; font-size: 0.85rem; color: #1a1a2e; }
-    </style>
     {% block stylesheets %}{% endblock stylesheets %}
 </head>
 <body>
@@ -27,11 +15,11 @@
         <div class="container-fluid px-4">
             <a class="navbar-brand" href="{{ url_for('staff_blueprint.dashboard') if current_user.is_authenticated else url_for('staff_blueprint.index') }}">COTTA <span>REALTY</span></a>
             {% if current_user.is_authenticated %}
-            <div class="ml-auto d-flex align-items-center" style="gap: 1rem;">
-                <span class="text-white-50" style="font-size: 0.85rem;">
+            <div class="ml-auto d-flex align-items-center navbar-user-area">
+                <span class="text-white-50 navbar-user-name">
                     <i class="fas fa-user mr-1"></i>{{ current_user.name or current_user.username }}
                 </span>
-                <a href="{{ url_for('staff_blueprint.logout') }}" class="btn btn-outline-light btn-sm" style="border-radius: 50px; font-size: 0.8rem;">
+                <a href="{{ url_for('staff_blueprint.logout') }}" class="btn btn-outline-light btn-sm btn-logout">
                     <i class="fas fa-sign-out-alt mr-1"></i>Logout
                 </a>
             </div>

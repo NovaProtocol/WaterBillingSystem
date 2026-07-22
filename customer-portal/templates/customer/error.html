@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Error</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
-<style>body{background:#f5f5f5;display:flex;align-items:center;min-height:100vh}.alert{max-width:480px}</style>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><title>Error</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/css/bootstrap.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta-mobile.css') }}" media="(max-width: 768px)">
 </head>
-<body><div class="container"><div class="alert alert-danger text-center">
+<body class="error-page"><div class="container"><div class="alert alert-danger text-center error-alert">
 <h4>Something went wrong</h4><p>{{ error }}</p>
 <a href="/customer/" class="btn btn-outline-danger mt-2">Try Again</a>
 </div></div></body></html>
