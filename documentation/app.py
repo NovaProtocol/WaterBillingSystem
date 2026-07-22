@@ -1,5 +1,6 @@
 import os, sys
 from flask import Flask, send_file, abort, request
+from shared.logger import attach_sqlite_logging
 
 SITE_DIR = os.path.join(os.path.dirname(__file__), 'site')
 
@@ -42,5 +43,25 @@ def create_app():
         if request.path.startswith('/assets/'):
             return
         return gatekeeper_check()
+
+    attach_sqlite_logging('documentation')
+
+    import logging
+    http_logger = logging.getLogger('http')
+
+    @app.after_request
+    def log_request(response):
+        container = request.headers.get('X-Container-Name', '-')
+        http_logger.info(
+            f"{request.method} {request.path} {response.status_code}",
+            extra={'http': {
+                'method': request.method,
+                'path': request.path,
+                'status_code': response.status_code,
+                'remote_addr': request.remote_addr,
+                'container': container,
+            }}
+        )
+        return response
 
     return app

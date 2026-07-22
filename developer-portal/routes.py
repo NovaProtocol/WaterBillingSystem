@@ -285,3 +285,34 @@ def get_task(task_id):
     except Exception as e:
         logger.exception(f"Get task {task_id} failed:")
         return jsonify({"error": str(e)}), 500
+
+
+@debug_bp.route('/logs')
+@superuser_required
+def logs():
+    return render_template('debug/logs.html')
+
+
+@debug_bp.route('/api/logs')
+@superuser_required
+def api_logs():
+    from shared.logger import query_logs
+    service = request.args.get('service') or None
+    level = request.args.get('level') or None
+    q = request.args.get('q') or None
+    limit = min(int(request.args.get('limit', 200)), 1000)
+    offset = int(request.args.get('offset', 0))
+    results = query_logs(service=service, level=level, q=q, limit=limit, offset=offset)
+    return jsonify({'data': results, 'total': len(results)})
+
+
+@debug_bp.route('/api/logs/clear', methods=['POST'])
+@superuser_required
+def api_logs_clear():
+    import glob, os as os_mod
+    for path in glob.glob('/var/log/app/*.db'):
+        try:
+            os_mod.remove(path)
+        except Exception:
+            pass
+    return jsonify({'message': 'Logs cleared'})
