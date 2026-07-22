@@ -24,11 +24,10 @@
 </nav>
 
 <div class="sidebar" style="top:56px;">
+    <div class="sidebar-header">Tools</div>
     <a href="{{ url_for('dev.logs') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.logs' }}">
         <i class="fas fa-terminal"></i>Logs
     </a>
-
-    <div class="sidebar-header mt-3">Tools</div>
     <a href="{{ url_for('dev.backup') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.backup' }}">
         <i class="fas fa-download"></i>Backup &amp; Restore
     </a>
