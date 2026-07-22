@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Cotta Realty — {% block title %}Development{% endblock %}</title>
+    <title>Cotta Realty — {% block title %}Developer{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/font-awesome/6.5.0/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta.css') }}">
@@ -12,13 +12,11 @@
 <body>
 
 <nav class="navbar navbar-expand-lg navbar-dark navbar-cotta fixed-top">
-    <div class="container-fluid" style="padding-left:236px;padding-right:1.5rem;">
-        <a class="navbar-brand" href="{{ url_for('dev.index') }}">COTTA <span>REALTY</span> <small class="text-white-50 ml-1" style="font-size:0.8rem;font-weight:400;letter-spacing:0.3px;">· Development Portal</small></a>
+    <div class="container-fluid" style="padding-left:244px;padding-right:1.5rem;">
+        <a class="navbar-brand" href="{{ url_for('dev.index') }}">COTTA <span>REALTY</span> <small class="text-white-50 ml-1" style="font-size:0.8rem;font-weight:400;letter-spacing:0.3px;">· Developer Portal</small></a>
         <div class="ml-auto d-flex align-items-center navbar-user-area">
             <a href="/staff/dashboard" class="btn btn-sm-cotta mr-2">&larr; Staff Dashboard</a>
-            <a href="/staff/logout" class="btn btn-outline-cotta btn-sm btn-logout">
-                <i class="fas fa-sign-out-alt mr-1"></i>Logout
-            </a>
+            <a href="/staff/logout" class="btn btn-outline-cotta btn-sm">Logout</a>
         </div>
     </div>
 </nav>
