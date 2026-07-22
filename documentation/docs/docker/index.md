@@ -57,6 +57,41 @@ Networks: `net-private` (accessible via gateway port 7021), `net-data` (DB acces
 
 Access via Caddy gateway at `https://<private-domain>/phpmyadmin/`.
 
+## Documentation
+
+Serves the pre-built MkDocs static site via Flask + gunicorn. Gatekeeper authentication is enforced on all routes except `/assets/`.
+
+| Property | Value |
+|----------|-------|
+| Dockerfile | `documentation/Dockerfile` |
+| Container name | `waterbillingsystem_documentation` |
+| Internal port | `8005` |
+| Base image | `python3146t` |
+| Command | `gunicorn --bind 0.0.0.0:8005 --worker-class gthread --workers 1 --threads 4 --access-logfile - app:create_app()` |
+| Serving | Flask (not `mkdocs serve`) — pre-built HTML in `site/` directory |
+
+Networks: `net-private` (Caddy gateway access), `net-gk` (Gatekeeper auth).
+
+Requires `SECRET_KEY`, `GATEKEEPER_INTERNAL`, and `DEPLOYMENT_TYPE` env vars.
+
+Caddy uses `handle_path /documentation/*` to strip the `/documentation` prefix before proxying.
+
+```yaml
+documentation:
+  build:
+    context: .
+    dockerfile: documentation/Dockerfile
+  container_name: waterbillingsystem_documentation
+  restart: unless-stopped
+  networks:
+    - net-private
+    - net-gk
+  environment:
+    DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+    SECRET_KEY: ${SECRET_KEY}
+    GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
+```
+
 ## Background Worker
 
 A standalone Python container that polls the `background_tasks` database table and executes queued tasks sequentially.
@@ -112,16 +147,16 @@ background-worker:
 
 | Network | Driver | Visibility | Services |
 |---------|--------|------------|----------|
-| `net-public` | bridge | External | caddy-gateway, landing-page, customer-portal, webhook-container |
+| `net-public` | bridge | External | caddy-gateway, landing-page, customer-portal, webhook-container, api |
 | `net-private` | bridge | External | caddy-gateway, staff-portal, developer-portal, phpmyadmin, documentation |
 | `net-api` | internal | Internal only | api, customer-portal, staff-portal, developer-portal, webhook-container |
 | `net-data` | internal | Internal only | api, background-worker, mysql-db, phpmyadmin |
-| `net-gk` | external | Gatekeeper | customer-portal, staff-portal, developer-portal, webhook-container, documentation |
+| `net-gk` | external | Gatekeeper | customer-portal, staff-portal, developer-portal, documentation |
 | `cloudflared-tunnel` | external | Cloudflare | caddy-gateway |
 
 - **`net-api`** (internal): Portal containers communicate with the API container. No external access.
 - **`net-data`** (internal): API and worker access MySQL. No external access.
-- **`net-public`** (bridge): Public-facing services (landing page, customer portal, webhook receiver).
+- **`net-public`** (bridge): Public-facing services (landing page, customer portal, webhook receiver, API for Xendit DNS resolution).
 - **`net-private`** (bridge): Admin-facing services (staff portal, phpMyAdmin, docs).
 - **`net-gk`** (external): Connects portal containers to the Gatekeeper authentication service.
 - **`cloudflared-tunnel`** (external): Connects Caddy to Cloudflare tunnel for public internet access.

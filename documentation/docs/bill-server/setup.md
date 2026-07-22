@@ -109,8 +109,9 @@ The API container is on two internal networks: `net-api` (for portal service con
 3. Configures connection pooling (30 pool size, 30 overflow, 3600s recycle)
 4. Initializes SQLAlchemy (`db`) and Flask-Caching (`cache`)
 5. Registers `api_bp` (prefix `/api`) and `webhook_bp`
-6. Runs `db.create_all()` and Alembic migrations
+6. Runs `db.create_all()` and custom migrations (`migrate.run_migrations()`)
 7. Seeds prerequisite staff (superuser, xendit system user)
+8. Seeds payment methods (`fee_service.seed_payment_methods()`)
 8. Exposes `/health` endpoint (separate from blueprint)
 
 ## Startup

@@ -52,6 +52,6 @@ graph TB
 | `expo` | Expo SDK for build toolchain and native modules |
 | `@react-navigation/native-stack` | Native stack navigation |
 | `@op-engineering/op-sqlite` | High-performance JSI-based SQLite engine |
-| `react-native-nfc-manager` | NFC tag reading (NDEF text records) |
+| `react-native-nfc-manager` | NFC tag reading (NTAG215 PWD_AUTH, raw memory pages) |
 | `expo-camera` | Camera-based QR code scanning |
 | `react-native-webview` | WebView for Leaflet map rendering |

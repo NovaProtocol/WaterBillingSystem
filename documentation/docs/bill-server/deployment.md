@@ -13,8 +13,8 @@ The system runs as 11+ Docker services defined in `compose.yaml` at the project 
 | `customer-portal` | waterbillingsystem_customerportal | — | 8002 | net-public, net-api, net-gk | Customer bill lookup |
 | `staff-portal` | waterbillingsystem_staffportal | — | 8003 | net-private, net-api, net-gk | Staff dashboard |
 | `developer-portal` | waterbillingsystem_devportal | — | 8004 | net-private, net-api, net-gk | API documentation |
-| `webhook-container` | waterbillingsystem_webhook | — | 8009 | net-public, net-api, net-gk | Xendit callback proxy |
-| `api` | waterbillingsystem_api | — | 8008 | net-api, net-data | REST API |
+| `webhook-container` | waterbillingsystem_webhook | — | 8009 | net-public, net-api | Xendit callback proxy |
+| `api` | waterbillingsystem_api | — | 8008 | net-api, net-data, net-public | REST API |
 | `background-worker` | waterbillingsystem_worker | — | — | net-data | Task processor |
 | `phpmyadmin` | waterbillingsystem_phpmyadmin | — | 80 | net-private, net-data | DB admin UI |
 | `documentation` | waterbillingsystem_documentation | — | 8005 | net-private, net-gk | MkDocs site |
@@ -46,6 +46,7 @@ graph TB
         LP[landing-page:8001]
         CP[customer-portal:8002]
         WH[webhook-container:8009]
+        API[api:8008]
     end
 
     subgraph "net-private"
@@ -57,11 +58,11 @@ graph TB
     end
 
     subgraph "net-api"
-        API[api:8008]
         CP
         SP
         DP
         WH
+        API
     end
 
     subgraph "net-data"
@@ -75,7 +76,6 @@ graph TB
         CP
         SP
         DP
-        WH
         DOC
         GK[gatekeeper]
     end
@@ -96,7 +96,7 @@ graph TB
 | `customer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `GATEKEEPER_INTERNAL`, `DEPLOYMENT_TYPE`, `DEBUG` |
 | `staff-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `CACHE_TYPE`, `GATEKEEPER_INTERNAL`, `DEPLOYMENT_TYPE` |
 | `developer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `GATEKEEPER_INTERNAL`, `DEPLOYMENT_TYPE` |
-| `webhook-container` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `GATEKEEPER_INTERNAL`, `DEPLOYMENT_TYPE` |
+| `webhook-container` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE` |
 | `api` | `DB_*`, `SECRET_KEY`, `INTERNAL_API_KEY`, `NFC_PWD_SECRET`, `XENDIT_*`, `CACHE_TYPE`, `PYTHON_GIL`, `DEPLOYMENT_TYPE` |
 | `background-worker` | `DB_*`, `XENDIT_API_KEY`, `DEPLOYMENT_TYPE` |
 | `phpmyadmin` | `PMA_HOST`, `PMA_PORT` |
@@ -105,7 +105,7 @@ graph TB
 
 ### Gatekeeper Integration
 
-All portal containers (customer, staff, developer, webhook, documentation) use `shared/gatekeeper.py` for authentication. On each request:
+Portal containers (customer, staff, developer, documentation) use `shared/gatekeeper.py` for authentication. The webhook container does not use gatekeeper — it authenticates callbacks via `X-Callback-Token`. On each request:
 1. Checks for `gatekeeper_token` cookie
 2. Verifies token against gatekeeper service via internal API
 3. Caches valid tickets (TTLCache, 5 min TTL)

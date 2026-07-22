@@ -34,6 +34,8 @@ When an internal API key is provided (matching `INTERNAL_API_KEY` env var), perm
 
 ## Endpoints Index
 
+> **Note**: Route path variables `{customer_number}` and `{id}` use Flask's `int` converter. All IDs are integers.
+
 ### System
 
 | # | Method | Endpoint | Auth | Description |
@@ -53,81 +55,81 @@ When an internal API key is provided (matching `INTERNAL_API_KEY` env var), perm
 |---|--------|----------|------|-------------|
 | 4 | GET | `/api/customer/count` | API key (can_read_meters) | Count of active customers |
 | 5 | GET | `/api/customer/all` | API key (can_read_meters) | Paginated customer list with due amounts |
-| 6 | GET | `/api/customer/{customer_number}` | API key (can_read_meters) or session | Full billing profile |
-| 7 | GET | `/api/customer/{customer_number}/details` | API key (can_read_meters) | Profile + reading history |
-| 8 | GET | `/api/customer/{customer_number}/profile` | API key (can_read_meters) | Alias for customer_info |
-| 9 | POST | `/api/customer/new` | API key (can_enroll_customer) | Create customer |
-| 10 | PUT | `/api/customer/update/{customer_number}` | API key (can_enroll_customer) | Update customer |
-| 11 | DELETE | `/api/customer/delete/{customer_number}` | API key (can_enroll_customer) | Soft-delete/reactivate customer |
-| 12 | POST | `/api/customer/login` | Internal | Customer identity verification |
-| 13 | POST | `/api/customer/{customer_number}/invoice` | Internal | Create Xendit invoice |
-| 14 | GET | `/api/customers/changed` | API key (can_read_meters) | Changed customers since timestamp |
+| 6 | GET | `/api/customer/<int:customer_number>` | API key (can_read_meters) or session | Full billing profile |
+| 7 | GET | `/api/customer/<int:customer_number>/details` | API key (can_read_meters) | Profile + reading history |
+| — | — | *(removed — was alias for /customer/<int:n>)* | — | — |
+| 8 | POST | `/api/customer/new` | API key (can_enroll_customer) | Create customer |
+| 9 | PUT | `/api/customer/update/<int:customer_number>` | API key (can_enroll_customer) | Update customer |
+| 10 | DELETE | `/api/customer/delete/<int:customer_number>` | API key (can_enroll_customer) | Soft-delete/reactivate customer |
+| 11 | POST | `/api/customer/login` | Internal | Customer identity verification |
+| 12 | POST | `/api/customer/<int:customer_number>/invoice` | Internal | Create Xendit invoice |
+| 13 | GET | `/api/customers/changed` | API key (can_read_meters) | Changed customers since timestamp |
 
 ### Readings
 
 | # | Method | Endpoint | Auth | Description |
 |---|--------|----------|------|-------------|
-| 15 | GET | `/api/customer/{customer_number}/reading` | API key (can_read_meters) | Paginated readings for customer |
-| 16 | POST | `/api/customer/{customer_number}/reading/new` | API key (can_read_meters) | Upload reading |
-| 17 | POST | `/api/customer/{customer_number}/reading/drop` | API key (can_drop_reading) | Delete reading |
-| 18 | POST | `/api/customer/{customer_number}/reading/edit` | API key (can_manage_billing) | Edit reading value |
+| 14 | GET | `/api/customer/<int:customer_number>/reading` | API key (can_read_meters) | Paginated readings for customer |
+| 15 | POST | `/api/customer/<int:customer_number>/reading/new` | API key (can_read_meters) | Upload reading |
+| 16 | POST | `/api/customer/<int:customer_number>/reading/drop` | API key (can_drop_reading) | Delete reading |
+| 17 | POST | `/api/customer/<int:customer_number>/reading/edit` | API key (can_manage_billing) | Edit reading value |
 
 ### Billing & Payments
 
 | # | Method | Endpoint | Auth | Description |
 |---|--------|----------|------|-------------|
-| 19 | GET | `/api/customer/{customer_number}/billing` | API key (can_read_meters) | Paginated billing records |
-| 20 | POST | `/api/customer/{customer_number}/billing/new` | API key (can_accept_payment) | Submit payment |
-| 21 | POST | `/api/customer/{customer_number}/billing/drop` | API key (can_drop_payment) | Undo payment |
+| 18 | GET | `/api/customer/<int:customer_number>/billing` | API key (can_read_meters) | Paginated billing records |
+| 19 | POST | `/api/customer/<int:customer_number>/billing/new` | API key (can_accept_payment) | Submit payment |
+| 20 | POST | `/api/customer/<int:customer_number>/billing/drop` | API key (can_drop_payment) | Undo payment |
 
 ### NFC
 
 | # | Method | Endpoint | Auth | Description |
 |---|--------|----------|------|-------------|
-| 22 | GET | `/api/customer/{customer_number}/nfc` | API key (can_read_meters) | Get NFC tag for customer |
-| 23 | GET | `/api/customer/all/nfc` | API key (can_read_meters) | All NFC tags |
-| 24 | POST | `/api/customer/{customer_number}/nfc/create` | API key (can_enroll_customer) | Assign NFC tag |
-| 25 | POST | `/api/customer/{customer_number}/nfc/delete` | API key (can_enroll_customer) | Remove NFC tag |
+| 21 | GET | `/api/customer/<int:customer_number>/nfc` | API key (can_read_meters) | Get NFC tag for customer |
+| 22 | GET | `/api/customer/all/nfc` | API key (can_read_meters) | All NFC tags |
+| 23 | POST | `/api/customer/<int:customer_number>/nfc/create` | API key (can_enroll_customer) | Assign NFC tag |
+| 24 | POST | `/api/customer/<int:customer_number>/nfc/delete` | API key (can_enroll_customer) | Remove NFC tag |
 
 ### Staff
 
 | # | Method | Endpoint | Auth | Description |
 |---|--------|----------|------|-------------|
-| 26 | POST | `/api/staff/login` | None | Staff login |
-| 27 | GET | `/api/staff/info` | API key or internal | Current staff info |
-| 28 | GET | `/api/staff/all` | API key (can_enroll_staff) | List all staff |
-| 29 | GET | `/api/staff/{id}` | API key (can_enroll_staff) | Get staff details |
-| 30 | POST | `/api/staff/new` | API key (can_enroll_staff) | Create staff account |
-| 31 | POST | `/api/staff/{id}/edit` | API key (can_enroll_staff) | Edit staff account |
-| 32 | GET | `/api/staff/{id}/cashier-tally` | API key (can_accept_payment) | Cashier tally report |
-| 33 | GET | `/api/staff/{id}/reading-logs` | API key (can_drop_reading) | Audit log of reading changes |
-| 34 | GET | `/api/staff/{id}/api-keys` | API key | List all API keys |
-| 35 | POST | `/api/staff/{id}/api-key/generate` | API key (can_read_meters) | Generate API key |
-| 36 | POST | `/api/staff/{id}/api-key/{key_id}/revoke` | API key (can_read_meters) | Revoke API key |
-| 37 | POST | `/api/staff/{staff_id}/api-key/verify` | API key | Verify API key validity |
+| 25 | POST | `/api/staff/login` | None | Staff login |
+| 26 | GET | `/api/staff/info` | API key or internal | Current staff info |
+| 27 | GET | `/api/staff/all` | API key (can_enroll_staff) | List all staff |
+| 28 | GET | `/api/staff/{id}` | API key (can_enroll_staff) | Get staff details |
+| 29 | POST | `/api/staff/new` | API key (can_enroll_staff) | Create staff account |
+| 30 | POST | `/api/staff/{id}/edit` | API key (can_enroll_staff) | Edit staff account |
+| 31 | GET | `/api/staff/{id}/cashier-tally` | API key (can_accept_payment) | Cashier tally report |
+| 32 | GET | `/api/staff/{id}/reading-logs` | API key (can_drop_reading) | Audit log of reading changes |
+| 33 | GET | `/api/staff/{id}/api-keys` | API key | List all API keys |
+| 34 | POST | `/api/staff/{id}/api-key/generate` | API key (can_read_meters) | Generate API key |
+| 35 | POST | `/api/staff/{id}/api-key/{key_id}/revoke` | API key (can_read_meters) | Revoke API key |
+| 36 | POST | `/api/staff/{staff_id}/api-key/verify` | API key | Verify API key validity |
 
 ### Debug (superuser only)
 
 | # | Method | Endpoint | Auth | Description |
 |---|--------|----------|------|-------------|
-| 38 | POST | `/api/debug/backup` | Internal | Queue database backup |
-| 39 | GET | `/api/debug/backups` | Internal | List available backups |
-| 40 | POST | `/api/debug/restore` | Internal | Queue backup restore |
-| 41 | GET | `/api/debug/restore-newest` | Internal | Restore from newest backup |
-| 42 | POST | `/api/debug/clear` | Internal | Queue database clear |
-| 43 | POST | `/api/debug/seed` | Internal | Queue test data seed |
-| 44 | POST | `/api/debug/read-month` | Internal | Queue read-this-month |
-| 45 | POST | `/api/debug/unread-month` | Internal | Queue unread-this-month |
-| 46 | POST | `/api/debug/pay-month` | Internal | Queue pay-this-month |
-| 47 | POST | `/api/debug/remove-pay-month` | Internal | Queue remove-payment-this-month |
-| 48 | GET | `/api/debug/tasks` | Internal | Task queue status |
-| 49 | GET | `/api/debug/tasks/{task_id}` | Internal | Single task details |
+| 37 | POST | `/api/debug/backup` | Internal | Queue database backup |
+| 38 | GET | `/api/debug/backups` | Internal | List available backups |
+| 39 | POST | `/api/debug/restore` | Internal | Queue backup restore |
+| 40 | GET | `/api/debug/restore-newest` | Internal | Restore from newest backup |
+| 41 | POST | `/api/debug/clear` | Internal | Queue database clear |
+| 42 | POST | `/api/debug/seed` | Internal | Queue test data seed |
+| 43 | POST | `/api/debug/read-month` | Internal | Queue read-this-month |
+| 44 | POST | `/api/debug/unread-month` | Internal | Queue unread-this-month |
+| 45 | POST | `/api/debug/pay-month` | Internal | Queue pay-this-month |
+| 46 | POST | `/api/debug/remove-pay-month` | Internal | Queue remove-payment-this-month |
+| 47 | GET | `/api/debug/tasks` | Internal | Task queue status |
+| 48 | GET | `/api/debug/tasks/{task_id}` | Internal | Single task details |
 
 ### Webhook
 
 | # | Method | Endpoint | Auth | Description |
 |---|--------|----------|------|-------------|
-| 50 | POST | `/api/webhook/xendit-payment` | X-Callback-Token | Xendit payment callback |
+| 49 | POST | `/api/webhook/xendit-payment` | X-Callback-Token | Xendit payment callback |
 
 ---
 
@@ -145,7 +147,7 @@ Database connectivity check.
 ```
 **Response 503**:
 ```json
-{"status": "degraded", "db": "error message"}
+{"status": "degraded", "db": false}
 ```
 
 ---
@@ -227,7 +229,7 @@ Paginated list of all customers with due amounts and NFC status.
   "data": [
     {
       "id": 1,
-      "customer_number": "C1",
+      "customer_number": 1,
       "name": "Juan Dela Cruz",
       "address": "123 Rizal St.",
       "meter_serial_number": "",
@@ -267,7 +269,7 @@ Full billing profile — latest/previous readings, consumption, bill breakdown, 
 **Response 200**:
 ```json
 {
-  "customer_number": "C1",
+  "customer_number": 1,
   "name": "Juan Dela Cruz",
   "address": "123 Rizal St., Brgy. San Jose",
   "meter_serial_number": "",
@@ -322,7 +324,7 @@ Customer profile with recent reading history.
 ```json
 {
   "customer": {
-    "customer_number": "C1",
+    "customer_number": 1,
     "name": "Juan Dela Cruz",
     "address": "123 Rizal St.",
     "meter_serial_number": "",
@@ -344,13 +346,7 @@ Customer profile with recent reading history.
 
 ---
 
-### 8. GET /api/customer/{customer_number}/profile
-
-Alias for `GET /api/customer/{customer_number}`.
-
----
-
-### 9. POST /api/customer/new
+### 8. POST /api/customer/new
 
 Create a new customer.
 
@@ -359,7 +355,7 @@ Create a new customer.
 **Request body**:
 ```json
 {
-  "customer_number": "C99",
+  "customer_number": 99,
   "name": "Maria Santos",
   "address": "456 Oak St.",
   "contact_number": "09987654321",
@@ -374,7 +370,7 @@ Create a new customer.
 
 **Response 201**:
 ```json
-{"message": "Customer created", "customer_number": "C99"}
+{"message": "Customer created", "customer_number": 99}
 ```
 
 **Response 400**: `{"error": "Customer number is required"}`
@@ -382,7 +378,7 @@ Create a new customer.
 
 ---
 
-### 10. PUT /api/customer/update/{customer_number}
+### 9. PUT /api/customer/update/{customer_number}
 
 Update customer fields. Only provided fields are changed.
 
@@ -398,7 +394,7 @@ Update customer fields. Only provided fields are changed.
 
 ---
 
-### 11. DELETE /api/customer/delete/{customer_number}
+### 10. DELETE /api/customer/delete/{customer_number}
 
 Toggle soft-delete/reactivate. Sets `deleted_at` if deactivating, clears it if reactivating.
 
@@ -413,7 +409,7 @@ Toggle soft-delete/reactivate. Sets `deleted_at` if deactivating, clears it if r
 
 ---
 
-### 12. POST /api/customer/login
+### 11. POST /api/customer/login
 
 Customer identity verification. Used by the customer portal.
 
@@ -422,7 +418,7 @@ Customer identity verification. Used by the customer portal.
 **Request body**:
 ```json
 {
-  "account_number": "C1",
+  "account_number": 1,
   "registered_name": "Juan Dela Cruz",
   "last_receipt": "RCP-1712345678-ABCD"
 }
@@ -431,9 +427,9 @@ Customer identity verification. Used by the customer portal.
 **Response 200**:
 ```json
 {
-  "customer_number": "C1",
+  "customer_number": 1,
   "customer": {
-    "customer_number": "C1",
+    "customer_number": 1,
     "name": "Juan Dela Cruz",
     "address": "123 Rizal St.",
     "contact_number": "09123456789",
@@ -451,9 +447,9 @@ Customer identity verification. Used by the customer portal.
 
 ---
 
-### 13. POST /api/customer/{customer_number}/invoice
+### 12. POST /api/customer/{customer_number}/invoice
 
-Create a Xendit payment session for online payment.
+Create a Xendit payment session for online payment. The `xendit_fee` from the selected PaymentMethod is added to the `total_amount` sent to Xendit. `success_url` and `cancel_url` are forwarded from the request through to the Xendit API.
 
 **Auth**: Internal
 
@@ -471,7 +467,7 @@ Create a Xendit payment session for online payment.
 ```json
 {
   "redirect_url": "https://checkout.xendit.co/session/...",
-  "external_id": "wbs-C1-1712345678-a1b2c3d4",
+  "external_id": "wbs-1-1712345678-a1b2c3d4",
   "id": "sess_123",
   "base_amount": 724.0,
   "fee_amount": 21.72,
@@ -484,7 +480,7 @@ Create a Xendit payment session for online payment.
 
 ---
 
-### 14. GET /api/customers/changed
+### 13. GET /api/customers/changed
 
 Change detection for incremental sync. Returns customer numbers modified since a timestamp.
 
@@ -497,7 +493,7 @@ Detects: customer profile modifications, new/edited readings, dropped readings.
 **Response 200**:
 ```json
 {
-  "customer_numbers": ["C1", "C5"],
+  "customer_numbers": [1, 5],
   "server_time": 1718841600,
   "total_customers": 20
 }
@@ -507,7 +503,7 @@ Detects: customer profile modifications, new/edited readings, dropped readings.
 
 ---
 
-### 15. GET /api/customer/{customer_number}/reading
+### 14. GET /api/customer/{customer_number}/reading
 
 Paginated readings for a customer.
 
@@ -527,7 +523,7 @@ Paginated readings for a customer.
 
 ---
 
-### 16. POST /api/customer/{customer_number}/reading/new
+### 15. POST /api/customer/{customer_number}/reading/new
 
 Upload a single reading. Auto-creates billing record.
 
@@ -543,7 +539,7 @@ Upload a single reading. Auto-creates billing record.
 {
   "success": true,
   "reading_id": 481,
-  "customer_number": "C1",
+  "customer_number": 1,
   "reading_value": 310.2,
   "timestamp": 1779100000,
   "reader": "Juan Dela Cruz"
@@ -555,7 +551,7 @@ Upload a single reading. Auto-creates billing record.
 
 ---
 
-### 17. POST /api/customer/{customer_number}/reading/drop
+### 16. POST /api/customer/{customer_number}/reading/drop
 
 Delete a reading (current month only, unpaid only).
 
@@ -572,7 +568,7 @@ Delete a reading (current month only, unpaid only).
 
 ---
 
-### 18. POST /api/customer/{customer_number}/reading/edit
+### 17. POST /api/customer/{customer_number}/reading/edit
 
 Edit a reading value. Recomputes billing.
 
@@ -588,7 +584,7 @@ Edit a reading value. Recomputes billing.
 
 ---
 
-### 19. GET /api/customer/{customer_number}/billing
+### 18. GET /api/customer/{customer_number}/billing
 
 Paginated billing records.
 
@@ -604,7 +600,7 @@ Paginated billing records.
     "previous_reading": 220.3, "current_reading": 250.6,
     "consumption": 30.3, "billed_amount": 709.0, "penalty": 15.0,
     "paid_amount": 0, "is_paid": false, "receipt_number": null,
-    "cashier_id": null, "payment_timestamp": null, "date_paid": null
+    "cashier_id": null, "payment_timestamp": null, "date_paid": null, "created_at": 1718841600
   }],
   "meta": {"current_page": 1, "page_size": 50, "total_items": 24, "total_pages": 1}
 }
@@ -612,7 +608,7 @@ Paginated billing records.
 
 ---
 
-### 20. POST /api/customer/{customer_number}/billing/new
+### 19. POST /api/customer/{customer_number}/billing/new
 
 Submit a payment. Uses waterfall model: oldest unpaid bill first, excess becomes carryover credit.
 
@@ -637,7 +633,7 @@ Submit a payment. Uses waterfall model: oldest unpaid bill first, excess becomes
 
 ---
 
-### 21. POST /api/customer/{customer_number}/billing/drop
+### 20. POST /api/customer/{customer_number}/billing/drop
 
 Undo a payment by billing ID. Reverts all bills in the same receipt group.
 
@@ -653,7 +649,7 @@ Undo a payment by billing ID. Reverts all bills in the same receipt group.
 
 ---
 
-### 22. GET /api/customer/{customer_number}/nfc
+### 21. GET /api/customer/{customer_number}/nfc
 
 Get NFC tag assigned to a customer.
 
@@ -661,7 +657,7 @@ Get NFC tag assigned to a customer.
 
 **Response 200** (assigned):
 ```json
-{"nfc_uid": "045A6BC2DEF180", "customer_number": "C1"}
+{"nfc_uid": "045A6BC2DEF180", "customer_number": 1}
 ```
 
 **Response 200** (no tag):
@@ -671,7 +667,7 @@ Get NFC tag assigned to a customer.
 
 ---
 
-### 23. GET /api/customer/all/nfc
+### 22. GET /api/customer/all/nfc
 
 All registered NFC tags.
 
@@ -681,14 +677,14 @@ All registered NFC tags.
 ```json
 {
   "tags": [
-    {"uid": "045A6BC2DEF180", "customer_number": "C1"}
+    {"uid": "045A6BC2DEF180", "customer_number": 1}
   ]
 }
 ```
 
 ---
 
-### 24. POST /api/customer/{customer_number}/nfc/create
+### 23. POST /api/customer/{customer_number}/nfc/create
 
 Assign an NFC tag to a customer.
 
@@ -699,13 +695,13 @@ Assign an NFC tag to a customer.
 {"uid": "045A6BC2DEF180"}
 ```
 
-**Response 201**: `{"message": "Tag assigned", "uid": "045A6BC2DEF180", "customer_number": "C1"}`
+**Response 201**: `{"message": "Tag assigned", "uid": "045A6BC2DEF180", "customer_number": 1}`
 **Response 400**: `{"error": "uid is required"}`
 **Response 409**: `{"error": "Tag UID already assigned"}`
 
 ---
 
-### 25. POST /api/customer/{customer_number}/nfc/delete
+### 24. POST /api/customer/{customer_number}/nfc/delete
 
 Remove NFC tag from a customer. Increments NFC generation counter.
 
@@ -716,7 +712,7 @@ Remove NFC tag from a customer. Increments NFC generation counter.
 
 ---
 
-### 26. POST /api/staff/login
+### 25. POST /api/staff/login
 
 Staff authentication. Returns staff data including all permissions.
 
@@ -744,7 +740,7 @@ Staff authentication. Returns staff data including all permissions.
 
 ---
 
-### 27. GET /api/staff/info
+### 26. GET /api/staff/info
 
 Get current authenticated staff info.
 
@@ -761,7 +757,7 @@ Get current authenticated staff info.
 
 ---
 
-### 28. GET /api/staff/all
+### 27. GET /api/staff/all
 
 List all staff accounts.
 
@@ -776,7 +772,7 @@ List all staff accounts.
 
 ---
 
-### 29. GET /api/staff/{id}
+### 28. GET /api/staff/{id}
 
 Get single staff account details.
 
@@ -786,7 +782,7 @@ Get single staff account details.
 
 ---
 
-### 30. POST /api/staff/new
+### 29. POST /api/staff/new
 
 Create staff account.
 
@@ -816,7 +812,7 @@ Create staff account.
 
 ---
 
-### 31. POST /api/staff/{id}/edit
+### 30. POST /api/staff/{id}/edit
 
 Edit staff account.
 
@@ -828,7 +824,7 @@ Edit staff account.
 
 ---
 
-### 32. GET /api/staff/{id}/cashier-tally
+### 31. GET /api/staff/{id}/cashier-tally
 
 Cashier tally report for a date range.
 
@@ -860,7 +856,7 @@ Cashier tally report for a date range.
 
 ---
 
-### 33. GET /api/staff/{id}/reading-logs
+### 32. GET /api/staff/{id}/reading-logs
 
 Audit logs for reading changes (last 50).
 
@@ -871,7 +867,7 @@ Audit logs for reading changes (last 50).
 {
   "logs": [
     {"id": 1, "staff_id": 1, "staff_name": "Superuser", "action_type": "drop",
-     "target_id": 480, "customer_number": "C1",
+     "target_id": 480, "customer_number": 1,
      "details": "Dropped reading #480 for C1.", "timestamp": 1778968800}
   ]
 }
@@ -879,7 +875,7 @@ Audit logs for reading changes (last 50).
 
 ---
 
-### 34. GET /api/staff/{id}/api-keys
+### 33. GET /api/staff/{id}/api-keys
 
 List all API keys with associated staff info.
 
@@ -899,7 +895,7 @@ List all API keys with associated staff info.
 
 ---
 
-### 35. POST /api/staff/{id}/api-key/generate
+### 34. POST /api/staff/{id}/api-key/generate
 
 Generate a new API key.
 
@@ -917,7 +913,7 @@ Generate a new API key.
 
 ---
 
-### 36. POST /api/staff/{id}/api-key/{key_id}/revoke
+### 35. POST /api/staff/{id}/api-key/{key_id}/revoke
 
 Revoke (deactivate) an API key.
 
@@ -927,7 +923,7 @@ Revoke (deactivate) an API key.
 
 ---
 
-### 37. POST /api/staff/{staff_id}/api-key/verify
+### 36. POST /api/staff/{staff_id}/api-key/verify
 
 Verify an API key is valid and active.
 
@@ -951,7 +947,7 @@ Verify an API key is valid and active.
 
 ---
 
-### 38–49. Debug Endpoints
+### 37–48. Debug Endpoints
 
 All debug endpoints require superuser access (checking `/app/db_backups` directory existence). All destructive operations run via the background task queue.
 
@@ -1015,7 +1011,7 @@ Single task details, including params and result.
 
 ---
 
-### 50. POST /api/webhook/xendit-payment
+### 49. POST /api/webhook/xendit-payment
 
 Xendit payment callback. Registers as a separate blueprint (not under `api_bp` but at `/api/webhook/xendit-payment`).
 

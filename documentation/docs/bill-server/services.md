@@ -67,7 +67,7 @@ Looks up active payment method, computes fee using `PaymentMethod.fee_for()`.
 **`get_method(code)`** → `PaymentMethod | None`
 
 **`seed_payment_methods()`** → `None`
-Seeds 20+ payment methods: GCash, Maya, GrabPay, ShopeePay, cards, direct debit, online banking, OTC (7-Eleven, Cebuana, ECPay, LBC, M Lhuillier, Palawan, Robinsons, SM, USSC), QRPh, BillEase, virtual account.
+Seeds 22 payment methods: GCash, Maya, GrabPay, ShopeePay, cards (domestic/international), direct debit (BPI, UBP, RCBC), online banking, OTC (7-Eleven, Cebuana, ECPay, LBC, M Lhuillier, Palawan, Robinsons, SM, USSC), QRPh, BillEase, virtual account.
 
 ### billing_service.py (`api/billing_service.py`)
 

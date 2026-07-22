@@ -27,6 +27,8 @@ When valid, permission checks are bypassed. Use `X-Staff-ID` header to specify a
 2. `?api_key=<key>` query parameter
 3. `X-Internal-API-Key` header (bypasses permissions)
 
+> **Note**: Route path variables `{customer_number}` and `{id}` use Flask's `int` converter. All IDs are integers.
+
 ## Endpoints
 
 ### System
@@ -58,11 +60,12 @@ When valid, permission checks are bypassed. Use `X-Staff-ID` header to specify a
 **GET /api/customer/{customer_number}** — Full billing profile. Auth: can_read_meters or session.
 - Query: `?staff_id=N&token_id=N`
 - Returns: customer info, latest/last reading, consumption, bill breakdown, pricing tiers, unpaid bills, payment methods, recent payments.
+- Triggers `recalc_total_due()` and `recalc_cumulative_balance()` on access.
 
 **GET /api/customer/{customer_number}/details** — Profile + reading history. Auth: can_read_meters.
 - Query: `?history=5` (default)
 
-**GET /api/customer/{customer_number}/profile** — Alias for customer_info.
+*(Removed — was alias for /api/customer/{customer_number})*
 
 **POST /api/customer/new** — Create customer. Auth: can_enroll_customer.
 
@@ -72,7 +75,10 @@ When valid, permission checks are bypassed. Use `X-Staff-ID` header to specify a
 
 **POST /api/customer/login** — Customer identity verification (portal auth). Auth: Internal.
 
-**POST /api/customer/{customer_number}/invoice** — Create Xendit payment session. Auth: Internal.
+**POST /api/customer/<int:customer_number>/invoice** — Create Xendit payment session. Auth: Internal.
+- Body: `{amount, payment_method, success_url?, cancel_url?}`
+- `xendit_fee` from the PaymentMethod is included in the `total_amount` sent to Xendit.
+- `success_url` and `cancel_url` are forwarded from the request through to the Xendit API.
 
 **GET /api/customers/changed** — Change detection. Auth: can_read_meters.
 - Query: `?since=<unix_timestamp>` (required)
@@ -181,6 +187,9 @@ All debug operations enqueue tasks via `BackgroundTask` DB table. The worker con
 ### Webhook
 
 **POST /api/webhook/xendit-payment** — Xendit payment callback. Auth: `X-Callback-Token` header matching `XENDIT_WEBHOOK_TOKEN`. Separate blueprint (not api_bp).
+- Accepts `PAID`, `COMPLETED`, and `SUCCEEDED` status values.
+- Uses `tx.base_amount` (not `tx.amount`) when submitting payment to avoid overpayment carryover.
+- Detailed logging of callback data and transaction lookup results.
 
 ---
 

@@ -17,7 +17,7 @@ All in `api/routes/`:
 
 | Module | Routes | Description |
 |--------|--------|-------------|
-| `customer.py` | 22 | CRUD, readings, billing, NFC, customer login, invoice |
+| `customer.py` | 21 | CRUD, readings, billing, NFC, customer login, invoice |
 | `staff.py` | 12 | Login, info, list, CRUD, cashier tally, reading logs, API key management |
 | `config.py` | 2 | NFC secret, pricing tiers |
 | `system.py` | 1 | Health check |
@@ -77,7 +77,7 @@ api/
 ├── app.py                        # Flask factory: create_app()
 ├── blueprint.py                  # api_bp Blueprint("/api")
 ├── utils.py                      # Auth helpers: resolve_api_key, require_staff, resolve_staff
-├── migrate.py                    # Alembic migration runner
+├── migrate.py                    # Custom migration runner
 ├── billing_service.py            # ensure_penalty
 ├── customer_service.py           # Customer CRUD, due computation
 ├── fee_service.py                # Payment method fees, seeding
