@@ -28,7 +28,7 @@ label{font-weight:600;font-size:0.85rem;color:#1a1a2e}
 .card-cotta{background:#fff;border-radius:16px;border:1px solid #f0f0f0;box-shadow:0 2px 12px rgba(0,0,0,0.04)}
 .card-cotta .card-header{background:transparent;border-bottom:1px solid #f0f0f0;padding:1.25rem 1.5rem;font-weight:700}
 .card-cotta .card-body{padding:1.5rem}
-.form-control{border-radius:10px;padding:0.7rem 1rem;border:2px solid #e9ecef;font-size:0.95rem}
+select.form-control:not([size]):not([multiple]){padding:0.375rem 0.75rem}.form-control{border-radius:10px;padding:0.7rem 1rem;border:2px solid #e9ecef;font-size:0.95rem}
 .form-control:focus{border-color:#e94560;box-shadow:0 0 0 0.2rem rgba(233,69,96,0.15)}
 .form-control-sm-cotta{border-radius:8px;font-size:0.82rem}
 .form-control-monospace{font-family:monospace;font-size:0.78rem;background:#f8f9fa}
@@ -266,4 +266,3 @@ label{font-weight:600;font-size:0.85rem;color:#1a1a2e}
 .navbar-btn-primary:hover{background:#d63851;color:#fff}
 .navbar-btn-outline{border:1px solid rgba(255,255,255,0.5);color:#fff;background:transparent}
 .navbar-btn-outline:hover{background:#fff;color:#1a1a2e}
-select.form-control:not([size]):not([multiple]){min-height:44px;line-height:1.5;padding:0.375rem 1rem}
