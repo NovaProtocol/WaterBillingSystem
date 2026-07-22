@@ -37,8 +37,8 @@ def create_app():
             return Staff(data)
         return None
 
-    from routes import debug_bp
-    app.register_blueprint(debug_bp)
+    from routes import dev_bp
+    app.register_blueprint(dev_bp)
 
     @app.route('/health')
     def health():

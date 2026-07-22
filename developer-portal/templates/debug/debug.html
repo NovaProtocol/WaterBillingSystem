@@ -1,11 +1,11 @@
 {% extends "debug/base.html" %}
-{% block title %}DEBUG{% endblock %}
+{% block title %}Development{% endblock %}
 {% block stylesheets %}{% endblock %}
 {% block content %}
 
-<div class="page-title">DEBUG <span class="badge badge-danger" style="font-size:0.6rem;">SUPERUSER ONLY</span></div>
+<div class="page-title">Development Portal <span class="badge badge-danger" style="font-size:0.6rem;">SUPERUSER ONLY</span></div>
 
-<div class="row" id="debug-panel">
+<div class="row" id="dev-panel">
 
   <div class="col-md-6 mb-4" id="backup">
     <div class="card card-cotta h-100">
@@ -198,7 +198,7 @@ function confirmAndExec(action, data, description) {
   document.getElementById('confirm-execute').disabled = true;
   document.getElementById('confirm-code').textContent = '--------';
 
-  fetch('{{ url_for("debug.confirm") }}', { method: 'POST' })
+  fetch('{{ url_for("dev.confirm") }}', { method: 'POST' })
     .then(r => r.json())
     .then(resp => {
       document.getElementById('confirm-code').textContent = resp.code;
@@ -220,16 +220,16 @@ document.getElementById('confirm-execute').addEventListener('click', function() 
   formData.append('confirm_code', newCode);
   Object.entries(data).forEach(([k, v]) => formData.append(k, v));
 
-  let url = '{{ url_for("debug.dashboard") }}';
+  let url = '{{ url_for("dev.dashboard") }}';
   const actionMap = {
-    backup: '{{ url_for("debug.create_backup") }}',
-    restore: '{{ url_for("debug.restore_backup") }}',
-    clear: '{{ url_for("debug.clear_database") }}',
-    seed: '{{ url_for("debug.seed_data") }}',
-    'read-this-month': '{{ url_for("debug.read_this_month") }}',
-    'unread-this-month': '{{ url_for("debug.unread_this_month") }}',
-    'pay-this-month': '{{ url_for("debug.pay_this_month") }}',
-    'remove-payment-this-month': '{{ url_for("debug.remove_payment_this_month") }}',
+    backup: '{{ url_for("dev.create_backup") }}',
+    restore: '{{ url_for("dev.restore_backup") }}',
+    clear: '{{ url_for("dev.clear_database") }}',
+    seed: '{{ url_for("dev.seed_data") }}',
+    'read-this-month': '{{ url_for("dev.read_this_month") }}',
+    'unread-this-month': '{{ url_for("dev.unread_this_month") }}',
+    'pay-this-month': '{{ url_for("dev.pay_this_month") }}',
+    'remove-payment-this-month': '{{ url_for("dev.remove_payment_this_month") }}',
   };
 
   $('#confirm-modal').modal('hide');
@@ -254,7 +254,7 @@ document.getElementById('confirm-execute').addEventListener('click', function() 
 });
 
 function refreshBackups() {
-  fetch('{{ url_for("debug.list_backups") }}')
+  fetch('{{ url_for("dev.list_backups") }}')
     .then(r => r.json())
     .then(resp => {
       const sel = document.getElementById('restore-file');
@@ -313,7 +313,7 @@ function toggleTaskLog(e, taskId) {
 }
 
 function pollTasks() {
-  fetch('{{ url_for("debug.list_tasks") }}')
+  fetch('{{ url_for("dev.list_tasks") }}')
     .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(resp => {
       var snap = JSON.stringify(resp);
