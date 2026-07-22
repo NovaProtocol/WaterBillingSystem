@@ -10,7 +10,6 @@ The staff portal is a proxy-style Flask app:
 - Routes render Jinja2 templates and handle form submissions
 - Business logic is delegated to the API container via `api_client.py`
 - Auth uses Flask-Login with session-based staff authentication
-- All requests to the staff portal go through Gatekeeper auth enforcement
 
 ## Authentication
 
@@ -143,5 +142,4 @@ CMD ["gunicorn", "--bind", "0.0.0.0:8003", "--worker-class", "gthread", \
 | `INTERNAL_API_KEY` | API key for container-to-API auth |
 | `API_BASE_URL` | API container URL (`http://api:8008`) |
 | `CACHE_TYPE` | Flask-Cache backend (used for rate limiting) |
-| `GATEKEEPER_INTERNAL` | Gatekeeper URL (`http://gatekeeper:7000`) |
 | `DEPLOYMENT_TYPE` | `PRODUCTION` |

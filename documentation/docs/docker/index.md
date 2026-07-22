@@ -59,7 +59,7 @@ Access via Caddy gateway at `https://<private-domain>/phpmyadmin/`.
 
 ## Documentation
 
-Serves the pre-built MkDocs static site via Flask + gunicorn. Gatekeeper authentication is enforced on all routes except `/assets/`.
+Serves the pre-built MkDocs static site via Flask + gunicorn.
 
 | Property | Value |
 |----------|-------|
@@ -70,9 +70,9 @@ Serves the pre-built MkDocs static site via Flask + gunicorn. Gatekeeper authent
 | Command | `gunicorn --bind 0.0.0.0:8005 --worker-class gthread --workers 1 --threads 4 --access-logfile - app:create_app()` |
 | Serving | Flask (not `mkdocs serve`) — pre-built HTML in `site/` directory |
 
-Networks: `net-private` (Caddy gateway access), `net-gk` (Gatekeeper auth).
+Networks: `net-private` (Caddy gateway access).
 
-Requires `SECRET_KEY`, `GATEKEEPER_INTERNAL`, and `DEPLOYMENT_TYPE` env vars.
+Requires `SECRET_KEY` and `DEPLOYMENT_TYPE` env vars.
 
 Caddy uses `handle_path /documentation/*` to strip the `/documentation` prefix before proxying.
 
@@ -85,11 +85,9 @@ documentation:
   restart: unless-stopped
   networks:
     - net-private
-    - net-gk
   environment:
     DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
     SECRET_KEY: ${SECRET_KEY}
-    GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
 ```
 
 ## Background Worker
@@ -151,14 +149,12 @@ background-worker:
 | `net-private` | bridge | External | caddy-gateway, staff-portal, developer-portal, phpmyadmin, documentation |
 | `net-api` | internal | Internal only | api, customer-portal, staff-portal, developer-portal, webhook-container |
 | `net-data` | internal | Internal only | api, background-worker, mysql-db, phpmyadmin |
-| `net-gk` | external | Gatekeeper | customer-portal, staff-portal, developer-portal, documentation |
 | `cloudflared-tunnel` | external | Cloudflare | caddy-gateway |
 
 - **`net-api`** (internal): Portal containers communicate with the API container. No external access.
 - **`net-data`** (internal): API and worker access MySQL. No external access.
 - **`net-public`** (bridge): Public-facing services (landing page, customer portal, webhook receiver, API for Xendit DNS resolution).
 - **`net-private`** (bridge): Admin-facing services (staff portal, phpMyAdmin, docs).
-- **`net-gk`** (external): Connects portal containers to the Gatekeeper authentication service.
 - **`cloudflared-tunnel`** (external): Connects Caddy to Cloudflare tunnel for public internet access.
 
 ## External Networks
@@ -166,9 +162,6 @@ background-worker:
 These must exist before `docker compose up`:
 
 ```bash
-# Gatekeeper network
-docker network create gatekeeper_default
-
 # Cloudflare tunnel network (optional, for production)
 docker network create cloudflared-tunnel_default
 ```

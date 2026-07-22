@@ -1,6 +1,6 @@
 # Cotta Water Billing System
 
-**Cotta Realty**'s water billing platform handles meter reading collection, billing computation, payment processing, and customer management for a residential subdivision. The system is decomposed into 11+ Docker services behind a Caddy reverse proxy, with Gatekeeper authentication for private routes.
+**Cotta Realty**'s water billing platform handles meter reading collection, billing computation, payment processing, and customer management for a residential subdivision. The system is decomposed into 11+ Docker services behind a Caddy reverse proxy.
 
 ## Services Overview
 
@@ -8,17 +8,17 @@
 |---|---|---|---|---|
 | **Caddy Gateway** | `caddy-gateway` | 7020 / 7021 | — | public, private, cloudflared |
 | **Landing Page** | `landing-page` | 8001 | `/*` (port 7020) | net-public |
-| **Customer Portal** | `customer-portal` | 8002 | `/customer/*` (7020) | public, api, gk |
-| **Staff Portal** | `staff-portal` | 8003 | `/staff/*` (7021) | private, api, gk |
-| **Developer Portal** | `developer-portal` | 8004 | `/developer/*` (7021) | private, api, gk |
-| **Documentation** | `documentation` | 8005 | `/documentation/*` (7021) | private, gk |
+| **Customer Portal** | `customer-portal` | 8002 | `/customer/*` (7020) | public, api |
+| **Staff Portal** | `staff-portal` | 8003 | `/staff/*` (7021) | private, api |
+| **Developer Portal** | `developer-portal` | 8004 | `/developer/*` (7021) | private, api |
+| **Documentation** | `documentation` | 8005 | `/documentation/*` (7021) | private |
 | **API Container** | `api` | 8008 | — | api, data |
 | **Webhook Container** | `webhook-container` | 8009 | `/webhook/*` (7020) | public, api |
 | **Background Worker** | `background-worker` | — | — | data |
 | **phpMyAdmin** | `phpmyadmin` | 80 | `/phpmyadmin/*` (7021) | private, data |
 | **MySQL 8.4** | `mysql-db` | 3306 | — | net-data |
 
-Port **7020** is public-facing; port **7021** is private (requires Gatekeeper authentication).
+Port **7020** is public-facing; port **7021** is private.
 
 ## Architecture Diagram
 
@@ -46,10 +46,6 @@ graph TB
         WORKER["Background Worker"]
     end
 
-    subgraph "net-gk (external)"
-        GK["Gatekeeper<br/>Auth Service"]
-    end
-
     subgraph "cloudflared-tunnel (external)"
         TUN["Cloudflare Tunnel"]
     end
@@ -74,12 +70,6 @@ graph TB
     API --> DB
     WORKER --> DB
     PMA --> DB
-
-    CP --> GK
-    SP --> GK
-    DP --> GK
-    DOC --> GK
-    WH --> GK
 
     TUN --> CAD
 ```
@@ -124,4 +114,4 @@ graph LR
 
 **Models**: Staff, Customer, MeterReading, Billing, ApiKey, NfcTag, ManagementLog, Config, PaymentMethod, XenditTransaction, BackgroundTask
 
-**Networks**: `net-public` (bridge), `net-private` (bridge), `net-api` (internal), `net-data` (internal), `net-gk` (external: `gatekeeper_default`), `cloudflared-tunnel` (external)
+**Networks**: `net-public` (bridge), `net-private` (bridge), `net-api` (internal), `net-data` (internal), `cloudflared-tunnel` (external)

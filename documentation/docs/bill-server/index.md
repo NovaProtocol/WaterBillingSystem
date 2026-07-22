@@ -94,7 +94,6 @@ shared/
 ├── models.py                     # 11 SQLAlchemy models
 ├── pricing.py                    # PRICING_TIERS, compute_water_bill, compute_penalty
 ├── config.py                     # Config classes (ProductionConfig / DebugConfig)
-├── gatekeeper.py                 # Gatekeeper auth enforcement
 └── services/
     ├── payment_service.py        # Payment waterfall, drop, tally, date math
     ├── audit_service.py          # ManagementLog logging
