@@ -43,19 +43,22 @@
     <a href="/developer/phpmyadmin/" target="_blank" class="nav-link">
         <i class="fas fa-database"></i>phpMyAdmin
     </a>
-
-    <div class="sidebar-header mt-3">
-        Task Logs
-        <a href="{{ url_for('dev.task_logs') }}" class="text-muted ml-1" style="font-size:0.65rem;">full view &rarr;</a>
-    </div>
-    <div id="sidebar-tasks" style="font-size:0.68rem;max-height:300px;overflow-y:auto;">
-        <div class="text-center text-muted py-2">Loading...</div>
-    </div>
 </div>
 
 <div class="main-content">
-    <div class="container-fluid" style="max-width:1400px;">
-        {% block content %}{% endblock %}
+    <div class="tool-page">
+        <div class="tool-main">
+            {% block content %}{% endblock %}
+        </div>
+        <div class="tool-sidebar" id="task-sidebar-panel">
+            <div class="task-sidebar-header">
+                Task Logs
+                <a href="{{ url_for('dev.task_logs') }}" class="text-muted ml-1" style="font-size:0.7rem;">full view &rarr;</a>
+            </div>
+            <div class="task-sidebar-body" id="sidebar-tasks">
+                <div class="text-center text-muted py-3" style="font-size:0.75rem;">Loading tasks...</div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -73,24 +76,27 @@ function pollSidebarTasks() {
         if (snap === lastSidebarSnapshot) return;
         lastSidebarSnapshot = snap;
         var el = document.getElementById('sidebar-tasks');
+        if (!el) return;
         var current = resp.current || null;
-        var history = (resp.history || []).slice(0, 5);
+        var history = (resp.history || []).slice(0, 8);
         var all = current ? [current].concat(history) : history;
-        if (!all.length) { el.innerHTML = '<div class="text-center text-muted py-2" style="font-size:0.65rem;">No tasks</div>'; return; }
+        if (!all.length) { el.innerHTML = '<div class="text-center text-muted py-3" style="font-size:0.72rem;">No tasks</div>'; return; }
         var h = '';
         all.forEach(function(t) {
             var icon = t.status === 'running' ? 'fa-spinner fa-pulse' : t.status === 'completed' ? 'fa-check-circle' : t.status === 'error' ? 'fa-times-circle' : 'fa-clock';
             var color = statusColor[t.status] || '#6c757d';
             h += '<div class="py-1 px-2" style="border-bottom:1px solid #f0f0f0;line-height:1.3;">' +
-                '<i class="fas '+icon+'" style="color:'+color+';width:12px;font-size:0.6rem;"></i>' +
-                '<span style="color:'+color+';font-weight:600;font-size:0.6rem;margin-left:3px;">'+t.status+'</span>' +
-                '<div style="font-size:0.6rem;color:#6c757d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+t.title+'</div>' +
+                '<div style="display:flex;align-items:center;gap:4px;">' +
+                  '<i class="fas '+icon+'" style="color:'+color+';width:12px;font-size:0.6rem;"></i>' +
+                  '<span style="color:'+color+';font-weight:600;font-size:0.6rem;">'+t.status+'</span>' +
+                '</div>' +
+                '<div style="font-size:0.72rem;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+t.title+'</div>' +
             '</div>';
         });
         el.innerHTML = h;
     });
 }
-setInterval(pollSidebarTasks, 3000);
+setInterval(pollSidebarTasks, 4000);
 pollSidebarTasks();
 </script>
 {% block scripts %}{% endblock %}
