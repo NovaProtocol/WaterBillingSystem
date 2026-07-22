@@ -1,0 +1,151 @@
+{% extends "dev/base.html" %}
+{% block title %}Task Logs{% endblock %}
+{% block content %}
+
+<div class="page-title"><i class="fas fa-tasks mr-2"></i>Task Queue</div>
+
+<div class="card card-cotta mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="fas fa-play-circle mr-1"></i>Current Task</span>
+    <span id="current-badge" style="display:none;">
+      <span class="badge badge-primary" id="task-count">0</span>
+      <span class="badge badge-info ml-1" id="queue-depth" style="display:none;">0 pending</span>
+    </span>
+  </div>
+  <div class="card-body p-3" id="current-task">
+    <p class="text-muted text-center mb-0" id="current-empty">No current task.</p>
+  </div>
+</div>
+
+<div class="card card-cotta mb-4">
+  <div class="card-header">
+    <i class="fas fa-clock mr-1"></i>Queued Tasks
+  </div>
+  <div class="card-body p-3" id="queued-tasks">
+    <p class="text-muted text-center mb-0">No queued tasks.</p>
+  </div>
+</div>
+
+<div class="card card-cotta">
+  <div class="card-header">
+    <i class="fas fa-history mr-1"></i>Task History
+  </div>
+  <div class="card-body p-0" id="history-tasks" style="max-height:600px;overflow-y:auto;">
+    <p class="text-muted text-center my-3" id="history-empty">No completed tasks.</p>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+var statusColor = {queued: '#6c757d', running: '#007bff', completed: '#28a745', error: '#dc3545', interrupted: '#fd7e14'};
+var iconMap = {queued: 'fa-clock', running: 'fa-spinner fa-pulse', completed: 'fa-check-circle', error: 'fa-times-circle', interrupted: 'fa-exclamation-triangle'};
+var taskMessages = {};
+var lastSnapshot = '';
+
+function taskHtml(task, isCurrent) {
+  var color = statusColor[task.status] || '#6c757d';
+  var icon = iconMap[task.status] || 'fa-circle';
+  var msgs = task.messages || [];
+  taskMessages[task.id] = msgs;
+  var lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : '';
+  var klass = isCurrent ? 'task-item p-2 border-bottom bg-current' : 'task-item p-2 border-bottom';
+  var progressHtml = (task.messages && task.messages.length > 0)
+    ? '<div class="progress mt-1" style="height:6px;"><div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:'+(task.progress||0)+'%;background-color:'+color+';"></div></div>'
+    : '';
+  var logLink = (msgs.length > 1)
+    ? '<div class="mt-1"><a href="#" class="task-toggle" onclick="toggleTaskLog(event, \''+task.id+'\')" style="font-size:0.75rem;">Show log ('+msgs.length+' messages)</a></div>'
+    : (msgs.length === 1 ? '<div class="mt-1 text-muted" style="font-size:0.75rem;">1 message</div>' : '');
+  return '<div class="'+klass+'" data-task-id="'+task.id+'">' +
+    '<div class="d-flex justify-content-between align-items-center">' +
+      '<span><i class="fas '+icon+'" style="color:'+color+';width:18px;"></i> <strong>'+task.title+'</strong></span>' +
+      '<span style="color:'+color+';font-weight:600;">'+task.status+'</span>' +
+    '</div>' +
+    progressHtml +
+    '<div class="text-muted mt-1" style="font-size:0.8rem;">'+lastMsg+'</div>' +
+    logLink +
+    '<div class="task-log mt-1" id="task-log-'+task.id+'" style="display:none;background:#f8f9fa;padding:0.5rem;border-radius:4px;max-height:200px;overflow-y:auto;font-size:0.75rem;white-space:pre-wrap;"></div>' +
+  '</div>';
+}
+
+function toggleTaskLog(e, taskId) {
+  e.preventDefault();
+  var log = document.getElementById('task-log-' + taskId);
+  if (log.style.display === 'none') {
+    log.style.display = 'block';
+    var msgs = taskMessages[taskId];
+    if (msgs) {
+      log.textContent = msgs.join('\n');
+    }
+  } else {
+    log.style.display = 'none';
+  }
+}
+
+function pollTasks() {
+  fetch('{{ url_for("dev.list_tasks") }}')
+    .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function(resp) {
+      var snap = JSON.stringify(resp);
+      if (snap === lastSnapshot) return;
+      lastSnapshot = snap;
+
+      var currentDiv = document.getElementById('current-task');
+      var currentEmpty = document.getElementById('current-empty');
+      var queuedDiv = document.getElementById('queued-tasks');
+      var historyDiv = document.getElementById('history-tasks');
+      var historyEmpty = document.getElementById('history-empty');
+      var countEl = document.getElementById('task-count');
+      var depthEl = document.getElementById('queue-depth');
+      var badgeEl = document.getElementById('current-badge');
+
+      var current = resp.current || null;
+      var queued = resp.queued || [];
+      var history = resp.history || [];
+      var queueDepth = resp.queue_depth || 0;
+
+      badgeEl.style.display = 'inline';
+      countEl.textContent = (current ? 1 : 0) + queued.length + history.length;
+
+      if (queueDepth > 0) {
+        depthEl.style.display = 'inline';
+        depthEl.textContent = queueDepth + ' pending in queue';
+      } else {
+        depthEl.style.display = 'none';
+      }
+
+      if (current) {
+        currentEmpty.style.display = 'none';
+        currentDiv.innerHTML = taskHtml(current, true);
+      } else {
+        currentEmpty.style.display = 'block';
+        currentDiv.innerHTML = '<p class="text-muted text-center mb-0" id="current-empty">No current task.</p>';
+      }
+
+      var q = '';
+      queued.forEach(function(t) {
+        q += taskHtml(t, false);
+      });
+      queuedDiv.innerHTML = q || '<p class="text-muted text-center mb-0">No queued tasks.</p>';
+
+      if (history.length === 0) {
+        historyEmpty.style.display = 'block';
+        historyDiv.innerHTML = '<p class="text-muted text-center my-3" id="history-empty">No completed tasks.</p>';
+      } else {
+        historyEmpty.style.display = 'none';
+        var h = '';
+        history.forEach(function(t) {
+          h += taskHtml(t, false);
+        });
+        historyDiv.innerHTML = h;
+      }
+    })
+    .catch(function() {
+      document.getElementById('current-task').innerHTML = '<p class="text-muted text-center mb-0">No current task.</p>';
+    });
+}
+
+setInterval(pollTasks, 2000);
+pollTasks();
+</script>
+{% endblock %}

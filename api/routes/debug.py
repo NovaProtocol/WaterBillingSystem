@@ -25,6 +25,29 @@ def _superuser_only() -> None:
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
 
+@blueprint.route("/debug/stats")
+def debug_stats() -> Response:
+    _superuser_only()
+    from app import db
+    from models import Customer, MeterReading, Billing, Staff, ApiKey, NfcTag, ManagementLog, XenditTransaction, PaymentMethod, BackgroundTask
+
+    return jsonify({
+        "customers": Customer.query.filter_by(is_active=True).count(),
+        "customers_total": Customer.query.count(),
+        "readings": MeterReading.query.count(),
+        "billings": Billing.query.count(),
+        "unpaid_bills": Billing.query.filter_by(is_paid=False).count(),
+        "paid_bills": Billing.query.filter_by(is_paid=True).count(),
+        "staff": Staff.query.count(),
+        "api_keys": ApiKey.query.count(),
+        "nfc_tags": NfcTag.query.count(),
+        "management_logs": ManagementLog.query.count(),
+        "xendit_transactions": XenditTransaction.query.count(),
+        "payment_methods": PaymentMethod.query.filter_by(is_active=True).count(),
+        "background_tasks": BackgroundTask.query.count(),
+    })
+
+
 @blueprint.route("/debug/backup", methods=["POST"])
 def debug_backup() -> Response:
     _superuser_only()

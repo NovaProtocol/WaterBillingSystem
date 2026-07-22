@@ -56,3 +56,7 @@ def list_tasks():
 def get_task(task_id):
     r = requests.get(f'{API_BASE}/api/debug/tasks/{task_id}', headers=_headers(), timeout=10)
     r.raise_for_status(); return r.json()
+
+def get_stats():
+    r = requests.get(f'{API_BASE}/api/debug/stats', headers=_headers(), timeout=10)
+    r.raise_for_status(); return r.json()

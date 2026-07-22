@@ -5,16 +5,13 @@ from functools import wraps
 from typing import Any, Callable
 
 import requests as http_requests
-from flask import Response, jsonify, render_template, request, session
+from flask import Response, jsonify, render_template, request, session, redirect, url_for
 from flask_login import current_user
 from werkzeug.datastructures import Headers
 
 import api_client
 from __init__ import dev_bp
 
-# Path prefix where phpMyAdmin is mounted behind the proxy.
-# All phpMyAdmin responses (redirects, cookies, HTML) need their
-# absolute paths rewritten to include this prefix.
 _PMA_PREFIX = '/developer/phpmyadmin'
 
 
@@ -45,7 +42,6 @@ def _generate_and_store_code() -> str:
 @dev_bp.route('/phpmyadmin/', methods=['GET', 'POST'])
 @dev_bp.route('/phpmyadmin/<path:rest>', methods=['GET', 'POST'])
 def phpmyadmin(rest=''):
-    """Proxy to phpMyAdmin with superuser auth check."""
     staff = session.get('staff_data')
     if not staff or staff.get('username') != 'superuser':
         return jsonify({"error": "Superuser only"}), 403
@@ -58,8 +54,6 @@ def phpmyadmin(rest=''):
     headers = {k: v for k, v in request.headers
                if k.lower() not in ('host', 'content-length', 'transfer-encoding')}
 
-    # Tell phpMyAdmin the original request came through HTTPS.
-    # Without these, phpMyAdmin refuses to set session cookies.
     headers['X-Forwarded-Proto'] = 'https'
     headers['X-Forwarded-Scheme'] = 'https'
 
@@ -73,19 +67,15 @@ def phpmyadmin(rest=''):
             timeout=60,
         )
 
-        # Build response preserving duplicate Set-Cookie headers.
         response_headers = Headers()
         for key, value in resp.raw.headers.items():
             kl = key.lower()
             if kl in ('content-encoding', 'transfer-encoding', 'content-length'):
                 continue
 
-            # Rewrite redirect Location to include prefix:
-            #   Location: /index.php?token=... → /developer/phpmyadmin/index.php?token=...
             if kl == 'location' and value.startswith('/') and not value.startswith(_PMA_PREFIX):
                 value = _PMA_PREFIX + value
 
-            # Rewrite Set-Cookie path from / to /developer/phpmyadmin/
             if kl == 'set-cookie':
                 value = re.sub(
                     r'\bpath\s*=\s*/',
@@ -105,11 +95,41 @@ def phpmyadmin(rest=''):
         return jsonify({"error": f"Proxy error: {str(e)}"}), 502
 
 
+# --- Page routes ---
+
 @dev_bp.route('/')
 @superuser_required
-def dashboard():
-    return render_template('debug/debug.html', backup_files=[])
+def index():
+    return redirect(url_for('dev.backup'))
 
+
+@dev_bp.route('/backup')
+@superuser_required
+def backup():
+    backup_files = api_client.list_backups().get('backups', [])
+    return render_template('dev/backup.html', backup_files=backup_files)
+
+
+@dev_bp.route('/seed')
+@superuser_required
+def seed():
+    return render_template('dev/seed.html')
+
+
+@dev_bp.route('/clear')
+@superuser_required
+def clear():
+    stats = api_client.get_stats()
+    return render_template('dev/clear.html', stats=stats)
+
+
+@dev_bp.route('/task-logs')
+@superuser_required
+def task_logs():
+    return render_template('dev/tasks.html')
+
+
+# --- API routes ---
 
 @dev_bp.route('/auth')
 @superuser_required
@@ -290,7 +310,7 @@ def get_task(task_id):
 @dev_bp.route('/logs')
 @superuser_required
 def logs():
-    return render_template('debug/logs.html')
+    return render_template('dev/logs.html')
 
 
 @dev_bp.route('/api/logs')
