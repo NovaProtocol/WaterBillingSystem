@@ -29,19 +29,16 @@
     </a>
 
     <div class="sidebar-header mt-3">Tools</div>
-    <a href="{{ url_for('dev.index') }}#backup" class="nav-link {{ 'active' if request.endpoint == 'dev.index' }}">
+    <a href="{{ url_for('dev.backup') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.backup' }}">
         <i class="fas fa-download"></i>Backup &amp; Restore
     </a>
-    <a href="{{ url_for('dev.index') }}#seed" class="nav-link">
+    <a href="{{ url_for('dev.seed') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.seed' }}">
         <i class="fas fa-seedling"></i>Seed Data
     </a>
-    <a href="{{ url_for('dev.index') }}#clear" class="nav-link">
+    <a href="{{ url_for('dev.clear') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.clear' }}">
         <i class="fas fa-eraser"></i>Clear Tables
     </a>
-    <a href="{{ url_for('dev.index') }}#actions" class="nav-link">
-        <i class="fas fa-calendar-check"></i>Monthly Actions
-    </a>
-    <a href="{{ url_for('dev.index') }}#tasks" class="nav-link">
+    <a href="{{ url_for('dev.task_logs') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.task_logs' }}">
         <i class="fas fa-tasks"></i>Task History
     </a>
 
