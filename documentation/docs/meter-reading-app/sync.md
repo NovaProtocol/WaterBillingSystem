@@ -12,6 +12,19 @@ sequenceDiagram
 
     Note over App: Every 10 seconds + on app foreground
 
+    App->>API: GET /api/key/info
+    API-->>App: {staff: {can_read_meters, can_enroll_customer, ...}}
+    App->>DB: Store 7 permission flags in config
+
+    App->>API: GET /api/nfc/config
+    API-->>App: {nfc_pwd_secret, nfc_generation}
+    App->>DB: Store nfc_pwd_secret, nfc_generation (clear cache if gen changed)
+
+    App->>DB: getUnsyncedNfcEnrollments()
+    App->>API: POST /api/nfc/sync
+    API-->>App: {synced, total, errors}
+    App->>DB: markNfcEnrollmentSynced()
+
     App->>DB: getUnsyncedReadings()
     App->>API: POST /api/readings/sync
     API-->>App: {synced, total, results: [{index, reading_id, customer_number}], errors: [{index, error}]}
@@ -29,6 +42,7 @@ sequenceDiagram
     end
 
     App->>DB: setIntSetting('lastSyncTime', server_time)
+    App->>DB: deleteSyncedNfcEnrollments()
 ```
 
 ## Sync Engine: `useSync()`
@@ -127,14 +141,18 @@ nfc_enrollments (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT,
 |---|---|---|
 | `serverUrl` | string | BillServer base URL |
 | `apiKey` | string | API token |
-| `historyCount` | int | Readings per customer (UI default 5, sync defaults to 12 if unset) |
+| `historyCount` | int | Readings per customer (UI default 5, sync defaults to 5 if unset) |
 | `lastSyncTime` | int | Server timestamp for incremental sync (default 0 = full download) |
 | `nfc_pwd_secret` | string | Secret for deriving NFC tag passwords |
 | `nfc_generation` | int | Generation counter for NFC secret rotation |
 | `nfc_has_pending` | string | `'1'` if local NFC enrollments need upload |
+| `server_time` | string | Server timestamp used for month boundary calculations |
+| `pricing_tiers` | string | JSON array of pricing tiers (24h cache) |
+| `pricing_fetched_at` | string | Timestamp when pricing was last fetched |
 | `canEnrollCustomer` | string | Cached `can_enroll_customer` permission |
 | `canReadMeters` | string | Cached `can_read_meters` permission |
 | `perm_fetched` | string | `'1'` after first permission fetch |
+| `lastServerWrite` | int | Timestamp of last server write operation |
 
 ## Duplicate Month Protection
 
@@ -153,3 +171,15 @@ graph TD
     G -->|"OK"| H[markReadingSynced]
     G -->|"Duplicate"| I[markReadingRejected]
 ```
+
+## Type Conversions
+
+The sync service handles the mismatch between API types (`customer_number` as `number`) and SQLite storage (`customer_number` as `string`):
+
+| Direction | Conversion |
+|---|---|
+| Uploading readings | `Number(r.customer_number)` → number |
+| Uploading NFC enrollments | `Number(e.customer_number)` → number |
+| Storing downloaded customers | `String(data.customer.customer_number)` → string |
+| Storing NFC cache | `String(tag.customer_number)` → string |
+| Inline NFC enrollment sync | `Number(accountNumber)` → number |

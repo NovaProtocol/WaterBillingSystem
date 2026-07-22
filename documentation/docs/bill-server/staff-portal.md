@@ -93,9 +93,7 @@ Default superuser: `superuser` / `superuser` (seeded on first API container star
 | Route | Method | Description |
 |-------|--------|-------------|
 | `/staff/api/customer/{customer_number}` | GET | Proxy customer details from API |
-| `/staff/api/customers/cache-status` | GET | Customer cache status |
-| `/staff/api/customers/cache-refresh` | POST | Force cache refresh |
-| `/staff/api/customers/search-sort` | GET | Search/sort from local cache |
+| `/staff/api/customers/search-sort` | GET | Search/sort proxied to API |
 
 ## Permission System
 
@@ -110,24 +108,6 @@ Default superuser: `superuser` / `superuser` (seeded on first API container star
 | `can_drop_payment` | Payment undo |
 | `can_enroll_staff` | Staff account CRUD |
 | `can_manage_billing` | Billing management, reading editing |
-
-## Customer Cache
-
-The staff portal maintains an in-memory customer cache for fast search:
-
-| Property | Value |
-|----------|-------|
-| Storage | In-memory Python list |
-| Refresh TTL | 300 seconds (5 minutes) |
-| Staleness check | 30 seconds (checks `/api/customers/changed` first) |
-| Pre-warm | Background thread on startup |
-
-Cache functions in `api_client.py`:
-- `refresh_customer_cache(force=False)` — fetch all customers page by page
-- `search_cached_customers(query)` — smart search (digits=customer_number, letters=name)
-- `search_and_sort_customers(q, sort_by, sort_dir, page, per_page)` — paginated search from cache
-
-The cache stores full customer objects including `customer_number`, `name`, `address`, `phase`, `block`, `street`, `cumulative_balance`, `total_due`, `nfc_uid`.
 
 ## API Client
 
@@ -162,6 +142,6 @@ CMD ["gunicorn", "--bind", "0.0.0.0:8003", "--worker-class", "gthread", \
 | `SECRET_KEY` | Flask session signing key |
 | `INTERNAL_API_KEY` | API key for container-to-API auth |
 | `API_BASE_URL` | API container URL (`http://api:8008`) |
-| `CACHE_TYPE` | Flask-Cache backend |
+| `CACHE_TYPE` | Flask-Cache backend (used for rate limiting) |
 | `GATEKEEPER_INTERNAL` | Gatekeeper URL (`http://gatekeeper:7000`) |
 | `DEPLOYMENT_TYPE` | `PRODUCTION` |

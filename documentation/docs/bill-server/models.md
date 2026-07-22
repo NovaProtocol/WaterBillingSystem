@@ -39,7 +39,7 @@ erDiagram
 
     customers {
         int id PK
-        string customer_number UK
+        int customer_number UK
         string name
         text address
         string contact_number
@@ -52,6 +52,7 @@ erDiagram
         numeric cumulative_balance
         string meter_serial_number
         numeric max_meter_value
+        numeric total_due
         bool is_active
         datetime deleted_at
         datetime date_created
@@ -60,7 +61,7 @@ erDiagram
 
     meter_readings {
         int id PK
-        string customer_number FK
+        int customer_number FK
         numeric reading_value
         int token_id FK
         datetime timestamp
@@ -70,7 +71,7 @@ erDiagram
 
     billings {
         int id PK
-        string customer_number FK
+        int customer_number FK
         int reading_id FK
         numeric previous_reading_value
         numeric current_reading_value
@@ -101,7 +102,7 @@ erDiagram
     nfc_tags {
         int id PK
         string uid UK
-        string customer_number FK
+        int customer_number FK
         int enrolled_by_id FK
         datetime date_created
         datetime last_modified
@@ -113,7 +114,7 @@ erDiagram
         string action_type
         string target_type
         int target_id
-        string customer_number FK
+        int customer_number FK
         text details
         datetime timestamp
         datetime date_created
@@ -145,7 +146,7 @@ erDiagram
 
     xendit_transactions {
         int id PK
-        string customer_number FK
+        int customer_number FK
         string xendit_pr_id UK
         string external_id UK
         numeric amount
@@ -210,7 +211,7 @@ Inherits `UserMixin` from Flask-Login. Relationships: `api_keys`, `billings`, `m
 | Column | Type | Constraints |
 |--------|------|-------------|
 | `id` | Integer | PK |
-| `customer_number` | String(64) | UNIQUE, NOT NULL, INDEX |
+| `customer_number` | Integer | UNIQUE, NOT NULL, INDEX |
 | `name` | String(128) | nullable |
 | `address` | Text | nullable |
 | `contact_number` | String(32) | nullable |
@@ -221,6 +222,7 @@ Inherits `UserMixin` from Flask-Login. Relationships: `api_keys`, `billings`, `m
 | `block` | String(64) | nullable |
 | `street` | String(128) | nullable |
 | `cumulative_balance` | Numeric(10,2) | default 0.00 |
+| `total_due` | Numeric(10,2) | default 0.00, auto-recalculated on payment/reading changes |
 | `meter_serial_number` | String(64) | nullable, INDEX |
 | `max_meter_value` | Numeric(10,2) | default 99999.00 |
 | `is_active` | Boolean | default True |
@@ -235,7 +237,7 @@ Relationships: `meter_readings`, `billings`, `nfc_tags`, `xendit_transactions`.
 | Column | Type | Constraints |
 |--------|------|-------------|
 | `id` | Integer | PK |
-| `customer_number` | String(64) | FK → customers.customer_number, NOT NULL, INDEX |
+| `customer_number` | Integer | FK → customers.customer_number, NOT NULL, INDEX |
 | `reading_value` | Numeric(10,2) | NOT NULL |
 | `token_id` | Integer | FK → api_keys.id, NOT NULL, INDEX |
 | `timestamp` | DateTime | NOT NULL, INDEX |
@@ -249,7 +251,7 @@ Relationships: `customer` → Customer, `token` → ApiKey, `billings` → Billi
 | Column | Type | Constraints |
 |--------|------|-------------|
 | `id` | Integer | PK |
-| `customer_number` | String(64) | FK → customers.customer_number, NOT NULL, INDEX |
+| `customer_number` | Integer | FK → customers.customer_number, NOT NULL, INDEX |
 | `reading_id` | Integer | FK → meter_readings.id, nullable |
 | `previous_reading_value` | Numeric(10,2) | nullable |
 | `current_reading_value` | Numeric(10,2) | nullable |
@@ -288,7 +290,7 @@ Relationships: `staff` → Staff, `meter_readings` → MeterReading.
 |--------|------|-------------|
 | `id` | Integer | PK |
 | `uid` | String(64) | UNIQUE, NOT NULL |
-| `customer_number` | String(64) | FK → customers.customer_number, NOT NULL, INDEX |
+| `customer_number` | Integer | FK → customers.customer_number, NOT NULL, INDEX |
 | `enrolled_by_id` | Integer | FK → staff.id, NOT NULL |
 | `date_created` | DateTime | default utcnow |
 | `last_modified` | DateTime | default utcnow, onupdate utcnow |
@@ -350,7 +352,7 @@ Method: `fee_for(amount) -> float` computes total fee. Seeded by `fee_service.se
 | Column | Type | Constraints |
 |--------|------|-------------|
 | `id` | Integer | PK |
-| `customer_number` | String(64) | FK → customers.customer_number, NOT NULL, INDEX |
+| `customer_number` | Integer | FK → customers.customer_number, NOT NULL, INDEX |
 | `xendit_pr_id` | String(128) | UNIQUE, NOT NULL, INDEX |
 | `external_id` | String(256) | UNIQUE, NOT NULL |
 | `amount` | Numeric(10,2) | NOT NULL |

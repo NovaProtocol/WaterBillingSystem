@@ -22,7 +22,7 @@ NTAG215 tags have a **factory-burned read-only UID** (unclonable) and support **
 2. Read UID from pages 0-1 (public, no auth)
 3. Lookup in local nfc_cache by UID
 4. Compute PWD = SHA-256(nfc_pwd_secret + uid)[:4] → hex
-5. PWD_AUTH with computed PWD (fallback: cached, factory FFFF, factory 0000)
+5. PWD_AUTH: computed PWD → cached PWD → factory FFFF → factory 0000
 6. Read customer number from pages 7+ (protected area, readable after auth)
 7. Verify customer number matches nfc_cache entry (tamper detection)
 8. Return customer to caller
@@ -63,7 +63,9 @@ Only staff with `can_enroll_customer` permission see the "Enroll" button. Every 
 12. Write CFG1 [80:00:00:00] to page 132 (PROT=1, activates read+write)
 13. Verify CFG1 by reading back
 14. Final auth + read customer data to confirm lock works
-15. Save to local DB + sync to server
+15. Save to local DB (nfc_cache + nfc_enrollments)
+16. Attempt immediate server sync via POST /api/nfc/sync
+    (falls back to background sync if offline)
 ```
 
 ### Implementation Details
@@ -76,7 +78,7 @@ Only staff with `can_enroll_customer` permission see the "Enroll" button. Every 
 2. Reads UID from pages 0-1, extracts 7 bytes (skip BCC0)
 3. Looks up UID in local `nfc_cache` table
 4. Computes PWD via `computeTagPwd(nfcPwdSecret, uid)`
-5. Sends PWD_AUTH with computed PWD, falls back to cached/factory
+5. Sends PWD_AUTH with computed PWD, falls back to cached → FFFF → 0000
 6. Reads customer number from pages 7+ (protected area)
 7. Verifies against cache (tamper detection)
 8. Returns customer number

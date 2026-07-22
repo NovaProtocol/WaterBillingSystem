@@ -52,7 +52,6 @@ graph TB
     DP --> GK
     DOC --> GK
     CP --> GK
-    WH --> GK
 
     subgraph "External"
         MOB["MeterReadingApp<br/>React Native/Expo"]
@@ -116,7 +115,6 @@ graph TB
     SP --> net-gk
     DP --> net-gk
     DOC --> net-gk
-    WH --> net-gk
 ```
 
 ---
@@ -204,7 +202,7 @@ graph TB
 
 ## Gatekeeper Auth Flow
 
-All private services (staff, developer, documentation, phpMyAdmin) and the webhook container authenticate through Gatekeeper. The auth flow uses a cookie-based ticket system:
+All private services (staff, developer, documentation, phpMyAdmin) authenticate through Gatekeeper. The webhook container uses `X-Callback-Token` header auth instead and does not require gatekeeper. The auth flow uses a cookie-based ticket system:
 
 ```mermaid
 sequenceDiagram

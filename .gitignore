@@ -95,7 +95,7 @@ MeterReadingApp/ios/
 documentation/site/
 
 # === AI-generated docs (not part of project source) ===
-docs/
+/docs/
 
 # === Windows alternate data streams ===
 *:Zone.Identifier
