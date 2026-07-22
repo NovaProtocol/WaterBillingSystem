@@ -192,7 +192,6 @@ label{font-weight:600;font-size:0.85rem;color:#1a1a2e}
 .modal-success-icon-green{font-size:3rem;color:#28a745}
 .custom-control-input:checked~.custom-control-label::before{border-color:#e94560;background-color:#e94560}
 .custom-control-input:focus~.custom-control-label::before{box-shadow:0 0 0 .2rem rgba(233,69,96,0.2)}
-select.form-control:focus{border-color:#e94560;box-shadow:0 0 0 .2rem rgba(233,69,96,0.15)}
 .monospace{font-family:monospace}
 .text-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cursor-pointer{cursor:pointer}
@@ -267,3 +266,4 @@ select.form-control:focus{border-color:#e94560;box-shadow:0 0 0 .2rem rgba(233,6
 .navbar-btn-primary:hover{background:#d63851;color:#fff}
 .navbar-btn-outline{border:1px solid rgba(255,255,255,0.5);color:#fff;background:transparent}
 .navbar-btn-outline:hover{background:#fff;color:#1a1a2e}
+select.form-control{height:auto;line-height:normal}
