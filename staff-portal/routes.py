@@ -259,6 +259,7 @@ def undo_payment(payment_id):
         result = api_client.undo_payment(payment_id, data.get('reason', ''))
         return jsonify(result)
     except Exception as e:
+        logger.exception(f"Undo payment {payment_id} failed: {e}")
         return jsonify({"error": str(e)}), 400
 
 @staff_bp.route('/staff/staff', methods=['GET'])

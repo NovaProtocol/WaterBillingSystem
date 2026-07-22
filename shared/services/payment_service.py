@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import secrets
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
@@ -7,6 +8,8 @@ from datetime import datetime, timezone, timedelta
 from apps import db
 from models import Billing, Customer, Staff
 from services.audit_service import log_action
+
+logger = logging.getLogger('api')
 
 
 def _generate_receipt(now: datetime) -> str:
@@ -215,13 +218,15 @@ def parse_date_range(
                 else ref_date + timedelta(days=1)
             )
             return start, end
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logger.exception(f"Invalid custom date range start={start_str} end={end_str}: {e}")
             start = datetime(ref_date.year, ref_date.month, ref_date.day)
             return start, start + timedelta(days=1)
     elif period == "weekly":
         try:
             ref = datetime.strptime(start_str, "%Y-%m-%d") if start_str else ref_date
-        except ValueError:
+        except ValueError as e:
+            logger.exception(f"Invalid weekly date start={start_str}: {e}")
             ref = ref_date
         start = ref - timedelta(days=ref.weekday())
         start = datetime(start.year, start.month, start.day)
@@ -229,14 +234,16 @@ def parse_date_range(
     elif period == "yearly":
         try:
             ref = datetime.strptime(start_str, "%Y-%m-%d") if start_str else ref_date
-        except ValueError:
+        except ValueError as e:
+            logger.exception(f"Invalid yearly date start={start_str}: {e}")
             ref = ref_date
         start = datetime(ref.year, 1, 1)
         return start, datetime(ref.year + 1, 1, 1)
     elif period == "monthly":
         try:
             ref = datetime.strptime(start_str, "%Y-%m-%d") if start_str else ref_date
-        except ValueError:
+        except ValueError as e:
+            logger.exception(f"Invalid monthly date start={start_str}: {e}")
             ref = ref_date
         start = datetime(ref.year, ref.month, 1)
         if ref.month == 12:
@@ -245,7 +252,8 @@ def parse_date_range(
     else:
         try:
             ref = datetime.strptime(start_str, "%Y-%m-%d") if start_str else ref_date
-        except ValueError:
+        except ValueError as e:
+            logger.exception(f"Invalid daily date start={start_str}: {e}")
             ref = ref_date
         start = datetime(ref.year, ref.month, ref.day)
         return start, start + timedelta(days=1)

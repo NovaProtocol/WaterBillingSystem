@@ -313,6 +313,6 @@ def api_logs_clear():
     for path in glob.glob('/var/log/app/*.db'):
         try:
             os_mod.remove(path)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception(f"Failed to remove log file {path}: {e}")
     return jsonify({'message': 'Logs cleared'})

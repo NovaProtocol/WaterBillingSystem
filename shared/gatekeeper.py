@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import os
 
 import requests
 from cachetools import TTLCache
 from flask import g, redirect, request
 from itsdangerous import URLSafeTimedSerializer
+
+logger = logging.getLogger('api')
 
 GATEKEEPER_INTERNAL = os.environ.get("GATEKEEPER_INTERNAL", "http://gatekeeper:7000")
 
@@ -49,7 +52,7 @@ def gatekeeper_check():
             ticket_cache[token] = payload
             g.ticket = payload
             return
-    except Exception:
-        pass
+    except Exception as e:
+        logger.exception(f"Gatekeeper verification failed: {e}")
 
     return redirect(f"{_gatekeeper_url()}/?redirect={request.url}")
