@@ -24,15 +24,9 @@
 </nav>
 
 <div class="sidebar" style="top:56px;">
-    <div class="sidebar-header">Monitoring</div>
-    <a href="{{ url_for('dev.dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.dashboard' }}">
-        <i class="fas fa-th-large"></i>Dashboard
-    </a>
     <a href="{{ url_for('dev.logs') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.logs' }}">
         <i class="fas fa-terminal"></i>Logs
     </a>
-
-    <div class="sidebar-header mt-3">Database Operations</div>
     <a href="{{ url_for('dev.dashboard') }}#backup" class="nav-link">
         <i class="fas fa-download"></i>Backup
     </a>
