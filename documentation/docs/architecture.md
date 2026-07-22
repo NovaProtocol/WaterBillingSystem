@@ -28,7 +28,6 @@ graph TB
 
     subgraph "Infrastructure"
         CAD["Caddy Gateway<br/>:7020 :7021"]
-        GK["Gatekeeper<br/>Auth Service"]
     end
 
     CAD --> LAND
@@ -47,11 +46,6 @@ graph TB
     API --> DB
     WORKER --> DB
     PMA --> DB
-
-    SP --> GK
-    DP --> GK
-    DOC --> GK
-    CP --> GK
 
     subgraph "External"
         MOB["MeterReadingApp<br/>React Native/Expo"]
@@ -90,10 +84,6 @@ graph TB
         WORKER[background-worker]
     end
 
-    subgraph "net-gk (external: gatekeeper_default)"
-        GK[Gatekeeper :7000]
-    end
-
     subgraph "cloudflared-tunnel (external)"
         TUN[Cloudflare Tunnel]
     end
@@ -111,10 +101,6 @@ graph TB
     WORKER --> net-data
     PMA --> net-data
 
-    CP --> net-gk
-    SP --> net-gk
-    DP --> net-gk
-    DOC --> net-gk
 ```
 
 ---
@@ -198,50 +184,6 @@ graph TB
     DASH -->|"All authenticated staff"| DASH
 ```
 
----
-
-## Gatekeeper Auth Flow
-
-All private services (staff, developer, documentation, phpMyAdmin) authenticate through Gatekeeper. The webhook container uses `X-Callback-Token` header auth instead and does not require gatekeeper. The auth flow uses a cookie-based ticket system:
-
-```mermaid
-sequenceDiagram
-    participant User as Browser
-    participant CAD as Caddy :7021
-    participant SVC as Flask Service
-    participant GK as Gatekeeper
-    participant CACHE as Ticket Cache (TTL 300s)
-
-    User->>CAD: GET /staff/dashboard
-    CAD->>SVC: reverse proxy
-    SVC->>SVC: gatekeeper_check()
-    Note over SVC: No gatekeeper_token cookie
-    SVC-->>User: 302 Redirect → Gatekeeper login
-    User->>GK: Login page
-    User->>GK: Submit credentials
-    GK-->>User: 302 Redirect → original URL + gatekeeper_token cookie
-
-    User->>CAD: GET /staff/dashboard (with cookie)
-    CAD->>SVC: reverse proxy
-    SVC->>SVC: gatekeeper_check()
-    SVC->>CACHE: ticket_cache.get(token)
-    Note over SVC: Cache MISS
-    SVC->>GK: GET /api/verify?token=<token>
-    GK-->>SVC: {valid: true, ticket: "<signed>"}
-    SVC->>CACHE: ticket_cache[token] = payload
-    SVC->>SVC: g.ticket = payload
-    SVC-->>User: 200 OK (dashboard page)
-
-    Note over User,CACHE: Subsequent requests (within 300s)
-    User->>CAD: GET /staff/customers (same cookie)
-    CAD->>SVC: reverse proxy
-    SVC->>CACHE: ticket_cache.get(token)
-    Note over SVC: Cache HIT, skip Gatekeeper call
-    SVC-->>User: 200 OK
-```
-
----
-
 ## Pricing Engine
 
 ```mermaid
@@ -270,7 +212,6 @@ Progressive tier calculation: consumption is applied to each tier bracket sequen
 | **Internal API Key** | `X-Internal-API-Key` header | Container-to-container API calls |
 | **Flask-Login Session** | Cookie-based | Staff portal pages |
 | **Billing Cookie** | Signed cookie (receipt + name) | Customer billing portal `/billing/*` |
-| **Gatekeeper Cookie** | `gatekeeper_token` | Private route authentication |
 
 ---
 

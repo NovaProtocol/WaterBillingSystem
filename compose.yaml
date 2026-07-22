@@ -24,9 +24,11 @@ services:
     restart: unless-stopped
     networks:
       - net-public
+      - net-gk
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
       SECRET_KEY: ${SECRET_KEY}
+      GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
 
   customer-portal:
     build:

@@ -413,7 +413,7 @@ Toggle soft-delete/reactivate. Sets `deleted_at` if deactivating, clears it if r
 
 Customer identity verification. Used by the customer portal.
 
-**Auth**: Internal (via gatekeeper-authenticated customer portal)
+**Auth**: Internal
 
 **Request body**:
 ```json
