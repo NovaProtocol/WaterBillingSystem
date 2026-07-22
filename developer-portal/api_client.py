@@ -29,8 +29,16 @@ def clear_database():
     r = requests.post(f'{API_BASE}/api/debug/clear', headers=_headers(), timeout=30)
     r.raise_for_status(); return r.json()
 
-def seed_data(customers: int, months: int):
-    r = requests.post(f'{API_BASE}/api/debug/seed', json={'customers': customers, 'months': months}, headers=_headers(), timeout=120)
+def seed_data(customers: int, months: int, cashiers: int = 2, readers: int = 2,
+              read_current: str = 'no', pay_last: str = 'random',
+              randomize_months: str = 'yes', allow_deactivation: str = 'no'):
+    r = requests.post(f'{API_BASE}/api/debug/seed', json={
+        'customers': customers, 'months': months,
+        'cashiers': cashiers, 'readers': readers,
+        'read_current': read_current, 'pay_last': pay_last,
+        'randomize_months': randomize_months,
+        'allow_deactivation': allow_deactivation,
+    }, headers=_headers(), timeout=120)
     r.raise_for_status(); return r.json()
 
 def read_all_this_month():
