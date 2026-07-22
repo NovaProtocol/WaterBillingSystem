@@ -7,37 +7,92 @@
 </div>
 
 <div class="row">
-  <div class="col-lg-6 mb-4">
-    <div class="card card-cotta h-100">
+  <div class="col-lg-7 mb-4">
+    <div class="card card-cotta">
       <div class="card-header">
         <i class="fas fa-seedling mr-1 text-cotta"></i>Seed Test Data
       </div>
       <div class="card-body">
-        <p class="text-muted">Generate random customers with readings and billing history.</p>
+        <p class="text-muted text-sm">Configure and generate random customers with readings and billing history. Max <strong>10 million</strong> total billing entries (customers × months).</p>
+
         <div class="form-row">
-          <div class="col-6">
+          <div class="col-4">
             <label class="form-label">Customers</label>
-            <input type="number" id="seed-customers" class="form-control" value="20" min="1" max="10000">
+            <input type="number" id="seed-customers" class="form-control" value="20" min="1">
           </div>
-          <div class="col-6">
-            <label class="form-label">Months of history</label>
-            <input type="number" id="seed-months" class="form-control" value="24" min="1" max="240">
+          <div class="col-4">
+            <label class="form-label">Max Months (2+)</label>
+            <input type="number" id="seed-months" class="form-control" value="24" min="2">
+          </div>
+          <div class="col-4">
+            <label class="form-label">Total</label>
+            <input type="text" id="seed-total" class="form-control form-control-monospace" value="480 rows" readonly>
           </div>
         </div>
-        <button class="btn btn-outline-cotta mt-3" onclick="confirmAndExec('seed', {customers: document.getElementById('seed-customers').value, months: document.getElementById('seed-months').value}, 'This will clear all data and generate new test data.')">
+
+        <hr class="my-3">
+        <div class="text-sm font-weight-bold mb-2">Staff</div>
+        <div class="form-row">
+          <div class="col-4">
+            <label class="form-label">Cashiers</label>
+            <input type="number" id="seed-cashiers" class="form-control" value="2" min="1" max="10">
+          </div>
+          <div class="col-4">
+            <label class="form-label">Readers</label>
+            <input type="number" id="seed-readers" class="form-control" value="2" min="1" max="10">
+          </div>
+        </div>
+
+        <hr class="my-3">
+        <div class="text-sm font-weight-bold mb-2">Options</div>
+        <div class="form-row">
+          <div class="col-4">
+            <label class="form-label">Randomize months</label>
+            <select id="seed-randomize" class="form-control">
+              <option value="yes">Yes (2 to max months)</option>
+              <option value="no">No (all customers get max)</option>
+            </select>
+          </div>
+          <div class="col-4">
+            <label class="form-label">Read current month?</label>
+            <select id="seed-read-current" class="form-control">
+              <option value="yes">Yes</option>
+              <option value="no" selected>No</option>
+            </select>
+          </div>
+          <div class="col-4">
+            <label class="form-label">Last month paid?</label>
+            <select id="seed-pay-last" class="form-control">
+              <option value="random" selected>50% Random</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row mt-2">
+          <div class="col-4">
+            <label class="form-label">Allow deactivation</label>
+            <select id="seed-deactivate" class="form-control">
+              <option value="no" selected>No</option>
+              <option value="yes">Yes (placeholder)</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn btn-outline-cotta mt-3" onclick="execSeed()">
           <i class="fas fa-seedling mr-1"></i>Seed Data
         </button>
       </div>
     </div>
   </div>
 
-  <div class="col-lg-6 mb-4">
+  <div class="col-lg-5 mb-4">
     <div class="card card-cotta h-100">
       <div class="card-header">
         <i class="fas fa-calendar-check mr-1 text-cotta"></i>Monthly Actions
       </div>
       <div class="card-body">
-        <p class="text-muted mb-3">Batch operations on all customers for the current month.</p>
+        <p class="text-muted text-sm mb-3">Batch operations on all customers for the current month.</p>
         <button class="btn btn-outline-cotta btn-sm btn-block mb-2" onclick="confirmAndExec('read-this-month', {}, 'Create readings and bills for ALL customers.')">
           <i class="fas fa-tachometer-alt mr-1"></i>Read This Month
         </button>
@@ -58,4 +113,33 @@
 {% include "dev/_recent_tasks.html" %}
 {% include "dev/_modals.html" %}
 {% include "dev/_confirm_js.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateTotal() {
+  var c = parseInt(document.getElementById('seed-customers').value) || 0;
+  var m = parseInt(document.getElementById('seed-months').value) || 0;
+  var t = c * m;
+  document.getElementById('seed-total').value = t.toLocaleString() + ' entries';
+  document.getElementById('seed-total').style.color = t > 10000000 ? '#dc3545' : '#1a1a2e';
+}
+
+document.getElementById('seed-customers').addEventListener('input', updateTotal);
+document.getElementById('seed-months').addEventListener('input', updateTotal);
+updateTotal();
+
+function execSeed() {
+  confirmAndExec('seed', {
+    customers: document.getElementById('seed-customers').value,
+    months: document.getElementById('seed-months').value,
+    cashiers: document.getElementById('seed-cashiers').value,
+    readers: document.getElementById('seed-readers').value,
+    randomize_months: document.getElementById('seed-randomize').value,
+    read_current: document.getElementById('seed-read-current').value,
+    pay_last: document.getElementById('seed-pay-last').value,
+    allow_deactivation: document.getElementById('seed-deactivate').value,
+  }, 'This will clear all data and generate new test data with the configured options.');
+}
+</script>
 {% endblock %}

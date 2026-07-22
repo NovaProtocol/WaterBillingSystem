@@ -125,14 +125,29 @@ def debug_seed() -> Response:
     except (ValueError, TypeError):
         logger.exception("Invalid seed parameters:")
         return jsonify({"error": "Invalid customer count or months"}), 400
-    if n_customers < 1 or n_customers > 10000:
-        return jsonify({"error": "Customer count must be between 1 and 10000"}), 400
-    if n_months < 1 or n_months > 240:
-        return jsonify({"error": "Months must be between 1 and 240"}), 400
+
+    total_entries = n_customers * n_months
+    if n_customers < 1 or n_months < 2 or total_entries > 10_000_000:
+        return jsonify({"error": "Invalid range: customers × months must be between 1×2 and 10,000,000 total entries"}), 400
+
+    n_cashiers = int(data.get("cashiers", "2"))
+    n_readers = int(data.get("readers", "2"))
+    read_current = data.get("read_current", "no")
+    pay_last = data.get("pay_last", "random")
+    randomize_months = data.get("randomize_months", "yes")
+    allow_deactivation = data.get("allow_deactivation", "no")
+
+    params = {
+        "customers": n_customers, "months": n_months,
+        "cashiers": n_cashiers, "readers": n_readers,
+        "read_current": read_current, "pay_last": pay_last,
+        "randomize_months": randomize_months,
+        "allow_deactivation": allow_deactivation,
+    }
     task = BackgroundTask.enqueue(
         task_type="seed",
-        params={"customers": n_customers, "months": n_months},
-        title=f"Seed: {n_customers}c \u00d7 {n_months}m",
+        params=params,
+        title=f"Seed: {n_customers}c × {n_months}m",
     )
     return jsonify({"ok": True, "order_id": task.id, "message": "Seed queued."})
 

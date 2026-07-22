@@ -216,17 +216,24 @@ def seed_data():
     if not _confirm_check():
         return jsonify({"error": "Invalid or missing confirmation code"}), 400
     try:
-        customers = int(request.form.get("customers", "0"))
-        months = int(request.form.get("months", "0"))
+        form = request.form
+        customers = int(form.get("customers", "0"))
+        months = int(form.get("months", "0"))
     except (ValueError, TypeError):
         logger.exception("Seed data validation failed:")
         return jsonify({"error": "Invalid customer count or months"}), 400
-    if customers < 1 or customers > 10000:
-        return jsonify({"error": "Customer count must be between 1 and 10000"}), 400
-    if months < 1 or months > 240:
-        return jsonify({"error": "Months must be between 1 and 240"}), 400
+    if customers < 1 or months < 2 or customers * months > 10_000_000:
+        return jsonify({"error": "Invalid range: customers × months must be between 1×2 and 10M entries"}), 400
     try:
-        result = api_client.seed_data(customers, months)
+        result = api_client.seed_data(
+            customers=customers, months=months,
+            cashiers=int(form.get("cashiers", 2)),
+            readers=int(form.get("readers", 2)),
+            read_current=form.get("read_current", "no"),
+            pay_last=form.get("pay_last", "random"),
+            randomize_months=form.get("randomize_months", "yes"),
+            allow_deactivation=form.get("allow_deactivation", "no"),
+        )
         return jsonify(result)
     except Exception as e:
         logger.exception(f"Seed data failed:")

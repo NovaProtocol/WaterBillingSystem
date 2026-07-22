@@ -162,13 +162,14 @@ def _seasonal_factor(month: int, rng: random.Random) -> float:
         return rng.uniform(0.82, 0.98)
 
 
-def _generate_consumption(months: int, rng: random.Random) -> list[float]:
+def _generate_consumption(count: int, rng: random.Random) -> list[float]:
     base = rng.uniform(12, 40)
+    yearly_growth = rng.uniform(1.04, 1.10)
     values: list[float] = []
-    for m in range(months):
+    for m in range(count):
         year = m // 12
         month_num = (m % 12) + 1
-        grown = base * ((1.0 + rng.uniform(-0.02, 0.05)) ** year)
+        grown = base * (yearly_growth ** year)
         seasonal = _seasonal_factor(month_num, rng)
         noise = rng.uniform(0.92, 1.08)
         consumption = max(5.0, round(grown * seasonal * noise, 1))
@@ -178,17 +179,21 @@ def _generate_consumption(months: int, rng: random.Random) -> list[float]:
 
 def _seed_data(
     n_customers: int, n_months: int,
+    cashiers: int, readers: int,
+    read_current: bool, pay_last: str,
+    randomize_months: bool, allow_deactivation: bool,
     _report: Callable[[float, str], None] | None = None,
 ) -> None:
     import binascii
     import hashlib
 
     _report_fn = _report if _report else lambda p, m: None
-    _report_fn(2, "Clearing existing staff...")
-    print("  > Removing non-prerequisite staff...", flush=True)
-    delete_non_prereq_staff()
+
+    _report_fn(2, "Ensuring prerequisite staff...")
+    print("  > Ensuring prerequisite staff (superuser, xendit)...", flush=True)
+    ensure_prereq_staff()
     db.session.flush()
-    print("  > Staff cleared", flush=True)
+    print("  > Prerequisite staff ready", flush=True)
 
     rng = random.Random(42)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -198,82 +203,100 @@ def _seed_data(
         pwdhash = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), salt, 100000)
         return salt + binascii.hexlify(pwdhash)
 
-    print("  > Preparing date slots for {} months...".format(n_months), flush=True)
-    latest_month = now.month
-    latest_year = now.year
-    ref_dt = datetime(latest_year, latest_month, min(now.day, 28))
+    current_months = now.year * 12 + now.month - 1
+    print(f"  > Preparing {n_months} date slots on the 15th, backwards from current month...", flush=True)
     date_slots: list[datetime] = []
-    for i in range(n_months - 1, -1, -1):
-        y = ref_dt.year
-        m = ref_dt.month - i
-        while m < 1:
-            m += 12
-            y -= 1
-        date_slots.append(datetime(y, m, min(now.day, 28)))
+    for i in range(n_months):
+        month_offset = n_months - 1 - i
+        target_months = current_months - month_offset
+        y = target_months // 12
+        m = target_months % 12 + 1
+        date_slots.append(datetime(y, m, 15))
 
-    staff_users = [
-        {"username": "admin", "name": "Admin", "all": True},
-        {"username": "cashier1", "name": "Cashier"}, {"username": "cashier2", "name": "Cashier"},
-        {"username": "reader1", "name": "Reader"},
-        {"username": "manager", "name": "Manager"},
-        {"username": "enroller", "name": "Enroller"},
-    ]
-    print("  > Creating {} staff accounts with permissions...".format(len(staff_users)), flush=True)
-    staff_ids: dict[str, int] = {}
-    for s in staff_users:
-        perms = {p: True for p in [
-            "can_read_meters", "can_accept_payment", "can_enroll_customer",
-            "can_drop_reading", "can_drop_payment", "can_enroll_staff", "can_manage_billing",
-        ]} if s.get("all") else {}
-        if s["username"] == "cashier1":
-            perms["can_accept_payment"] = True
-        elif s["username"] == "cashier2":
-            perms["can_accept_payment"] = True
-        elif s["username"] == "reader1":
-            perms["can_read_meters"] = True
-        elif s["username"] == "manager":
-            perms["can_drop_payment"] = perms["can_drop_reading"] = perms["can_manage_billing"] = True
-        elif s["username"] == "enroller":
-            perms["can_enroll_customer"] = perms["can_enroll_staff"] = True
-
+    cashier_staff_ids: list[int] = []
+    print(f"  > Creating {cashiers} cashier accounts...", flush=True)
+    for i in range(cashiers):
+        uname = f"cashier{i+1}"
         staff = Staff(
-            username=s["username"],
-            name=s["name"],
-            password=_hash_pass(s["username"]),
-            **perms,
+            username=uname,
+            name=f"Cashier {i+1}",
+            password=_hash_pass(uname),
+            can_accept_payment=True,
             is_active=True,
             date_created=now,
             last_modified=now,
         )
         db.session.add(staff)
         db.session.flush()
-        staff_ids[s["username"]] = staff.id
-    print("  > Staff created: {}".format(", ".join(staff_ids.keys())), flush=True)
+        cashier_staff_ids.append(staff.id)
+    print(f"  > Cashier accounts created: {cashiers}", flush=True)
 
-    cashier_id = staff_ids.get("cashier1", next(iter(staff_ids.values())))
-    _report_fn(4, f"Created {len(staff_users)} staff accounts")
+    reader_staff_ids: list[int] = []
+    print(f"  > Creating {readers} reader accounts...", flush=True)
+    for i in range(readers):
+        uname = f"reader{i+1}"
+        staff = Staff(
+            username=uname,
+            name=f"Reader {i+1}",
+            password=_hash_pass(uname),
+            can_read_meters=True,
+            is_active=True,
+            date_created=now,
+            last_modified=now,
+        )
+        db.session.add(staff)
+        db.session.flush()
+        reader_staff_ids.append(staff.id)
+    print(f"  > Reader accounts created: {readers}", flush=True)
 
-    print("  > Creating API keys for mobile access...", flush=True)
-    api_key_map: dict[int, int] = {}
-    for sid_name, sid in staff_ids.items():
-        if sid_name in ("superuser", "admin", "reader1"):
-            raw = "CRDC-" + secrets.token_hex(16).upper()
-            ak = ApiKey(key=raw, label=f"{sid_name} token", staff_id=sid, is_active=True)
-            db.session.add(ak)
-            db.session.flush()
-            api_key_map[sid] = ak.id
-    print("  > {} API keys created".format(len(api_key_map)), flush=True)
+    _report_fn(4, f"Created {cashiers + readers} additional staff (+ superuser, xendit)")
 
-    reader_token_ids = list(api_key_map.values())
+    print("  > Creating API keys for reader mobile access...", flush=True)
+    reader_token_ids: list[int] = []
+    for sid in reader_staff_ids:
+        raw = "CRDC-" + secrets.token_hex(16).upper()
+        ak = ApiKey(key=raw, label=f"reader token {sid}", staff_id=sid, is_active=True)
+        db.session.add(ak)
+        db.session.flush()
+        reader_token_ids.append(ak.id)
+    su_staff = Staff.query.filter_by(username="superuser").first()
+    if su_staff:
+        raw = "CRDC-" + secrets.token_hex(16).upper()
+        ak = ApiKey(key=raw, label="superuser token", staff_id=su_staff.id, is_active=True)
+        db.session.add(ak)
+        db.session.flush()
+        reader_token_ids.append(ak.id)
+    if not reader_token_ids:
+        raise RuntimeError("No reader tokens available (no readers and no superuser found)")
+    print(f"  > {len(reader_token_ids)} token IDs available for readings", flush=True)
 
+    if cashier_staff_ids:
+        cashier_ids = cashier_staff_ids
+    elif su_staff:
+        cashier_ids = [su_staff.id]
+    else:
+        raise RuntimeError("No cashier available (no cashiers and no superuser found)")
     last_print = 0
     next_pct = 1
+
     for ci in range(n_customers):
         cnum = ci + 1
         first = rng.choice(FIRST_NAMES)
         last = rng.choice(LAST_NAMES)
         pd = rng.choice(PHASE_DATA)
         coord = _coord_offset(rng)
+
+        if randomize_months:
+            actual_months = rng.randint(2, n_months)
+        else:
+            actual_months = n_months
+
+        start_idx = n_months - actual_months
+        sub_day = rng.randint(1, 28) if randomize_months else 15
+        subscription_date = date_slots[start_idx].replace(
+            day=sub_day, hour=rng.randint(8, 17), minute=rng.randint(0, 59),
+        )
+
         cust = Customer(
             customer_number=cnum,
             name=f"{first} {last}",
@@ -287,25 +310,39 @@ def _seed_data(
             cumulative_balance=0.00,
             max_meter_value=99999.00,
             is_active=True,
-            date_created=now,
+            date_created=subscription_date,
             date_modified=now,
         )
         db.session.add(cust)
         db.session.flush()
 
+        n_readings = actual_months if read_current else max(1, actual_months - 1)
+        n_transitions = max(0, n_readings - 1)
+
         cust_rng = random.Random(ci * 1000 + 42)
-        consumptions = _generate_consumption(n_months, cust_rng)
-        meter_value = round(rng.uniform(100, 500), 1)
+        consumptions = _generate_consumption(max(n_transitions, 1), cust_rng) if n_transitions > 0 else []
+
+        meter_value = 0.00 if rng.random() >= 0.2 else round(rng.uniform(100, 500), 1)
+
         reading_ids: list[int] = []
         reading_values: list[float] = []
+        reading_dates: list[datetime] = []
 
-        for month_idx in range(n_months):
-            reading_dt = date_slots[month_idx].replace(
-                hour=rng.randint(8, 17), minute=rng.randint(0, 59),
-            )
-            if month_idx > 0:
-                meter_value = round(meter_value + consumptions[month_idx - 1], 1)
+        for ri in range(n_readings):
+            if ri == 0:
+                reading_dt = subscription_date
+            else:
+                slot_idx = start_idx + ri
+                reading_dt = date_slots[slot_idx].replace(
+                    hour=rng.randint(8, 17), minute=rng.randint(0, 59),
+                )
+
+            if ri > 0 and ri - 1 < len(consumptions):
+                meter_value = round(meter_value + consumptions[ri - 1], 1)
+
             reading_values.append(meter_value)
+            reading_dates.append(reading_dt)
+
             mr = MeterReading(
                 customer_number=cnum,
                 reading_value=meter_value,
@@ -319,14 +356,58 @@ def _seed_data(
             reading_ids.append(mr.id)
 
         cum_balance = 0.0
-        for month_idx in range(1, n_months):
-            prev_reading_value = reading_values[month_idx - 1]
-            curr_reading_value = reading_values[month_idx]
+        last_unpaid_total = 0.0
+        should_pay_last = True
+
+        for bi in range(1, n_readings):
+            prev_reading_value = reading_values[bi - 1]
+            curr_reading_value = reading_values[bi]
             consumption = round(curr_reading_value - prev_reading_value, 1)
-            reading_id = reading_ids[month_idx]
+            reading_id = reading_ids[bi]
+            reading_date = reading_dates[bi]
             water_bill, _ = compute_water_bill(consumption)
 
-            if month_idx == n_months - 1:
+            is_last = bi == n_readings - 1
+
+            if is_last:
+                if pay_last == "yes":
+                    should_pay_last = True
+                elif pay_last == "no":
+                    should_pay_last = False
+                else:
+                    should_pay_last = rng.random() < 0.5
+            else:
+                should_pay_last = True
+
+            if should_pay_last:
+                timing_roll = rng.random()
+                if timing_roll < 0.80:
+                    delay_days = rng.randint(0, 7)
+                    penalty = 0.0
+                elif timing_roll < 0.95:
+                    delay_days = rng.randint(8, 28)
+                    penalty = 15.0
+                else:
+                    delay_days = rng.randint(29, 60)
+                    penalty = 15.0
+
+                pay_dt = reading_date + timedelta(days=delay_days)
+                total_due = round(water_bill + penalty, 2)
+
+                if cum_balance > 0.01:
+                    effective_due = max(0.0, round(total_due - cum_balance, 2))
+                else:
+                    effective_due = total_due
+
+                if effective_due <= 0.01:
+                    paid_amount = 0.0
+                    carryover_offset = round(-total_due, 2)
+                else:
+                    paid_amount = float(math.ceil(effective_due / 50.0) * 50)
+                    carryover_offset = round(paid_amount - total_due, 2)
+
+                cum_balance = round(cum_balance + carryover_offset, 2)
+
                 bill = Billing(
                     customer_number=cnum,
                     reading_id=reading_id,
@@ -334,54 +415,41 @@ def _seed_data(
                     current_reading_value=curr_reading_value,
                     consumption=consumption,
                     billed_amount=water_bill,
-                    penalty=0, paid_amount=0, carryover_offset=0,
+                    penalty=penalty,
+                    paid_amount=paid_amount,
+                    carryover_offset=carryover_offset,
+                    is_paid=True,
+                    receipt_number=f"R{rng.randint(10000000, 99999999)}",
+                    cashier_id=rng.choice(cashier_ids),
+                    payment_timestamp=pay_dt,
+                    date_paid=pay_dt,
+                    date_created=now,
+                    date_modified=now,
+                )
+            else:
+                penalty = 15.0
+                bill = Billing(
+                    customer_number=cnum,
+                    reading_id=reading_id,
+                    previous_reading_value=prev_reading_value,
+                    current_reading_value=curr_reading_value,
+                    consumption=consumption,
+                    billed_amount=water_bill,
+                    penalty=penalty,
+                    paid_amount=0,
+                    carryover_offset=0,
                     is_paid=False,
                     date_created=now,
                     date_modified=now,
                 )
-                db.session.add(bill)
-                continue
-
-            pay_dt = date_slots[month_idx] + timedelta(days=rng.randint(3, 28))
-            penalty = 15.0 if pay_dt > date_slots[month_idx] + timedelta(days=7) else 0.0
-            total_due = round(water_bill + penalty, 2)
-
-            if cum_balance > 0.01:
-                effective_due = max(0.0, round(total_due - cum_balance, 2))
-            else:
-                effective_due = total_due
-
-            if effective_due <= 0.01:
-                paid_amount = 0.0
-                carryover_offset = round(-total_due, 2)
-            else:
-                paid_amount = float(math.ceil(effective_due / 50.0) * 50)
-                carryover_offset = round(paid_amount - total_due, 2)
-
-            cum_balance = round(cum_balance + carryover_offset, 2)
-
-            bill = Billing(
-                customer_number=cnum,
-                reading_id=reading_id,
-                previous_reading_value=prev_reading_value,
-                current_reading_value=curr_reading_value,
-                consumption=consumption,
-                billed_amount=water_bill,
-                penalty=penalty,
-                paid_amount=paid_amount,
-                carryover_offset=carryover_offset,
-                is_paid=True,
-                receipt_number=f"R{rng.randint(10000000, 99999999)}",
-                cashier_id=cashier_id,
-                payment_timestamp=pay_dt,
-                date_paid=pay_dt,
-                date_created=now,
-                date_modified=now,
-            )
+                last_unpaid_total = round(water_bill + penalty, 2)
             db.session.add(bill)
 
         cust.cumulative_balance = round(cum_balance, 2)
-        cust.total_due = max(0, round(water_bill - cum_balance, 2))
+        if not should_pay_last and last_unpaid_total > 0:
+            cust.total_due = max(0, round(last_unpaid_total - cum_balance, 2))
+        else:
+            cust.total_due = 0.0
 
         if (ci + 1) % 10 == 0:
             db.session.commit()
@@ -391,8 +459,8 @@ def _seed_data(
             if pct >= next_pct or now_ts - last_print >= 5:
                 print("  > {:>7,}/{:<7,} ({}%) — {:>7,} readings, {:>7,} bills".format(
                     ci + 1, n_customers, pct,
-                    (ci + 1) * n_months,
-                    (ci + 1) * (n_months - 1),
+                    (ci + 1) * n_readings,
+                    (ci + 1) * max(0, n_readings - 1),
                 ), flush=True)
                 next_pct = int(pct) + 1
                 last_print = now_ts
@@ -549,8 +617,15 @@ def handle_clear(params: dict[str, Any], report: Callable[[float, str], None]) -
 def handle_seed(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     t0 = _time.time()
     n_customers = int(params.get("customers", 0))
-    n_months = int(params.get("months", 0))
-    print(f"  > Generating {n_customers} customers × {n_months} months of data", flush=True)
+    n_months = int(params.get("months", 24))
+    cashiers = int(params.get("cashiers", 2))
+    readers = int(params.get("readers", 2))
+    read_current = params.get("read_current", "no") == "yes"
+    pay_last = params.get("pay_last", "random")
+    randomize_months = params.get("randomize_months", "yes") == "yes"
+    allow_deactivation = params.get("allow_deactivation", "no") == "yes"
+    print(f"  > Generating {n_customers} customers, max {n_months} months", flush=True)
+    print(f"  > cashiers={cashiers}, readers={readers}, read_current={read_current}, pay_last={pay_last}, randomize_months={randomize_months}", flush=True)
     print(f"  > Total rows to create: ~{n_customers * (n_months + 1)}", flush=True)
 
     report(0, "Clearing existing data...")
@@ -558,8 +633,7 @@ def handle_seed(params: dict[str, Any], report: Callable[[float, str], None]) ->
     print(f"  > Existing data cleared", flush=True)
 
     report(2, f"Seeding {n_customers} customers × {n_months} months...")
-    _seed_data(n_customers, n_months, report)
-    ensure_prereq_staff()
+    _seed_data(n_customers, n_months, cashiers, readers, read_current, pay_last, randomize_months, allow_deactivation, report)
     db.session.commit()
 
     actual_customers = db.session.query(db.func.count(Customer.id)).scalar() or 0
