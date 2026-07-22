@@ -100,18 +100,33 @@ def phpmyadmin(rest=''):
 @dev_bp.route('/')
 @superuser_required
 def index():
-    backup_files = api_client.list_backups().get('backups', [])
-    stats = api_client.get_stats()
-    return render_template('dev/tools.html', backup_files=backup_files, stats=stats)
+    return redirect(url_for('dev.backup'))
 
 
 @dev_bp.route('/backup')
+@superuser_required
+def backup():
+    backup_files = api_client.list_backups().get('backups', [])
+    return render_template('dev/backup.html', backup_files=backup_files)
+
+
 @dev_bp.route('/seed')
+@superuser_required
+def seed():
+    return render_template('dev/seed.html')
+
+
 @dev_bp.route('/clear')
+@superuser_required
+def clear():
+    stats = api_client.get_stats()
+    return render_template('dev/clear.html', stats=stats)
+
+
 @dev_bp.route('/task-logs')
 @superuser_required
-def _redirect():
-    return redirect(url_for('dev.index'))
+def task_logs():
+    return render_template('dev/tasks.html')
 
 
 # --- API routes ---
