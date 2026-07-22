@@ -13,7 +13,7 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark navbar-cotta fixed-top">
     <div class="container-fluid px-4">
-        <a class="navbar-brand" href="{{ url_for('dev.backup') }}">Development <span>Portal</span></a>
+        <a class="navbar-brand" href="{{ url_for('dev.index') }}">Development <span>Portal</span></a>
         <div class="ml-auto d-flex align-items-center navbar-user-area">
             <a href="/staff/dashboard" class="btn btn-sm-cotta mr-2">&larr; Staff Dashboard</a>
             <a href="/staff/logout" class="btn btn-outline-cotta btn-sm btn-logout">
@@ -29,14 +29,20 @@
     </a>
 
     <div class="sidebar-header mt-3">Tools</div>
-    <a href="{{ url_for('dev.backup') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.backup' }}">
+    <a href="{{ url_for('dev.index') }}#backup" class="nav-link {{ 'active' if request.endpoint == 'dev.index' }}">
         <i class="fas fa-download"></i>Backup &amp; Restore
     </a>
-    <a href="{{ url_for('dev.seed') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.seed' }}">
+    <a href="{{ url_for('dev.index') }}#seed" class="nav-link">
         <i class="fas fa-seedling"></i>Seed Data
     </a>
-    <a href="{{ url_for('dev.clear') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.clear' }}">
+    <a href="{{ url_for('dev.index') }}#clear" class="nav-link">
         <i class="fas fa-eraser"></i>Clear Tables
+    </a>
+    <a href="{{ url_for('dev.index') }}#actions" class="nav-link">
+        <i class="fas fa-calendar-check"></i>Monthly Actions
+    </a>
+    <a href="{{ url_for('dev.index') }}#tasks" class="nav-link">
+        <i class="fas fa-tasks"></i>Task History
     </a>
 
     <div class="sidebar-header mt-3">External Tools</div>
@@ -46,59 +52,13 @@
 </div>
 
 <div class="main-content">
-    <div class="tool-page">
-        <div class="tool-main">
-            {% block content %}{% endblock %}
-        </div>
-        <div class="tool-sidebar" id="task-sidebar-panel">
-            <div class="task-sidebar-header">
-                Task Logs
-                <a href="{{ url_for('dev.task_logs') }}" class="text-muted ml-1" style="font-size:0.7rem;">full view &rarr;</a>
-            </div>
-            <div class="task-sidebar-body" id="sidebar-tasks">
-                <div class="text-center text-muted py-3" style="font-size:0.75rem;">Loading tasks...</div>
-            </div>
-        </div>
+    <div class="container-fluid" style="max-width:1400px;">
+        {% block content %}{% endblock %}
     </div>
 </div>
 
 <script src="{{ url_for('static', filename='assets/vendor/jquery/3.5.1/jquery.min.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js') }}"></script>
-<script>
-var statusColor = {queued: '#6c757d', running: '#007bff', completed: '#28a745', error: '#dc3545', interrupted: '#fd7e14'};
-var lastSidebarSnapshot = '';
-
-function pollSidebarTasks() {
-    fetch('{{ url_for("dev.list_tasks") }}')
-    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(resp => {
-        var snap = JSON.stringify(resp);
-        if (snap === lastSidebarSnapshot) return;
-        lastSidebarSnapshot = snap;
-        var el = document.getElementById('sidebar-tasks');
-        if (!el) return;
-        var current = resp.current || null;
-        var history = (resp.history || []).slice(0, 8);
-        var all = current ? [current].concat(history) : history;
-        if (!all.length) { el.innerHTML = '<div class="text-center text-muted py-3" style="font-size:0.72rem;">No tasks</div>'; return; }
-        var h = '';
-        all.forEach(function(t) {
-            var icon = t.status === 'running' ? 'fa-spinner fa-pulse' : t.status === 'completed' ? 'fa-check-circle' : t.status === 'error' ? 'fa-times-circle' : 'fa-clock';
-            var color = statusColor[t.status] || '#6c757d';
-            h += '<div class="py-1 px-2" style="border-bottom:1px solid #f0f0f0;line-height:1.3;">' +
-                '<div style="display:flex;align-items:center;gap:4px;">' +
-                  '<i class="fas '+icon+'" style="color:'+color+';width:12px;font-size:0.6rem;"></i>' +
-                  '<span style="color:'+color+';font-weight:600;font-size:0.6rem;">'+t.status+'</span>' +
-                '</div>' +
-                '<div style="font-size:0.72rem;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+t.title+'</div>' +
-            '</div>';
-        });
-        el.innerHTML = h;
-    });
-}
-setInterval(pollSidebarTasks, 4000);
-pollSidebarTasks();
-</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
