@@ -280,9 +280,9 @@ select.form-control:focus{border-color:#e94560;box-shadow:0 0 0 .2rem rgba(233,6
 .modal-cotta-footer-flex{border:none;padding:0 1.5rem 1.5rem;gap:0.5rem;flex-wrap:wrap}
 .btn-flex{flex:1}
 .modal-status-text-sm{font-size:0.8rem}
-.tool-page{display:flex;min-height:calc(100vh - 56px)}
-.tool-main{flex:1;padding:1.5rem;min-width:0}
-.tool-sidebar{width:320px;flex-shrink:0;border-left:1px solid #f0f0f0;background:#fafafa;overflow-y:auto}
+.tool-page{display:flex;min-height:calc(100vh - 56px - 1.5rem)}
+.tool-main{flex:1;padding:1.5rem 1rem;min-width:0}
+.tool-sidebar{width:280px;flex-shrink:0;border-left:1px solid #f0f0f0;background:#fafafa;overflow-y:auto;position:sticky;top:56px;max-height:calc(100vh - 56px)}
 .task-sidebar-header{position:sticky;top:0;background:#fafafa;padding:1rem;font-weight:700;font-size:0.85rem;border-bottom:1px solid #e9ecef;z-index:1}
 .task-sidebar-body{padding:0.5rem}
 .mini-task{padding:0.5rem 0.75rem;border-bottom:1px solid #f0f0f0;font-size:0.72rem}
