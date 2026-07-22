@@ -242,8 +242,11 @@ def submit_payment():
 @permission_required('can_accept_payment')
 def cashier_tally():
     period = request.args.get('period', 'daily')
-    staff_id = session.get('staff_id', 1)
-    data = api_client.get_cashier_tally(period, 0)
+    date = request.args.get('date', '')
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    group_days = request.args.get('group_days', 1, type=int)
+    data = api_client.get_cashier_tally(period, 0, date, start_date, end_date, group_days)
     return render_template('staff/cashier_tally.html', **data)
 
 @staff_bp.route('/staff/manage-billing')

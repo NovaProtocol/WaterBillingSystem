@@ -107,8 +107,16 @@ def submit_payment(data: dict) -> dict:
     customer_number = data.get('customer_number', 0)
     return _post(f'/api/customer/{customer_number}/billing/new', data)
 
-def get_cashier_tally(period: str, cashier_id: int = 0) -> dict:
-    return _get(f'/api/staff/{cashier_id}/cashier-tally', {'period': period})
+def get_cashier_tally(period: str, cashier_id: int = 0, date: str = '',
+                      start_date: str = '', end_date: str = '', group_days: int = 1) -> dict:
+    params = {'period': period, 'group_days': group_days}
+    if date:
+        params['date'] = date
+    if start_date:
+        params['start_date'] = start_date
+    if end_date:
+        params['end_date'] = end_date
+    return _get(f'/api/staff/{cashier_id}/cashier-tally', params)
 
 def drop_reading(reading_id: int, data: dict) -> dict:
     customer_number = data.get('customer_number', 0)
