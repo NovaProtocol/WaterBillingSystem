@@ -8,14 +8,7 @@ from datetime import datetime, timezone
 
 _LOG_DIR = "/var/log/app"
 _PRUNE_LIMIT = 5000
-_locks: dict[str, threading.Lock] = {}
 _local = threading.local()
-
-
-def _get_lock(name: str) -> threading.Lock:
-    if name not in _locks:
-        _locks[name] = threading.Lock()
-    return _locks[name]
 
 
 def _get_db(name: str) -> sqlite3.Connection:
@@ -54,7 +47,6 @@ class SQLiteLogHandler(logging.Handler):
     def __init__(self, name: str):
         super().__init__()
         self.name = name
-        self.lock = _get_lock(name)
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
@@ -67,28 +59,27 @@ class SQLiteLogHandler(logging.Handler):
                 tb = self.format(record)
 
             extra = getattr(record, "http", {})
-            with self.lock:
-                conn.execute(
-                    """INSERT INTO logs (timestamp, level, logger, message, traceback,
-                                        method, path, status_code, remote_addr, container)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        ts,
-                        record.levelname,
-                        record.name,
-                        record.getMessage(),
-                        tb,
-                        extra.get("method"),
-                        extra.get("path"),
-                        extra.get("status_code"),
-                        extra.get("remote_addr"),
-                        extra.get("container"),
-                    ),
-                )
-                conn.execute(
-                    f"DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY id DESC LIMIT {_PRUNE_LIMIT})"
-                )
-                conn.commit()
+            conn.execute(
+                """INSERT INTO logs (timestamp, level, logger, message, traceback,
+                                    method, path, status_code, remote_addr, container)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    ts,
+                    record.levelname,
+                    record.name,
+                    record.getMessage(),
+                    tb,
+                    extra.get("method"),
+                    extra.get("path"),
+                    extra.get("status_code"),
+                    extra.get("remote_addr"),
+                    extra.get("container"),
+                ),
+            )
+            conn.execute(
+                f"DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY id DESC LIMIT {_PRUNE_LIMIT})"
+            )
+            conn.commit()
         except Exception:
             self.handleError(record)
 
@@ -98,6 +89,7 @@ def attach_sqlite_logging(name: str) -> None:
     handler = SQLiteLogHandler(name)
     handler.setFormatter(logging.Formatter("%(message)s"))
     root = logging.getLogger()
+    root.setLevel(logging.INFO)
     root.addHandler(handler)
 
 
