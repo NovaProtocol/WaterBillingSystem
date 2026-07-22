@@ -11,17 +11,49 @@
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark navbar-cotta">
+<nav class="navbar navbar-expand-lg navbar-dark navbar-cotta fixed-top">
     <div class="container-fluid px-4">
         <a class="navbar-brand" href="/developer/">DEBUG <span>PANEL</span></a>
-        <div class="ml-auto d-flex align-items-center" style="gap:0.5rem;">
-            <a href="/developer/logs" class="btn btn-sm-cotta mr-1"><i class="fas fa-terminal mr-1"></i>Logs</a>
-            <a href="/developer/phpmyadmin/" target="_blank" class="btn btn-outline-cotta btn-sm mr-1"><i class="fas fa-database mr-1"></i>phpMyAdmin</a>
-            <a href="/staff/dashboard" class="btn btn-sm-cotta mr-1">&larr; Staff Dashboard</a>
-            <a href="/staff/logout" class="btn btn-outline-cotta btn-sm">Logout</a>
+        <div class="ml-auto d-flex align-items-center navbar-user-area">
+            <a href="/staff/dashboard" class="btn btn-sm-cotta mr-2">&larr; Staff Dashboard</a>
+            <a href="/staff/logout" class="btn btn-outline-cotta btn-sm btn-logout">
+                <i class="fas fa-sign-out-alt mr-1"></i>Logout
+            </a>
         </div>
     </div>
 </nav>
+
+<div class="sidebar" style="top:56px;">
+    <div class="sidebar-header">Monitoring</div>
+    <a href="{{ url_for('debug.dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'debug.dashboard' }}">
+        <i class="fas fa-th-large"></i>Dashboard
+    </a>
+    <a href="{{ url_for('debug.logs') }}" class="nav-link {{ 'active' if request.endpoint == 'debug.logs' }}">
+        <i class="fas fa-terminal"></i>Logs
+    </a>
+
+    <div class="sidebar-header mt-3">Database Operations</div>
+    <a href="{{ url_for('debug.dashboard') }}#backup" class="nav-link">
+        <i class="fas fa-download"></i>Backup
+    </a>
+    <a href="{{ url_for('debug.dashboard') }}#restore" class="nav-link">
+        <i class="fas fa-upload"></i>Restore
+    </a>
+    <a href="{{ url_for('debug.dashboard') }}#seed" class="nav-link">
+        <i class="fas fa-seedling"></i>Seed Data
+    </a>
+    <a href="{{ url_for('debug.dashboard') }}#clear" class="nav-link">
+        <i class="fas fa-eraser"></i>Clear Tables
+    </a>
+    <a href="{{ url_for('debug.dashboard') }}#tasks" class="nav-link">
+        <i class="fas fa-tasks"></i>Task Queue
+    </a>
+
+    <div class="sidebar-header mt-3">Tools</div>
+    <a href="/developer/phpmyadmin/" target="_blank" class="nav-link">
+        <i class="fas fa-database"></i>phpMyAdmin
+    </a>
+</div>
 
 <div class="main-content">
     <div class="container-fluid" style="max-width:1400px;">
