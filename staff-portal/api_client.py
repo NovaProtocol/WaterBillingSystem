@@ -5,7 +5,7 @@ API_BASE = os.environ['API_BASE_URL']
 INTERNAL_KEY = os.environ.get('INTERNAL_API_KEY', '')
 
 def _headers():
-    headers = {'X-Container-Name': 'staff-portal'}
+    headers = {'User-Agent': 'staff-portal/1.0', 'X-Container-Name': 'staff-portal'}
     if INTERNAL_KEY:
         headers['X-Internal-API-Key'] = INTERNAL_KEY
     return headers

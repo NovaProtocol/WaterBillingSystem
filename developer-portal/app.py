@@ -54,17 +54,20 @@ def create_app():
 
     @app.after_request
     def log_request(response):
-        container = request.headers.get('X-Container-Name', '-')
-        http_logger.info(
-            f"{request.method} {request.path} {response.status_code}",
-            extra={'http': {
+        import datetime
+        now = datetime.datetime.now(datetime.timezone.utc).strftime('%d/%b/%Y:%H:%M:%S %z')
+        referrer = request.headers.get('Referer', '-')
+        ua = request.headers.get('User-Agent', '-')
+        msg = f'{request.remote_addr} - - [{now}] "{request.method} {request.path} {request.environ.get("SERVER_PROTOCOL", "HTTP/1.1")}" {response.status_code} {response.content_length or "-"} "{referrer}" "{ua}"'
+        http_logger.info(msg, extra={
+            'http': {
                 'method': request.method,
                 'path': request.path,
                 'status_code': response.status_code,
                 'remote_addr': request.remote_addr,
-                'container': container,
-            }}
-        )
+                'container': request.headers.get('X-Container-Name', '-'),
+            }
+        })
         return response
 
     return app
