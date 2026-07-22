@@ -123,7 +123,7 @@ def clear():
     return render_template('dev/clear.html', stats=stats)
 
 
-@dev_bp.route('/task-logs')
+@dev_bp.route('/history')
 @superuser_required
 def task_logs():
     return render_template('dev/tasks.html')
