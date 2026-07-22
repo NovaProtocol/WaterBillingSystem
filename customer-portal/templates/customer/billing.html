@@ -8,19 +8,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/font-awesome/6.5.0/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/leaflet/1.9.4/leaflet.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta.css') }}">
-    <style>
-        .container { max-width: 1320px; }
-        .stat-value { font-size: 2.2rem; font-weight: 800; }
-        .history-table { font-size: 0.875rem; }
-        .history-table th { border-top: none; color: #6c757d; }
-        .badge-balance { font-size: 1rem; padding: 0.5rem 1.5rem; border-radius: 50px; font-weight: 600; }
-        .footer { background: #1a1a2e; padding: 1.5rem 0; color: rgba(255,255,255,0.6); font-size: 0.85rem; text-align: center; }
-        .collapse-trigger { cursor: pointer; }
-        .collapse-trigger:hover { opacity: 0.8; }
-        .map-cover { position: relative; height: 450px; z-index: 1; overflow: hidden; }
-        .map-cover #billing-map { height: 100%; width: 100%; }
-        .map-cover-fade { position: absolute; inset: 0; pointer-events: none; z-index: 999; background: linear-gradient(to bottom, rgba(26,26,46,0.4) 0%, transparent 15%, transparent 45%, rgba(248,249,250,0.8) 80%, #f8f9fa 100%); }
-    </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta-mobile.css') }}" media="(max-width: 768px)">
 </head>
 <body>
@@ -41,7 +28,7 @@
     <div class="map-cover-fade"></div>
 </div>
 
-<div class="container py-4" style="margin-top: -140px; position: relative; z-index: 2;">
+<div class="container py-4 billing-content">
     <div class="row">
         <div class="col-lg-8 col-xl-9">
             <div class="card card-cotta mb-4">
@@ -53,11 +40,11 @@
                 </div>
                 <div class="card-body">
                     <table class="table table-sm mb-0">
-                        <tr><th style="width: 140px; color: #6c757d; white-space: nowrap;">Customer #</th><td style="font-weight: 600;">{{ customer.customer_number }}</td></tr>
-                        <tr><th style="color: #6c757d; white-space: nowrap;">Name</th><td>{{ customer.name }}</td></tr>
-                        <tr><th style="color: #6c757d; white-space: nowrap;">Address</th><td>{{ customer.address }}</td></tr>
-                        <tr><th style="color: #6c757d; white-space: nowrap;">Contact</th><td>{{ customer.contact_number }}</td></tr>
-                        <tr><th style="color: #6c757d; white-space: nowrap;">Email</th><td>{{ customer.email }}</td></tr>
+                        <tr><th class="info-th">Customer #</th><td class="font-weight-bold">{{ customer.customer_number }}</td></tr>
+                        <tr><th class="info-th">Name</th><td>{{ customer.name }}</td></tr>
+                        <tr><th class="info-th">Address</th><td>{{ customer.address }}</td></tr>
+                        <tr><th class="info-th">Contact</th><td>{{ customer.contact_number }}</td></tr>
+                        <tr><th class="info-th">Email</th><td>{{ customer.email }}</td></tr>
                     </table>
                 </div>
             </div>
@@ -97,13 +84,13 @@
                 <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#pricingCollapse">
                     <div class="d-flex justify-content-between align-items-center">
                         How We Calculate Your Bill
-                        <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: #6c757d;"></i>
+                        <i class="fas fa-chevron-down chevron-icon"></i>
                     </div>
                 </div>
                 <div class="collapse" id="pricingCollapse">
                 <div class="card-body p-0">
                     {% if latest_reading and last_reading %}
-                    <div class="px-3 pt-3 pb-2 text-muted" style="font-size: 0.9rem;">
+                    <div class="px-3 pt-3 pb-2 text-muted consumption-notice">
                         <strong>{{ "%.2f" | format(consumption) }} m&sup3;</strong> consumed this period
                     </div>
                     <table class="table table-sm mb-0">
@@ -112,14 +99,14 @@
                         </thead>
                         <tbody>
                             {% for item in bill_breakdown %}
-                            <tr style="font-size: 0.85rem;{{ ' color: #6c757d;' if item['units'] == 0 else '' }}">
+                            <tr class="{{ 'breakdown-row-muted' if item['units'] == 0 else 'breakdown-row' }}">
                                 <td>{{ item['label'] }}</td>
                                 <td>{{ "%.2f" | format(item['units']) }} m&sup3;</td>
                                 <td>{% if pricing_tiers[loop.index0]['unit'] == 'flat' %}&#x20B1;{{ "%.2f" | format(pricing_tiers[loop.index0]['rate']) }} flat{% else %}&#x20B1;{{ "%.2f" | format(pricing_tiers[loop.index0]['rate']) }}/m&sup3;{% endif %}</td>
                                 <td class="text-right font-weight-bold">&#x20B1;{{ "%.2f" | format(item['charge']) }}</td>
                             </tr>
                             {% endfor %}
-                            <tr class="font-weight-bold" style="border-top: 2px solid #1a1a2e;">
+                            <tr class="font-weight-bold breakdown-total">
                                 <td colspan="3">Total Water Bill</td>
                                 <td class="text-right">&#x20B1;{{ "%.2f" | format(original_water_bill) }}</td>
                             </tr>
@@ -149,8 +136,8 @@
                     </div>
                     {% if bill.penalty > 0 %}
                     <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted" style="font-size: 0.85rem; padding-left: 1.2rem;">+ Late Penalty</span>
-                        <span class="font-weight-bold" style="font-size: 0.85rem; color: #dc3545;">+ &#x20B1;{{ "%.2f" | format(bill.penalty) }}</span>
+                        <span class="text-muted penalty-label">+ Late Penalty</span>
+                        <span class="font-weight-bold penalty-amount">+ &#x20B1;{{ "%.2f" | format(bill.penalty) }}</span>
                     </div>
                     {% endif %}
                     {% endfor %}
@@ -159,34 +146,34 @@
                         <span class="text-muted">Current Bill</span>
                         <span class="font-weight-bold">&#x20B1;{{ "%.2f" | format(original_water_bill) }}</span>
                     </div>
-                    <div class="text-right mb-2" style="font-size: 0.8rem; color: #28a745;">
+                    <div class="text-right mb-2 paid-status">
                         <i class="fas fa-check-circle"></i> Paid
                     </div>
                     {% else %}
-                    <p class="text-muted mb-0" style="font-size: 0.9rem;">No bills due</p>
+                    <p class="text-muted mb-0 no-bills">No bills due</p>
                     {% endif %}
                     {% if cumulative_balance != 0 %}
                     <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted" style="font-size: 0.85rem;">Carryover from last bill</span>
+                        <span class="text-muted carryover-label">Carryover from last bill</span>
                         {% if cumulative_balance > 0 %}
-                        <span class="font-weight-bold" style="font-size: 0.85rem; color: #28a745;">&minus; &#x20B1;{{ "%.2f" | format(carryover) }}</span>
+                        <span class="font-weight-bold carryover-positive">&minus; &#x20B1;{{ "%.2f" | format(carryover) }}</span>
                         {% else %}
-                        <span class="font-weight-bold" style="font-size: 0.85rem; color: #dc3545;">+ &#x20B1;{{ "%.2f" | format(carryover) }}</span>
+                        <span class="font-weight-bold carryover-negative">+ &#x20B1;{{ "%.2f" | format(carryover) }}</span>
                         {% endif %}
                     </div>
                     {% endif %}
                     <hr class="my-2">
-                    <div class="d-flex justify-content-between" style="font-size: 1.2rem;">
+                    <div class="d-flex justify-content-between total-due-row">
                         <span class="font-weight-bold">Total Due</span>
-                        <span class="font-weight-bold" style="color: #e94560;">&#x20B1;{{ "%.2f" | format(total_due) }}</span>
+                        <span class="font-weight-bold total-due-amount">&#x20B1;{{ "%.2f" | format(total_due) }}</span>
                     </div>
                     {% if due_date %}
-                    <div class="text-right mt-2" style="font-size: 0.8rem; color: #6c757d;">
+                    <div class="text-right mt-2 due-date">
                         Due in {{ days_remaining }} day{{ '' if days_remaining == 1 else 's' }} ({{ due_date }})
                     </div>
                     {% endif %}
                     {% if pending_xendit %}
-                    <div class="mt-2 p-2" style="background: #fff3cd; border-radius: 8px; font-size: 0.75rem; color: #856404; text-align: center;">
+                    <div class="mt-2 p-2 pending-notice">
                         <i class="fas fa-clock mr-1"></i> Online payment pending — awaiting confirmation
                     </div>
                     {% endif %}
@@ -200,7 +187,7 @@
                 <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#paymentCollapse">
                     <div class="d-flex justify-content-between align-items-center">
                         Payment History
-                        <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: #6c757d;"></i>
+                        <i class="fas fa-chevron-down chevron-icon"></i>
                     </div>
                 </div>
                 <div class="collapse" id="paymentCollapse">
@@ -228,7 +215,7 @@
                 <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#readingCollapse">
                     <div class="d-flex justify-content-between align-items-center">
                         Meter Reading History
-                        <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: #6c757d;"></i>
+                        <i class="fas fa-chevron-down chevron-icon"></i>
                     </div>
                 </div>
                 <div class="collapse" id="readingCollapse">
@@ -258,7 +245,7 @@
         <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#billingHistoryCollapse">
             <div class="d-flex justify-content-between align-items-center">
                 Billing History
-                <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: #6c757d;"></i>
+                <i class="fas fa-chevron-down chevron-icon"></i>
             </div>
         </div>
         <div class="collapse" id="billingHistoryCollapse">
