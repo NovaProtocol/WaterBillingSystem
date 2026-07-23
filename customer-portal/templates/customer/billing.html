@@ -4,12 +4,12 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Cotta Realty — Customer Billing</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/font-awesome/6.5.0/css/all.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/leaflet/1.9.4/leaflet.css') }}" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta.css') }}">
+    <link rel="stylesheet" href="/static/assets/vendor/bootstrap/4.6.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/assets/vendor/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/assets/vendor/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="/static/assets/css/cotta.css">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/img/favicon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/cotta-mobile.css') }}" media="(max-width: 768px)">
+    <link rel="stylesheet" href="/static/assets/css/cotta-mobile.css" media="(max-width: 768px)">
     <style>body{padding-top:56px}</style>
 </head>
 <body>
@@ -280,11 +280,11 @@
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='assets/vendor/jquery/3.5.1/jquery.min.js') }}"></script>
-<script src="{{ url_for('static', filename='assets/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js') }}"></script>
+<script src="/static/assets/vendor/jquery/3.5.1/jquery.min.js"></script>
+<script src="/static/assets/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js"></script>
 
 {% include 'customer/_pay_online_modal.html' %}
-<script src="{{ url_for('static', filename='assets/vendor/leaflet/1.9.4/leaflet.js') }}"></script>
+<script src="/static/assets/vendor/leaflet/1.9.4/leaflet.js"></script>
 <script>
   var CUST_LAT = {{ customer.x_coordinate | tojson if customer.x_coordinate else 'null' }};
   var CUST_LNG = {{ customer.y_coordinate | tojson if customer.y_coordinate else 'null' }};

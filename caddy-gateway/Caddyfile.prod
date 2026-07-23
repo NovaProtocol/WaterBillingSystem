@@ -5,6 +5,9 @@
     handle /customer/* {
         reverse_proxy customer-portal:8002
     }
+    handle /static/* {
+        reverse_proxy landing-page:8001
+    }
     handle {
         reverse_proxy landing-page:8001
     }
@@ -22,5 +25,8 @@
     }
     handle /phpmyadmin/* {
         reverse_proxy phpmyadmin:80
+    }
+    handle /static/* {
+        reverse_proxy landing-page:8001
     }
 }

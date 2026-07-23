@@ -126,7 +126,7 @@
 {% endblock content %}
 
 {% block javascripts %}
-<script src="{{ url_for('static', filename='assets/vendor/qrcodejs/1.0.0/qrcode.min.js') }}"></script>
+<script src="/static/assets/vendor/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
   var GENERATE_KEY_URL = '{{ url_for("staff_blueprint.generate_api_key") }}';
   var REVOKE_KEY_URL_BASE = '{{ url_for("staff_blueprint.revoke_api_key", key_id=0) }}';

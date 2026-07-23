@@ -12,7 +12,7 @@
             <div class="col-lg-4 col-md-6 mb-4">
                 <a href="{{ url_for('landing_blueprint.model_detail', slug=slug) }}" class="card-link">
                     <div class="model-card">
-                        <img src="{{ url_for('static', filename='assets/img/landing/' + m.image) }}" alt="{{ m.name }}">
+                        <img src="/static/assets/img/landing/{{ m.image }}" alt="{{ m.name }}">
                         <div class="body">
                             <span class="badge">{{ m.type }}</span>
                             <h5>{{ m.name }}</h5>
