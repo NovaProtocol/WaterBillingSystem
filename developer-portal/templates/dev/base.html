@@ -14,7 +14,7 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark navbar-cotta fixed-top">
     <div class="container">
-        <a class="navbar-brand" href="{{ url_for('dev.index') }}">COTTA <span>REALTY</span> <small class="text-white-50 ml-1" style="font-size:0.8rem;font-weight:400;letter-spacing:0.3px;">· Developer Portal</small></a>
+        <a class="navbar-brand" href="{{ url_for('dev.index') }}">COTTA <span>REALTY</span> <small class="text-white-50 ml-1 brand-subtitle">· Developer Portal</small></a>
         <div class="ml-auto d-flex align-items-center navbar-user-area">
             <a href="/staff/dashboard" class="btn btn-sm-cotta mr-2">&larr; Staff Dashboard</a>
             <a href="/staff/logout" class="btn btn-cotta btn-sm"><i class="fas fa-sign-out-alt mr-1"></i>Logout</a>
@@ -22,7 +22,7 @@
     </div>
 </nav>
 
-<div class="sidebar" style="top:56px;">
+<div class="sidebar">
     <div class="sidebar-header">Tools</div>
     <a href="{{ url_for('dev.logs') }}" class="nav-link {{ 'active' if request.endpoint == 'dev.logs' }}">
         <i class="fas fa-terminal"></i>Logs
@@ -47,7 +47,7 @@
 </div>
 
 <div class="main-content">
-    <div class="container-fluid" style="max-width:1400px;">
+    <div class="container-fluid">
         {% block content %}{% endblock %}
     </div>
 </div>

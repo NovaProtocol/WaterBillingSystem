@@ -13,7 +13,7 @@
         <span><i class="fas fa-tasks mr-1 text-cotta"></i>Task History</span>
         <span>
           <span class="badge badge-secondary" id="task-count">0</span>
-          <span class="badge badge-info ml-1" id="queue-depth" style="display:none;">0 pending</span>
+          <span class="badge badge-info ml-1 d-none" id="queue-depth">0 pending</span>
         </span>
       </div>
       <div class="card-body p-0">
@@ -60,18 +60,18 @@ function taskHtml(task, isCurrent) {
     progress +
     '<div class="text-muted mt-1 text-sm">' + lastMsg + '</div>' +
     logLink +
-    '<div class="task-log mt-1" id="task-log-' + task.id + '" style="display:none;"></div>' +
+    '<div class="task-log mt-1 d-none" id="task-log-' + task.id + '"></div>' +
   '</div>';
 }
 
 function toggleLog(e, taskId) {
   e.preventDefault();
   var el = document.getElementById('task-log-' + taskId);
-  if (el.style.display === 'none') {
-    el.style.display = 'block';
+  if (el.classList.contains('d-none')) {
+    el.classList.remove('d-none');
     el.textContent = (taskMessages[taskId] || []).join('\n');
   } else {
-    el.style.display = 'none';
+    el.classList.add('d-none');
   }
 }
 
@@ -95,10 +95,10 @@ function pollTasks() {
       count.textContent = (current ? 1 : 0) + history.length;
 
       if (resp.queue_depth > 0) {
-        depth.style.display = 'inline';
+        depth.classList.remove('d-none');
         depth.textContent = resp.queue_depth + ' pending';
       } else {
-        depth.style.display = 'none';
+        depth.classList.add('d-none');
       }
 
       if (!current && !history.length) {
