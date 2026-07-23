@@ -16,7 +16,7 @@ label{font-weight:600;font-size:0.85rem;color:#1a1a2e}
 .sidebar .nav-link i{width:18px;text-align:center;font-size:1rem}
 .sidebar .sidebar-header{padding:0.5rem 1.25rem 0.75rem;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#adb5bd}
 .main-content{margin-left:220px;padding-top:56px;min-height:100vh}
-.main-content>.container-fluid{padding:1.5rem}
+.main-content>.container-fluid{padding:1.5rem;max-width:1400px}
 .btn-cotta{background:#e94560;color:#fff;border:none;padding:0.6rem 1.8rem;border-radius:50px;font-weight:600;font-size:0.9rem;transition:all 0.3s;cursor:pointer}
 .btn-cotta:hover{background:#d63851;transform:translateY(-1px);box-shadow:0 4px 15px rgba(233,69,96,0.4);color:#fff}
 .btn-outline-cotta{border:2px solid #e94560;color:#e94560;background:transparent;padding:0.6rem 1.8rem;border-radius:50px;font-weight:600;font-size:0.9rem;transition:all 0.3s}
@@ -271,7 +271,7 @@ select.form-control:not([size]):not([multiple]){padding:0.375rem 0.75rem}.form-c
 .table-cotta{border-collapse:collapse;width:100%}
 .table-cotta td{border-bottom:1px solid #f0f0f0;padding:6px 12px}
 .table-cotta th{background:#f8f9fa;color:#6c757d;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.3px;padding:8px 12px}
-.log-table{font-family:'Cascadia Code','Consolas',monospace;border-collapse:collapse}
+.log-table{font-family:'Cascadia Code','Consolas',monospace;border-collapse:collapse;font-size:0.72rem}
 .log-table thead th{position:sticky;top:0;background:#f8f9fa;z-index:1;border-bottom:2px solid #e9ecef}
 .log-table td{border-bottom:1px solid #f0f0f0;padding:2px 8px;vertical-align:top}
 .log-table tr:hover{background:#fff5f7}
@@ -279,3 +279,11 @@ select.form-control:not([size]):not([multiple]){padding:0.375rem 0.75rem}.form-c
 .log-table tr.log-level-CRITICAL{background:rgba(220,53,69,0.12);font-weight:700}
 .log-table tr.log-level-WARNING{background:rgba(255,193,7,0.06)}
 .form-label{font-size:0.8rem;font-weight:600;color:#1a1a2e;margin-bottom:0.35rem}
+.brand-subtitle{font-size:0.8rem;font-weight:400;letter-spacing:0.3px}
+.confirm-code{font-size:1.8rem;font-weight:700;user-select:none;-webkit-user-select:none;-moz-user-select:none;letter-spacing:2px}
+.confirm-input{font-size:1.1rem}
+.log-scroll{max-height:calc(100vh - 320px);overflow-y:auto}
+.log-col-ts{width:160px}
+.log-col-lvl{width:55px}
+.log-col-svc{width:80px}
+.recent-tasks-scroll{max-height:300px;overflow-y:auto}

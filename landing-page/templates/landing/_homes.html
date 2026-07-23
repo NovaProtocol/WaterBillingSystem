@@ -1,7 +1,7 @@
-<section id="offerings" style="background: #fff;">
+<section id="offerings" class="bg-white">
     <div class="container">
         <div class="section-title">
-            <a href="{{ url_for('landing_blueprint.offerings') }}" style="text-decoration: none; color: inherit; display: block;">
+            <a href="{{ url_for('landing_blueprint.offerings') }}" class="card-link">
                 <h2>What We Are Offering</h2>
                 <p>Quality house-and-lot packages designed for Filipino families.</p>
             </a>
@@ -10,7 +10,7 @@
         <div class="row">
             {% for slug, m in models.items() %}
             <div class="col-lg-4 col-md-6 mb-4">
-                <a href="{{ url_for('landing_blueprint.model_detail', slug=slug) }}" style="text-decoration: none; color: inherit; display: block;">
+                <a href="{{ url_for('landing_blueprint.model_detail', slug=slug) }}" class="card-link">
                     <div class="model-card">
                         <img src="{{ url_for('static', filename='assets/img/landing/' + m.image) }}" alt="{{ m.name }}">
                         <div class="body">

@@ -31,7 +31,7 @@
     <label>Search
       <input type="text" id="filter-q" placeholder="text filter...">
     </label>
-    <label class="mr-2" style="cursor:pointer;">
+    <label class="mr-2 cursor-pointer">
       <input type="checkbox" id="autorefresh" checked> Auto-refresh (5s)
     </label>
     <button class="btn btn-sm-cotta mr-1" onclick="loadLogs()">
@@ -42,14 +42,14 @@
     </button>
   </div>
 
-  <div class="table-responsive" style="max-height:calc(100vh - 320px);overflow-y:auto;">
-    <table class="table table-sm table-cotta log-table mb-0" style="font-size:0.72rem;">
+  <div class="table-responsive log-scroll">
+    <table class="table table-sm table-cotta log-table mb-0">
       <thead>
         <tr>
-          <th style="width:160px;position:sticky;top:0;background:#f8f9fa;z-index:1;">Timestamp</th>
-          <th style="width:55px;position:sticky;top:0;background:#f8f9fa;z-index:1;">Level</th>
-          <th style="width:80px;position:sticky;top:0;background:#f8f9fa;z-index:1;">Service</th>
-          <th style="position:sticky;top:0;background:#f8f9fa;z-index:1;">Message</th>
+          <th class="log-col-ts">Timestamp</th>
+          <th class="log-col-lvl">Level</th>
+          <th class="log-col-svc">Service</th>
+          <th>Message</th>
         </tr>
       </thead>
       <tbody id="logBody"></tbody>
