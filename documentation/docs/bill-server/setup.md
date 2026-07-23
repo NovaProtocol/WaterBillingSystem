@@ -50,6 +50,7 @@ Key points:
 | `CACHE_TYPE` | Flask-Cache backend (e.g., `SimpleCache`) |
 | `PYTHON_GIL` | Free-threading flag (`0`) |
 | `DEPLOYMENT_TYPE` | `PRODUCTION` |
+| `GATEKEEPER_INTERNAL` | Gatekeeper auth service URL (`http://gatekeeper:7000`) |
 
 **Optional:**
 
@@ -67,10 +68,12 @@ api:
   container_name: waterbillingsystem_api
   restart: unless-stopped
   networks:
+    - net-public
     - net-api
     - net-data
   volumes:
     - db_backups:/app/db_backups
+    - app_logs:/var/log/app
   environment:
     DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
     DB_ENGINE: ${DB_ENGINE}
@@ -86,6 +89,7 @@ api:
     XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
     CACHE_TYPE: ${CACHE_TYPE}
     PYTHON_GIL: ${PYTHON_GIL}
+    GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
   depends_on:
     mysql-db:
       condition: service_healthy
@@ -95,10 +99,11 @@ api:
 
 | Network | Type | Purpose |
 |---------|------|---------|
+| `net-public` | bridge | External-facing (Xendit DNS resolution) |
 | `net-api` | internal | API-to-portal communication |
 | `net-data` | internal | API-to-database communication |
 
-The API container is on two internal networks: `net-api` (for portal service consumption) and `net-data` (for MySQL access). It has no public network access.
+The API container is on three networks: `net-public` (for Xendit DNS resolution), `net-api` (for portal service consumption), and `net-data` (for MySQL access).
 
 ## App Factory
 

@@ -7,12 +7,12 @@
 | Service | Container | Internal Port | Caddy Route | Network |
 |---|---|---|---|---|
 | **Caddy Gateway** | `caddy-gateway` | 7020 / 7021 | — | public, private, cloudflared |
-| **Landing Page** | `landing-page` | 8001 | `/*` (port 7020) | net-public |
-| **Customer Portal** | `customer-portal` | 8002 | `/customer/*` (7020) | public, api |
-| **Staff Portal** | `staff-portal` | 8003 | `/staff/*` (7021) | private, api |
-| **Developer Portal** | `developer-portal` | 8004 | `/developer/*` (7021) | private, api |
-| **Documentation** | `documentation` | 8005 | `/documentation/*` (7021) | private |
-| **API Container** | `api` | 8008 | — | api, data |
+| **Landing Page** | `landing-page` | 8001 | `/*` (port 7020) | public, gk |
+| **Customer Portal** | `customer-portal` | 8002 | `/customer/*` (7020) | public, api, gk |
+| **Staff Portal** | `staff-portal` | 8003 | `/staff/*` (7021) | private, api, gk |
+| **Developer Portal** | `developer-portal` | 8004 | `/developer/*` (7021) | private, api, gk |
+| **Documentation** | `documentation` | 8005 | `/documentation/*` (7021) | private, gk |
+| **API Container** | `api` | 8008 | — | api, data, public |
 | **Webhook Container** | `webhook-container` | 8009 | `/webhook/*` (7020) | public, api |
 | **Background Worker** | `background-worker` | — | — | data |
 | **phpMyAdmin** | `phpmyadmin` | 80 | `/phpmyadmin/*` (7021) | private, data |
@@ -106,7 +106,7 @@ graph LR
 | [Architecture](architecture.md) | System architecture diagrams, network topology, data flow |
 | [BillServer API Reference](bill-server/api-reference.md) | Complete REST API endpoint documentation |
 | [Staff Portal](bill-server/staff-portal.md) | Staff portal routes, permissions, and workflows |
-| [Database Models](bill-server/models.md) | All 10 SQLAlchemy models |
+| [Database Models](bill-server/models.md) | All 11 SQLAlchemy models |
 | [MeterReadingApp Screens](meter-reading-app/screens.md) | All screens, components, and navigation flow |
 | [MeterReadingApp Sync](meter-reading-app/sync.md) | Offline sync architecture, polling, and conflict resolution |
 | [Docker Setup](docker/index.md) | Docker Compose deployment |
@@ -114,4 +114,4 @@ graph LR
 
 **Models**: Staff, Customer, MeterReading, Billing, ApiKey, NfcTag, ManagementLog, Config, PaymentMethod, XenditTransaction, BackgroundTask
 
-**Networks**: `net-public` (bridge), `net-private` (bridge), `net-api` (internal), `net-data` (internal), `cloudflared-tunnel` (external)
+**Networks**: `net-public` (bridge), `net-private` (bridge), `net-api` (internal), `net-data` (internal), `net-gk` (external), `cloudflared-tunnel` (external)

@@ -112,24 +112,25 @@ When an internal API key is provided (matching `INTERNAL_API_KEY` env var), perm
 
 | # | Method | Endpoint | Auth | Description |
 |---|--------|----------|------|-------------|
-| 37 | POST | `/api/debug/backup` | Internal | Queue database backup |
-| 38 | GET | `/api/debug/backups` | Internal | List available backups |
-| 39 | POST | `/api/debug/restore` | Internal | Queue backup restore |
-| 40 | GET | `/api/debug/restore-newest` | Internal | Restore from newest backup |
-| 41 | POST | `/api/debug/clear` | Internal | Queue database clear |
-| 42 | POST | `/api/debug/seed` | Internal | Queue test data seed |
-| 43 | POST | `/api/debug/read-month` | Internal | Queue read-this-month |
-| 44 | POST | `/api/debug/unread-month` | Internal | Queue unread-this-month |
-| 45 | POST | `/api/debug/pay-month` | Internal | Queue pay-this-month |
-| 46 | POST | `/api/debug/remove-pay-month` | Internal | Queue remove-payment-this-month |
-| 47 | GET | `/api/debug/tasks` | Internal | Task queue status |
-| 48 | GET | `/api/debug/tasks/{task_id}` | Internal | Single task details |
+| 37 | GET | `/api/debug/stats` | Internal | Database record counts across all tables |
+| 38 | POST | `/api/debug/backup` | Internal | Queue database backup |
+| 39 | GET | `/api/debug/backups` | Internal | List available backups |
+| 40 | POST | `/api/debug/restore` | Internal | Queue backup restore |
+| 41 | GET | `/api/debug/restore-newest` | Internal | Restore from newest backup |
+| 42 | POST | `/api/debug/clear` | Internal | Queue database clear |
+| 43 | POST | `/api/debug/seed` | Internal | Queue test data seed |
+| 44 | POST | `/api/debug/read-month` | Internal | Queue read-this-month |
+| 45 | POST | `/api/debug/unread-month` | Internal | Queue unread-this-month |
+| 46 | POST | `/api/debug/pay-month` | Internal | Queue pay-this-month |
+| 47 | POST | `/api/debug/remove-pay-month` | Internal | Queue remove-payment-this-month |
+| 48 | GET | `/api/debug/tasks` | Internal | Task queue status |
+| 49 | GET | `/api/debug/tasks/{task_id}` | Internal | Single task details |
 
 ### Webhook
 
 | # | Method | Endpoint | Auth | Description |
 |---|--------|----------|------|-------------|
-| 49 | POST | `/api/webhook/xendit-payment` | X-Callback-Token | Xendit payment callback |
+| 50 | POST | `/api/webhook/xendit-payment` | X-Callback-Token | Xendit payment callback |
 
 ---
 
@@ -947,9 +948,26 @@ Verify an API key is valid and active.
 
 ---
 
-### 37–48. Debug Endpoints
+### 37–49. Debug Endpoints
 
 All debug endpoints require superuser access (checking `/app/db_backups` directory existence). All destructive operations run via the background task queue.
+
+#### GET /api/debug/stats
+
+Returns record counts across all database tables.
+
+**Response 200**:
+```json
+{
+  "customers": 150, "customers_total": 160,
+  "readings": 4800, "billings": 4800,
+  "unpaid_bills": 150, "paid_bills": 4650,
+  "staff": 5, "api_keys": 3,
+  "nfc_tags": 150, "management_logs": 25,
+  "xendit_transactions": 10, "payment_methods": 6,
+  "background_tasks": 42
+}
+```
 
 #### POST /api/debug/backup
 Queue a database backup. Returns task ID.
@@ -1011,7 +1029,7 @@ Single task details, including params and result.
 
 ---
 
-### 49. POST /api/webhook/xendit-payment
+### 50. POST /api/webhook/xendit-payment
 
 Xendit payment callback. Registers as a separate blueprint (not under `api_bp` but at `/api/webhook/xendit-payment`).
 
