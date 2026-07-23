@@ -127,6 +127,9 @@ def edit_reading(reading_id: int, data: dict) -> dict:
     reading_value = data.get('reading_value', 0)
     return _post(f'/api/customer/{customer_number}/reading/edit', {'reading_id': reading_id, 'reading_value': reading_value})
 
+# NOTE: The route path param is /api/customer/<customer_number>/billing/drop,
+# but we pass billing_id because the handler ignores the path param and reads
+# billing_id from the request body. Functionally correct despite the mismatch.
 def undo_payment(billing_id: int, reason: str = '') -> dict:
     return _post(f'/api/customer/{billing_id}/billing/drop', {'billing_id': billing_id, 'reason': reason or 'Staff undo'})
 

@@ -29,10 +29,12 @@ $(function() {
       }
       if (data.last_reading) {
         $('#prevReading').text(data.last_reading.reading_value + ' m\u00B3');
+        $('#prevReader').text('Recorded by: ' + (data.last_reading.reader || 'Unknown'));
         var pd = new Date(data.last_reading.timestamp * 1000);
         $('#prevDate').text(pd.toLocaleDateString() + ' ' + pd.toLocaleTimeString());
       } else {
         $('#prevReading').text('—');
+        $('#prevReader').text('No previous reading');
         $('#prevDate').text('');
       }
 

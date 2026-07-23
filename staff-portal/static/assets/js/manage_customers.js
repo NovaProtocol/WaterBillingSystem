@@ -14,6 +14,7 @@ $(function() {
         $('#editCustStreet').val($btn.data('street'));
         $('#editCustX').val($btn.data('x'));
         $('#editCustY').val($btn.data('y'));
+        $('#editCustMeterSn').val($btn.data('meter-sn') || '');
 
         var nfcTagId = $btn.data('nfc-tag-id') || '';
         var hasNfc = nfcTagId.length > 0;
@@ -48,6 +49,7 @@ $(function() {
                 street: $('#editCustStreet').val().trim(),
                 x_coordinate: parseFloat($('#editCustX').val()) || null,
                 y_coordinate: parseFloat($('#editCustY').val()) || null,
+                meter_serial_number: $('#editCustMeterSn').val().trim(),
             }),
             success: function() { $('#editCustomerModal').modal('hide'); location.reload(); },
             error: handleAjaxError

@@ -6,11 +6,6 @@ $(function() {
     loadReadings(num);
   });
 
-  $('#staffFilter, #tokenFilter').on('change', function() {
-    var num = $('#customerSearch').val();
-    if (num) loadReadings(num);
-  });
-
   function renderReadingPage() {
     var tbody = $('#readingTableBody'); tbody.empty();
     var start = (readingPage - 1) * perPage;
@@ -46,13 +41,7 @@ $(function() {
   }
 
   function loadReadings(custNum) {
-    var params = [];
-    var staffId = $('#staffFilter').val();
-    var tokenId = $('#tokenFilter').val();
-    if (staffId) params.push('staff_id=' + staffId);
-    if (tokenId) params.push('token_id=' + tokenId);
-    var qs = params.length ? '?' + params.join('&') : '';
-    $.get(API_CUSTOMER_URL.replace('0', encodeURIComponent(custNum)) + qs, function(data) {
+    $.get(API_CUSTOMER_URL.replace('0', encodeURIComponent(custNum)), function(data) {
       if (data.error) { alert(data.error); return; }
       $('#mgmtCustNum').text(custNum);
       readingItems = (data.billing_items || data.readings || []).slice();
