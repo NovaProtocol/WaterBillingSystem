@@ -9,15 +9,15 @@ The system runs as 11+ Docker services defined in `compose.yaml` at the project 
 | Service | Container | Host Port | Internal Port | Network | Purpose |
 |---------|-----------|-----------|---------------|---------|---------|
 | `caddy-gateway` | waterbillingsystem_gateway | 7020, 7021 | 7020, 7021 | net-public, net-private, cloudflared-tunnel | Reverse proxy + routing |
-| `landing-page` | waterbillingsystem_landing | — | 8001 | net-public | Public marketing page |
-| `customer-portal` | waterbillingsystem_customerportal | — | 8002 | net-public, net-api | Customer bill lookup |
-| `staff-portal` | waterbillingsystem_staffportal | — | 8003 | net-private, net-api | Staff dashboard |
-| `developer-portal` | waterbillingsystem_devportal | — | 8004 | net-private, net-api | API documentation |
+| `landing-page` | waterbillingsystem_landing | — | 8001 | net-public, net-gk | Public marketing page |
+| `customer-portal` | waterbillingsystem_customerportal | — | 8002 | net-public, net-api, net-gk | Customer bill lookup |
+| `staff-portal` | waterbillingsystem_staffportal | — | 8003 | net-private, net-api, net-gk | Staff dashboard |
+| `developer-portal` | waterbillingsystem_devportal | — | 8004 | net-private, net-api, net-gk | API documentation |
 | `webhook-container` | waterbillingsystem_webhook | — | 8009 | net-public, net-api | Xendit callback proxy |
 | `api` | waterbillingsystem_api | — | 8008 | net-api, net-data, net-public | REST API |
 | `background-worker` | waterbillingsystem_worker | — | — | net-data | Task processor |
 | `phpmyadmin` | waterbillingsystem_phpmyadmin | — | 80 | net-private, net-data | DB admin UI |
-| `documentation` | waterbillingsystem_documentation | — | 8005 | net-private | MkDocs site |
+| `documentation` | waterbillingsystem_documentation | — | 8005 | net-private, net-gk | MkDocs site |
 | `mysql-db` | waterbillingsystem_db | — | 3306 | net-data | MySQL 8.4 |
 
 ### Caddy Gateway Routing
@@ -72,6 +72,15 @@ graph TB
         PMA
     end
 
+    subgraph "net-gk external"
+        LP
+        CP
+        SP
+        DP
+        DOC
+        GK[gatekeeper:7000]
+    end
+
     subgraph "cloudflared-tunnel external"
         C1
         C2
@@ -84,15 +93,15 @@ graph TB
 | Service | Required Env Vars |
 |---------|------------------|
 | `caddy-gateway` | `DEPLOYMENT_TYPE` |
-| `landing-page` | `SECRET_KEY`, `DEPLOYMENT_TYPE` |
-| `customer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE`, `DEBUG` |
-| `staff-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `CACHE_TYPE`, `DEPLOYMENT_TYPE` |
-| `developer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE` |
+| `landing-page` | `SECRET_KEY`, `DEPLOYMENT_TYPE`, `GATEKEEPER_INTERNAL` |
+| `customer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE`, `DEBUG`, `GATEKEEPER_INTERNAL` |
+| `staff-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `CACHE_TYPE`, `DEPLOYMENT_TYPE`, `GATEKEEPER_INTERNAL` |
+| `developer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE`, `GATEKEEPER_INTERNAL` |
 | `webhook-container` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE` |
 | `api` | `DB_*`, `SECRET_KEY`, `INTERNAL_API_KEY`, `NFC_PWD_SECRET`, `XENDIT_*`, `CACHE_TYPE`, `PYTHON_GIL`, `DEPLOYMENT_TYPE` |
 | `background-worker` | `DB_*`, `XENDIT_API_KEY`, `DEPLOYMENT_TYPE` |
 | `phpmyadmin` | `PMA_HOST`, `PMA_PORT` |
-| `documentation` | `SECRET_KEY`, `DEPLOYMENT_TYPE` |
+| `documentation` | `SECRET_KEY`, `DEPLOYMENT_TYPE`, `GATEKEEPER_INTERNAL` |
 | `mysql-db` | `DB_PASS` (as `MYSQL_ROOT_PASSWORD`), `DB_NAME` (as `MYSQL_DATABASE`) |
 
 ## Database
@@ -116,6 +125,7 @@ All backup/restore operations run via the background task queue.
 | Network | Type | Purpose |
 |---------|------|---------|
 | `cloudflared-tunnel` | external (`cloudflared-tunnel_default`) | Cloudflare tunnel for public access |
+| `net-gk` | external (`gatekeeper_default`) | Gatekeeper authentication service |
 
 ## Deployment Commands
 

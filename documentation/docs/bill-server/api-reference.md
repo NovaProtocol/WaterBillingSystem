@@ -169,6 +169,7 @@ All debug operations enqueue tasks via `BackgroundTask` DB table. The worker con
 
 | Method | Endpoint | Action |
 |--------|----------|--------|
+| GET | `/api/debug/stats` | Database record counts across all tables |
 | POST | `/api/debug/backup` | Queue DB backup |
 | GET | `/api/debug/backups` | List `.sql` backups |
 | POST | `/api/debug/restore` | Queue restore from file |

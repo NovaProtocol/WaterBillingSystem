@@ -28,6 +28,12 @@ graph TB
 
     subgraph "Infrastructure"
         CAD["Caddy Gateway<br/>:7020 :7021"]
+        GK["Gatekeeper<br/>:7000"]
+    end
+
+    subgraph "External"
+        MOB["MeterReadingApp<br/>React Native/Expo"]
+        XENDIT["Xendit<br/>Payment Gateway"]
     end
 
     CAD --> LAND
@@ -47,10 +53,11 @@ graph TB
     WORKER --> DB
     PMA --> DB
 
-    subgraph "External"
-        MOB["MeterReadingApp<br/>React Native/Expo"]
-        XENDIT["Xendit<br/>Payment Gateway"]
-    end
+    LAND -->|"auth"| GK
+    CP -->|"auth"| GK
+    SP -->|"auth"| GK
+    DP -->|"auth"| GK
+    DOC -->|"auth"| GK
 
     MOB -->|"Bearer Auth<br/>/api/*"| CAD
     XENDIT -->|"webhook"| CAD
@@ -66,6 +73,7 @@ graph TB
         LAND[landing-page :8001]
         CP[customer-portal :8002]
         WH[webhook-container :8009]
+        API[api :8008]
     end
 
     subgraph "net-private (bridge)"
@@ -76,12 +84,20 @@ graph TB
     end
 
     subgraph "net-api (internal)"
-        API[api :8008]
+        CP
+        SP
+        DP
+        WH
+        API
     end
 
     subgraph "net-data (internal)"
         DB[(mysql-db :3306)]
         WORKER[background-worker]
+    end
+
+    subgraph "net-gk (external)"
+        GK[gatekeeper :7000]
     end
 
     subgraph "cloudflared-tunnel (external)"
@@ -91,6 +107,12 @@ graph TB
     CAD[caddy-gateway] --> net-public
     CAD --> net-private
     CAD --> cloudflared-tunnel
+
+    LAND --> net-gk
+    CP --> net-gk
+    SP --> net-gk
+    DP --> net-gk
+    DOC --> net-gk
 
     CP --> net-api
     SP --> net-api
@@ -206,12 +228,13 @@ Progressive tier calculation: consumption is applied to each tier bracket sequen
 ## API Authentication Methods
 
 | Method | Header / Parameter | Used By |
-|---|---|---|
+|---|---|---|---|
 | **Bearer Token** | `Authorization: Bearer CRDC-<32hex>` | MeterReadingApp sync, mobile API calls |
 | **Query Parameter** | `?api_key=CRDC-<32hex>` | Browser fallback for API key auth |
 | **Internal API Key** | `X-Internal-API-Key` header | Container-to-container API calls |
 | **Flask-Login Session** | Cookie-based | Staff portal pages |
 | **Billing Cookie** | Signed cookie (receipt + name) | Customer billing portal `/billing/*` |
+| **Gatekeeper JWT** | Cookie-based JWT via gatekeeper | Landing page, portals, documentation |
 
 ---
 

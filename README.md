@@ -1,40 +1,35 @@
 # Cotta Realty Water Billing System
 
-A water billing management system for Cotta Realty & Development Corporation. Three components work together:
+A water billing management system for Cotta Realty & Development Corporation. 11 Docker containers behind a Caddy reverse proxy gateway.
 
-| Component | What it does | Stack |
-|-----------|-------------|-------|
-| [BillServer](./BillServer/) | Web server — staff portal, customer billing, REST API | Flask 3.1 + MySQL + Gunicorn |
-| [MeterReadingApp](./MeterReadingApp/) | Mobile app for field meter readers | React Native / Expo |
-| [Docker](./Docker/) | Full deployment — MySQL, BillServer, phpMyAdmin, docs | Docker Compose |
+**Stack:** Python 3.14 free-threaded, Flask 3.1, SQLAlchemy 2.0, MySQL 8.4  
+**Mobile:** React Native / Expo MeterReadingApp for field staff  
+**Docs:** MkDocs documentation site at `documentation/`
 
-## Quick Start (Development)
-
-```bash
-# 1. Start MySQL
-cd Docker && docker compose -f MySQL-compose.yml up -d
-
-# 2. Start BillServer
-cd BillServer && ./launch.sh DEBUG
-
-# 3. (Optional) Start mobile app
-cd MeterReadingApp && npx expo start
-```
-
-## Deploy (Production)
+## Quick Start
 
 ```bash
 git clone https://github.com/NovaProtocol/WaterBillingSystem.git
-cd WaterBillingSystem/Docker
+cd WaterBillingSystem
+
+cp .env.example .env
+# Edit .env with your settings
+
 docker compose up -d --build
 ```
 
+## Port Overview
+
 | Service | URL |
 |---------|-----|
-| BillServer | `http://host:7000` |
-| Documentation | `http://host:7001` |
-| phpMyAdmin | `http://host:7002` |
+| Landing Page | `http://host:7020` |
+| Customer Portal | `http://host:7020/customer/` |
+| Staff Portal | `http://host:7021/staff/` |
+| Documentation | `http://host:7021/documentation/` |
+| phpMyAdmin | `http://host:7021/phpmyadmin/` |
 
-Update: `git pull && docker compose restart billserver docs`
+## Development
 
-Full docs at [documentation/](./documentation/).
+Use `docker compose up -d --build` for the full stack. No need to run individual services manually.
+
+Full documentation at `documentation/`.
