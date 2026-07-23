@@ -146,12 +146,12 @@
 <script>
 function toggleGroup(header) {
     var body = $(header).next('.payment-group-body');
-    var isOpening = !body.is(':visible');
-    $('.payment-group-body').slideUp(150);
+    var isOpening = body.hasClass('d-none');
+    $('.payment-group-body').addClass('d-none').css('display', '');
     $('.payment-group-header').removeClass('expanded');
     $('.payment-group-icon').removeClass('fa-chevron-up').addClass('fa-chevron-down');
     if (isOpening) {
-        body.slideDown(150);
+        body.removeClass('d-none');
         $(header).addClass('expanded');
         $(header).find('.payment-group-icon').removeClass('fa-chevron-down').addClass('fa-chevron-up');
     }
@@ -228,12 +228,14 @@ function resetModal() {
     $('#fee-breakdown').hide();
     $('.payment-option').removeClass('selected');
     $('.payment-group-body').each(function() {
-        var isExpanded = ['E-Wallets', 'Cards'].includes($(this).closest('.payment-group').find('.payment-group-header span').text().trim());
-        if (!isExpanded) $(this).hide();
-        if (isExpanded) $(this).show();
+        var name = $(this).closest('.payment-group').find('.payment-group-name').text().trim();
+        var isExpanded = name === 'Recommended';
+        if (!isExpanded) $(this).addClass('d-none').css('display', '');
+        if (isExpanded) $(this).removeClass('d-none').css('display', '');
     });
-    $('.payment-group-header i').each(function() {
-        var isExpanded = ['E-Wallets', 'Cards'].includes($(this).closest('.payment-group').find('.payment-group-header span').text().trim());
+    $('.payment-group-icon').each(function() {
+        var name = $(this).closest('.payment-group').find('.payment-group-name').text().trim();
+        var isExpanded = name === 'Recommended';
         $(this).toggleClass('fa-chevron-down', !isExpanded);
         $(this).toggleClass('fa-chevron-up', isExpanded);
     });
