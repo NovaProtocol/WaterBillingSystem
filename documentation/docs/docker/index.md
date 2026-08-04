@@ -70,7 +70,7 @@ Serves the pre-built MkDocs static site via Flask + gunicorn.
 | Command | `gunicorn --bind 0.0.0.0:8005 --worker-class gthread --workers 1 --threads 4 --access-logfile - app:create_app()` |
 | Serving | Flask (not `mkdocs serve`) — pre-built HTML in `site/` directory |
 
-Networks: `net-private` (Caddy gateway access). Auth is handled by the Caddy forward-auth gate, not the app.
+Networks: `net-private` (Caddy gateway access). Auth is handled by the Caddy forward-auth gate, not the app. Unknown paths render the themed `/404` page (public, served by the landing page).
 
 Requires `SECRET_KEY`, `DEPLOYMENT_TYPE` env vars.
 

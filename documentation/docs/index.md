@@ -18,7 +18,9 @@
 | **phpMyAdmin** | `phpmyadmin` | 80 | `/phpmyadmin/*` (7021) | private, data |
 | **MySQL 8.4** | `mysql-db` | 3306 | — | net-data |
 
-Port **7020** is public-facing; port **7021** is private.
+Port **7020** is public-facing; port **7021** is private. All routes go
+through the Caddy `forward_auth` gate (GateKeeper) except `/webhook/*`,
+`/health`, and the themed public `/404` page served by the landing page.
 
 ## Architecture Diagram
 

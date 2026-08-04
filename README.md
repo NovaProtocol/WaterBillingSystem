@@ -6,6 +6,12 @@ A water billing management system for Cotta Realty & Development Corporation. 11
 **Mobile:** React Native / Expo MeterReadingApp for field staff  
 **Docs:** MkDocs documentation site at `documentation/`
 
+## Auth
+
+All routes pass through a GateKeeper `forward_auth` gate on the Caddy gateway
+(see `caddy-gateway/Caddyfile`), except `/webhook/*` (Xendit callback),
+`/health`, and the themed public `/404` page. No auth logic lives in the apps.
+
 ## Quick Start
 
 ```bash
