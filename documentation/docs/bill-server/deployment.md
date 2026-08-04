@@ -73,11 +73,7 @@ graph TB
     end
 
     subgraph "net-gk external"
-        LP
-        CP
-        SP
-        DP
-        DOC
+        CG[caddy-gateway]
         GK[gatekeeper:7000]
     end
 
@@ -93,15 +89,15 @@ graph TB
 | Service | Required Env Vars |
 |---------|------------------|
 | `caddy-gateway` | `DEPLOYMENT_TYPE` |
-| `landing-page` | `SECRET_KEY`, `DEPLOYMENT_TYPE`, `GATEKEEPER_INTERNAL` |
-| `customer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE`, `DEBUG`, `GATEKEEPER_INTERNAL` |
-| `staff-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `CACHE_TYPE`, `DEPLOYMENT_TYPE`, `GATEKEEPER_INTERNAL` |
-| `developer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE`, `GATEKEEPER_INTERNAL` |
+| `landing-page` | `SECRET_KEY`, `DEPLOYMENT_TYPE` |
+| `customer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE`, `DEBUG` |
+| `staff-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `CACHE_TYPE`, `DEPLOYMENT_TYPE` |
+| `developer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE` |
 | `webhook-container` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE` |
 | `api` | `DB_*`, `SECRET_KEY`, `INTERNAL_API_KEY`, `NFC_PWD_SECRET`, `XENDIT_*`, `CACHE_TYPE`, `PYTHON_GIL`, `DEPLOYMENT_TYPE` |
 | `background-worker` | `DB_*`, `XENDIT_API_KEY`, `DEPLOYMENT_TYPE` |
 | `phpmyadmin` | `PMA_HOST`, `PMA_PORT` |
-| `documentation` | `SECRET_KEY`, `DEPLOYMENT_TYPE`, `GATEKEEPER_INTERNAL` |
+| `documentation` | `SECRET_KEY`, `DEPLOYMENT_TYPE` |
 | `mysql-db` | `DB_PASS` (as `MYSQL_ROOT_PASSWORD`), `DB_NAME` (as `MYSQL_DATABASE`) |
 
 ## Database
@@ -125,7 +121,7 @@ All backup/restore operations run via the background task queue.
 | Network | Type | Purpose |
 |---------|------|---------|
 | `cloudflared-tunnel` | external (`cloudflared-tunnel_default`) | Cloudflare tunnel for public access |
-| `net-gk` | external (`gatekeeper_default`) | Gatekeeper authentication service |
+| `net-gk` | external (`gatekeeper_default`) | GateKeeper forward-auth service (caddy-gateway only) |
 
 ## Deployment Commands
 

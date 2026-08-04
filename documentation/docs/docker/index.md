@@ -70,9 +70,9 @@ Serves the pre-built MkDocs static site via Flask + gunicorn.
 | Command | `gunicorn --bind 0.0.0.0:8005 --worker-class gthread --workers 1 --threads 4 --access-logfile - app:create_app()` |
 | Serving | Flask (not `mkdocs serve`) — pre-built HTML in `site/` directory |
 
-Networks: `net-private` (Caddy gateway access), `net-gk` (gatekeeper auth).
+Networks: `net-private` (Caddy gateway access). Auth is handled by the Caddy forward-auth gate, not the app.
 
-Requires `SECRET_KEY`, `DEPLOYMENT_TYPE` and `GATEKEEPER_INTERNAL` env vars.
+Requires `SECRET_KEY`, `DEPLOYMENT_TYPE` env vars.
 
 Caddy uses `handle_path /documentation/*` to strip the `/documentation` prefix before proxying.
 
@@ -87,11 +87,9 @@ documentation:
     - app_logs:/var/log/app
   networks:
     - net-private
-    - net-gk
   environment:
     DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
     SECRET_KEY: ${SECRET_KEY}
-    GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
 ```
 
 ## Background Worker
@@ -153,7 +151,7 @@ background-worker:
 | `net-private` | bridge | External | caddy-gateway, staff-portal, developer-portal, phpmyadmin, documentation |
 | `net-api` | internal | Internal only | api, customer-portal, staff-portal, developer-portal, webhook-container |
 | `net-data` | internal | Internal only | api, background-worker, mysql-db, phpmyadmin |
-| `net-gk` | external | Gatekeeper | landing-page, customer-portal, staff-portal, developer-portal, documentation |
+| `net-gk` | external | Gatekeeper forward-auth | caddy-gateway |
 | `cloudflared-tunnel` | external | Cloudflare | caddy-gateway |
 
 - **`net-api`** (internal): Portal containers communicate with the API container. No external access.
@@ -170,7 +168,7 @@ These must exist before `docker compose up`:
 # Cloudflare tunnel network (optional, for production)
 docker network create cloudflared-tunnel_default
 
-# Gatekeeper network (required for auth)
+# Gatekeeper network (required for the Caddy forward-auth gate)
 docker network create gatekeeper_default
 ```
 

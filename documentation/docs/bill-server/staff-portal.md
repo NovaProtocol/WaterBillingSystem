@@ -143,4 +143,3 @@ CMD ["gunicorn", "--bind", "0.0.0.0:8003", "--worker-class", "gthread", \
 | `API_BASE_URL` | API container URL (`http://api:8008`) |
 | `CACHE_TYPE` | Flask-Cache backend (used for rate limiting) |
 | `DEPLOYMENT_TYPE` | `PRODUCTION` |
-| `GATEKEEPER_INTERNAL` | Gatekeeper auth service URL (`http://gatekeeper:7000`) |
