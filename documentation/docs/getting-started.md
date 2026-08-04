@@ -51,9 +51,11 @@ This builds and starts all 11 containers. First-time build takes several minutes
 
 | URL | Service |
 |---|---|
-| `http://localhost:7020/` | Landing page (house models) |
-| `http://localhost:7020/customer/` | Customer portal (bill lookup) |
-| `http://localhost:7020/webhook/` | Xendit webhook proxy |
+| `http://localhost:7020/` | Landing page (house models) — gate-protected |
+| `http://localhost:7020/customer/` | Customer portal (bill lookup) — gate-protected |
+| `http://localhost:7020/webhook/` | Xendit webhook proxy (public callback) |
+| `http://localhost:7020/health` | Health check (public) |
+| `http://localhost:7020/404` | Themed 404 page (public) |
 
 ### Private Routes (port 7021)
 

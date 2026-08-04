@@ -22,20 +22,28 @@ The system runs as 11+ Docker services defined in `compose.yaml` at the project 
 
 ### Caddy Gateway Routing
 
+Every route passes through the GateKeeper `forward_auth` gate first, except
+`/webhook/*`, `/health`, and `/404` (public by design). The `/404` page is a
+themed page served by `landing-page:8001` for any unknown path.
+
 **Public port 7020** (external-facing):
-| Path | Target |
-|------|--------|
-| `/webhook/*` | `webhook-container:8009` |
-| `/customer/*` | `customer-portal:8002` |
-| `/` (catch-all) | `landing-page:8001` |
+| Path | Target | Gate |
+|------|--------|------|
+| `/health` | `landing-page:8001` | bypass |
+| `/404` | `landing-page:8001` | bypass |
+| `/webhook/*` | `webhook-container:8009` | bypass (Xendit callback) |
+| `/customer/*` | `customer-portal:8002` | `forward_auth` |
+| `/static/*` | `landing-page:8001` | `forward_auth` |
+| `/` (catch-all) | `landing-page:8001` | `forward_auth` |
 
 **Private port 7021** (internal/admin):
-| Path | Target |
-|------|--------|
-| `/staff/*` | `staff-portal:8003` |
-| `/developer/*` | `developer-portal:8004` |
-| `/documentation/*` | `documentation:8005` |
-| `/phpmyadmin/*` | `phpmyadmin:80` |
+| Path | Target | Gate |
+|------|--------|------|
+| `/staff/*` | `staff-portal:8003` | `forward_auth` |
+| `/developer/*` | `developer-portal:8004` | `forward_auth` |
+| `/documentation/*` | `documentation:8005` | `forward_auth` |
+| `/phpmyadmin/*` | `phpmyadmin:80` | `forward_auth` |
+| `/static/*` | `landing-page:8001` | `forward_auth` |
 
 ### Network Topology
 
