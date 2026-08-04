@@ -11,23 +11,18 @@ def require_env(*names):
 def create_app():
     require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'DEPLOYMENT_TYPE')
 
-    app = Flask(__name__, template_folder='templates', static_url_path='/customer/static')
+    from shared.config import shared_static_dir, shared_templates_dir
+    from jinja2 import ChoiceLoader, FileSystemLoader
+    app = Flask(__name__, template_folder='templates', static_folder=shared_static_dir(), static_url_path='/static')
+    app.jinja_loader = ChoiceLoader([
+        FileSystemLoader(app.template_folder),
+        FileSystemLoader(shared_templates_dir()),
+    ])
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
-    from routes import customer_bp
-    app.register_blueprint(customer_bp)
-
-    @app.template_filter('timestamp_to_date')
-    def timestamp_to_date(ts):
-        if ts is None:
-            return ''
-        from datetime import datetime
-        if isinstance(ts, (int, float)):
-            return datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M')
-        s = str(ts).replace('T', ' ')[:19]
-        try:
-            return datetime.strptime(s, '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%d %H:%M')
-        except ValueError:
-            return s
+    from pages import pages_bp
+    from api_routes import api_bp
+    app.register_blueprint(pages_bp)
+    app.register_blueprint(api_bp)
 
     @app.route('/health')
     def health():

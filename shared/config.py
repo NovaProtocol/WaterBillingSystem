@@ -65,6 +65,40 @@ class Config(object):
             sys.exit(1)
 
 
+def shared_static_dir() -> str:
+    """Resolve the shared static bucket (served at /static/*).
+
+    Order: SHARED_STATIC_DIR env -> container layout (/app/shared/static)
+    -> repo layout (shared/static next to this file).
+    """
+    candidates = [
+        os.environ.get("SHARED_STATIC_DIR", ""),
+        "/app/shared/static",
+        str(Path(__file__).resolve().parent / "static"),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.isdir(candidate):
+            return candidate
+    return candidates[-1]
+
+
+def shared_templates_dir() -> str:
+    """Resolve the shared template bucket (common base shell, etc.).
+
+    Order: SHARED_TEMPLATES_DIR env -> container layout (/app/shared/templates)
+    -> repo layout (shared/templates next to this file).
+    """
+    candidates = [
+        os.environ.get("SHARED_TEMPLATES_DIR", ""),
+        "/app/shared/templates",
+        str(Path(__file__).resolve().parent / "templates"),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.isdir(candidate):
+            return candidate
+    return candidates[-1]
+
+
 class ProductionConfig(Config):
     DEBUG: ClassVar[bool] = False
 

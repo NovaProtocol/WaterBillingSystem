@@ -128,6 +128,7 @@ services:
       XENDIT_API_KEY: ${XENDIT_API_KEY}
       XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
       CACHE_TYPE: ${CACHE_TYPE}
+      GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:-}
       PYTHON_GIL: ${PYTHON_GIL}
     depends_on:
       mysql-db:
@@ -167,9 +168,12 @@ services:
       - net-private
       - net-data
     environment:
-      PMA_HOST: ${PMA_HOST}
-      PMA_PORT: ${PMA_PORT}
+      PMA_CONFIG_BASE64: ${PMA_CONFIG_BASE64:-}
+      PMA_HOST: ${PMA_HOST:-mysql-db}
+      PMA_PORT: ${PMA_PORT:-3306}
       PMA_ARBITRARY: ${PMA_ARBITRARY:-0}
+      GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:-}
+      DB_NAME: ${DB_NAME:-BillServerDB}
       UPLOAD_LIMIT: ${UPLOAD_LIMIT}
     depends_on:
       mysql-db:

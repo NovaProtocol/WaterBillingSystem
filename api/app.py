@@ -44,7 +44,8 @@ def create_app():
     app.register_blueprint(webhook_bp)
 
     with app.app_context():
-        db.create_all()
+        from apps import create_all
+        create_all()
         try:
             from migrate import run_migrations
             run_migrations()
@@ -56,6 +57,12 @@ def create_app():
             ensure_prereq_staff()
         except Exception as e:
             logger.error(f"Staff seeder failed: {e}")
+
+        try:
+            from services.guest_seeder import ensure_guest_user
+            ensure_guest_user()
+        except Exception as e:
+            logger.error(f"Guest seeder failed: {e}")
 
         try:
             from fee_service import seed_payment_methods

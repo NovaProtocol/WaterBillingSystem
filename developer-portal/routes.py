@@ -1,18 +1,14 @@
 import logging
 logger = logging.getLogger('developer-portal')
-import os, random, re
+import random
 from functools import wraps
 from typing import Any, Callable
 
-import requests as http_requests
-from flask import Response, jsonify, render_template, request, session, redirect, url_for
+from flask import jsonify, render_template, request, session, redirect, url_for
 from flask_login import current_user
-from werkzeug.datastructures import Headers
 
 import api_client
 from __init__ import dev_bp
-
-_PMA_PREFIX = '/developer/phpmyadmin'
 
 
 def superuser_required(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -42,57 +38,7 @@ def _generate_and_store_code() -> str:
 @dev_bp.route('/phpmyadmin/', methods=['GET', 'POST'])
 @dev_bp.route('/phpmyadmin/<path:rest>', methods=['GET', 'POST'])
 def phpmyadmin(rest=''):
-    staff = session.get('staff_data')
-    if not staff or staff.get('username') != 'superuser':
-        return jsonify({"error": "Superuser only"}), 403
-
-    pma_host = os.environ.get('PMA_HOST', 'phpmyadmin')
-    target = f'http://{pma_host}:80/{rest}'
-    if request.query_string:
-        target += f'?{request.query_string.decode()}'
-
-    headers = {k: v for k, v in request.headers
-               if k.lower() not in ('host', 'content-length', 'transfer-encoding')}
-
-    headers['X-Forwarded-Proto'] = 'https'
-    headers['X-Forwarded-Scheme'] = 'https'
-
-    try:
-        resp = http_requests.request(
-            method=request.method,
-            url=target,
-            headers=headers,
-            data=request.get_data(),
-            cookies=request.cookies,
-            timeout=60,
-        )
-
-        response_headers = Headers()
-        for key, value in resp.raw.headers.items():
-            kl = key.lower()
-            if kl in ('content-encoding', 'transfer-encoding', 'content-length'):
-                continue
-
-            if kl == 'location' and value.startswith('/') and not value.startswith(_PMA_PREFIX):
-                value = _PMA_PREFIX + value
-
-            if kl == 'set-cookie':
-                value = re.sub(
-                    r'\bpath\s*=\s*/',
-                    f'path={_PMA_PREFIX}/',
-                    value,
-                    flags=re.IGNORECASE,
-                )
-
-            response_headers.add(key, value)
-
-        return Response(resp.content, resp.status_code, response_headers)
-    except http_requests.exceptions.ConnectionError as e:
-        logger.exception(f"Cannot reach phpMyAdmin: {e}")
-        return jsonify({"error": f"Cannot reach phpMyAdmin: {e}"}), 502
-    except Exception as e:
-        logger.exception(f"phpMyAdmin proxy error: {e}")
-        return jsonify({"error": f"Proxy error: {str(e)}"}), 502
+    return redirect('/phpmyadmin/')
 
 
 # --- Page routes ---

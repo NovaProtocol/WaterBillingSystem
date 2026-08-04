@@ -64,33 +64,35 @@
 
 <script>
     var customerData = null;
+    var lastReceipt = '';
 
     function doLookup() {
         var num = $('#lookup-customer-number').val().trim();
         var receipt = $('#lookup-receipt-number').val().trim();
+        lastReceipt = receipt;
         if (!num) { alert('Please enter a customer number.'); return; }
         {% if not config.get('DEBUG_ENABLED') %}
         if (!receipt) { alert('Please enter your last receipt number for verification.'); return; }
         {% endif %}
         $.ajax({
-            url: '{{ "/customer/" }}',
+            url: '{{ "/customer/api/verify" }}',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ customer_number: num, last_receipt: receipt }),
+            data: JSON.stringify({ account_number: num, last_receipt: receipt }),
             success: function(data) {
-                customerData = data;
-                $('#confirm-customer-number').text(data.customer_number);
-                $('#confirm-name').text(data.name || '-');
-                $('#confirm-address').text(data.address || '-');
+                customerData = data.customer;
+                $('#confirm-customer-number').text(data.customer.customer_number);
+                $('#confirm-name').text(data.customer.name || '-');
+                $('#confirm-address').text(data.customer.address || '-');
                 $('#modal-lookup').hide();
                 $('#modal-confirm').show();
-                if (data.x_coordinate && data.y_coordinate) {
+                if (data.customer.x_coordinate && data.customer.y_coordinate) {
                     setTimeout(function() {
                         var el = document.getElementById('confirm-map');
                         if (el) {
-                            var map = L.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, keyboard: false }).setView([data.x_coordinate, data.y_coordinate], 15);
+                            var map = L.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, keyboard: false }).setView([data.customer.x_coordinate, data.customer.y_coordinate], 15);
                             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-                            L.marker([data.x_coordinate, data.y_coordinate]).addTo(map);
+                            L.marker([data.customer.x_coordinate, data.customer.y_coordinate]).addTo(map);
                         }
                     }, 400);
                 }
@@ -116,13 +118,13 @@
     $('#confirm-btn').on('click', function() {
         if (!customerData) return;
         $.ajax({
-            url: '{{ "/customer/" }}',
+            url: '{{ "/customer/api/login" }}',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ customer_number: customerData.customer_number }),
+            data: JSON.stringify({ account_number: customerData.customer_number, last_receipt: lastReceipt }),
             success: function(data) {
                 $('#customerModal').modal('hide');
-                window.location.href = data.redirect;
+                window.location.href = data.redirect || '/customer/';
             },
             error: function() {
                 alert('Failed to confirm. Please try again.');

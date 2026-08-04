@@ -1,0 +1,26 @@
+{% extends "customer/base.html" %}
+
+{% block title %}Report an Issue{% endblock %}
+
+{% block content %}
+<div class="portal-coming-soon">
+    <div class="card">
+        <div class="card-body text-center p-5">
+            <div class="icon-wrap"><i class="fas fa-flag"></i></div>
+            <h4 class="font-weight-bold">Report an Issue</h4>
+            <p class="text-muted mb-1">
+                Report billing discrepancies, meter problems, or other concerns.
+            </p>
+            <p class="text-muted mb-4">
+                This feature is coming soon. Please contact the office for urgent concerns.
+            </p>
+            <a href="tel:+639123963436" class="btn btn-cotta mr-2">
+                <i class="fas fa-phone mr-1"></i>+639123963436
+            </a>
+            <a href="/customer/" class="btn btn-outline-bill">
+                <i class="fas fa-arrow-left mr-1"></i>Back to Billing
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

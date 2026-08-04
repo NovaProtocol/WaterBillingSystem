@@ -11,6 +11,18 @@
     </div>
 </section>
 
+<section class="bg-white">
+    <div class="container">
+        <div class="offerings-filter d-flex flex-wrap align-items-center justify-content-center mb-4">
+            <span class="offerings-filter-label mr-3">Available in:</span>
+            <button type="button" class="btn btn-sm offerings-filter-btn active" data-filter="all">All</button>
+            <button type="button" class="btn btn-sm offerings-filter-btn" data-filter="lucena">Lucena City</button>
+            <button type="button" class="btn btn-sm offerings-filter-btn" data-filter="sariaya">Sariaya</button>
+            <button type="button" class="btn btn-sm offerings-filter-btn" data-filter="both">Both Villages</button>
+        </div>
+    </div>
+</section>
+
 {% include "landing/_homes.html" %}
 
 <section class="bill-cta">
@@ -23,4 +35,37 @@
     </div>
 </section>
 
+{% endblock %}
+
+{% block scripts_extra %}
+{{ super() }}
+<script>
+(function () {
+    var buttons = document.querySelectorAll('.offerings-filter-btn');
+
+    function normalize(loc) {
+        return loc.trim().toLowerCase().replace(/[^a-z]/g, '');
+    }
+
+    buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            buttons.forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            var filter = btn.getAttribute('data-filter');
+            document.querySelectorAll('#offerings [data-loc]').forEach(function (card) {
+                var locs = (card.getAttribute('data-loc') || '').split(' ').map(normalize);
+                var show;
+                if (filter === 'all') {
+                    show = true;
+                } else if (filter === 'both') {
+                    show = locs.indexOf('lucena') !== -1 && locs.indexOf('sariaya') !== -1;
+                } else {
+                    show = locs.indexOf(filter) !== -1;
+                }
+                card.style.display = show ? '' : 'none';
+            });
+        });
+    });
+})();
+</script>
 {% endblock %}
