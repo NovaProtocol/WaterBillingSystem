@@ -29,7 +29,6 @@ Edit `.env` with your preferred editor. Key variables:
 | `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASS` | — | MySQL connection |
 | `INTERNAL_API_KEY` | — | API-to-API auth between containers |
 | `API_BASE_URL` | `http://api:8008` | Internal API endpoint |
-| `GATEKEEPER_INTERNAL` | `http://gatekeeper:7000` | Gatekeeper auth service URL |
 | `XENDIT_API_KEY` | — | Xendit payment gateway API key |
 | `XENDIT_WEBHOOK_TOKEN` | — | Xendit webhook verification token |
 | `CACHE_TYPE` | `FileSystemCache` | Cache backend for portal services |

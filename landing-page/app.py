@@ -1,5 +1,5 @@
 import os, sys
-from flask import Flask, request
+from flask import Flask, render_template, request
 from shared.logger import attach_sqlite_logging
 
 def require_env(*names):
@@ -9,7 +9,7 @@ def require_env(*names):
             sys.exit(1)
 
 def create_app():
-    require_env('SECRET_KEY', 'GATEKEEPER_INTERNAL', 'DEPLOYMENT_TYPE')
+    require_env('SECRET_KEY', 'DEPLOYMENT_TYPE')
 
     app = Flask(__name__, template_folder='templates', static_folder='static', static_url_path='/static')
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-not-secure')
@@ -21,8 +21,13 @@ def create_app():
     def health():
         return {'status': 'ok'}
 
-    from shared.gatekeeper import gatekeeper_check
-    app.before_request(gatekeeper_check)
+    @app.route('/404')
+    def not_found_page():
+        return render_template('landing/404.html'), 404
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template('landing/404.html'), 404
 
     attach_sqlite_logging('landing-page')
 

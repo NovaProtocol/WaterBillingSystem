@@ -11,7 +11,7 @@ def require_env(*names):
             sys.exit(1)
 
 def create_app():
-    require_env('SECRET_KEY', 'DEPLOYMENT_TYPE', 'GATEKEEPER_INTERNAL')
+    require_env('SECRET_KEY', 'DEPLOYMENT_TYPE')
 
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
@@ -35,14 +35,6 @@ def create_app():
                 return send_file(full)
 
         abort(404)
-
-    from shared.gatekeeper import gatekeeper_check
-
-    @app.before_request
-    def docs_gatekeeper():
-        if request.path.startswith('/assets/'):
-            return
-        return gatekeeper_check()
 
     attach_sqlite_logging('documentation')
 

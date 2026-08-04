@@ -29,5 +29,4 @@ export FLASK_APP=app.py
 export FLASK_DEBUG=1
 export SECRET_KEY="${SECRET_KEY:-dev-secret-key}"
 export DEPLOYMENT_TYPE="${DEPLOYMENT_TYPE:-DEBUG}"
-export GATEKEEPER_INTERNAL="${GATEKEEPER_INTERNAL:-http://localhost:7000}"
 flask run --host 0.0.0.0 --port 8005

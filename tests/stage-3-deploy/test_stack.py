@@ -24,7 +24,7 @@ class TestPublicEndpoints:
 
 class TestPrivateEndpoints:
     def test_staff_login(self, private):
-        """Unauthenticated request redirects to GateKeeper"""
+        """Unauthenticated request is redirected by the Caddy forward-auth gate"""
         try:
             r = urllib.request.urlopen(f'{private}/staff/login')
             assert r.status == 200

@@ -50,7 +50,6 @@ Key points:
 | `CACHE_TYPE` | Flask-Cache backend (e.g., `SimpleCache`) |
 | `PYTHON_GIL` | Free-threading flag (`0`) |
 | `DEPLOYMENT_TYPE` | `PRODUCTION` |
-| `GATEKEEPER_INTERNAL` | Gatekeeper auth service URL (`http://gatekeeper:7000`) |
 
 **Optional:**
 
@@ -89,7 +88,6 @@ api:
     XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
     CACHE_TYPE: ${CACHE_TYPE}
     PYTHON_GIL: ${PYTHON_GIL}
-    GATEKEEPER_INTERNAL: ${GATEKEEPER_INTERNAL}
   depends_on:
     mysql-db:
       condition: service_healthy

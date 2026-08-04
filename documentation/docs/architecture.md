@@ -53,11 +53,7 @@ graph TB
     WORKER --> DB
     PMA --> DB
 
-    LAND -->|"auth"| GK
-    CP -->|"auth"| GK
-    SP -->|"auth"| GK
-    DP -->|"auth"| GK
-    DOC -->|"auth"| GK
+    CAD -->|"forward_auth"| GK
 
     MOB -->|"Bearer Auth<br/>/api/*"| CAD
     XENDIT -->|"webhook"| CAD
@@ -106,13 +102,8 @@ graph TB
 
     CAD[caddy-gateway] --> net-public
     CAD --> net-private
+    CAD --> net-gk
     CAD --> cloudflared-tunnel
-
-    LAND --> net-gk
-    CP --> net-gk
-    SP --> net-gk
-    DP --> net-gk
-    DOC --> net-gk
 
     CP --> net-api
     SP --> net-api
@@ -234,7 +225,7 @@ Progressive tier calculation: consumption is applied to each tier bracket sequen
 | **Internal API Key** | `X-Internal-API-Key` header | Container-to-container API calls |
 | **Flask-Login Session** | Cookie-based | Staff portal pages |
 | **Billing Cookie** | Signed cookie (receipt + name) | Customer billing portal `/billing/*` |
-| **Gatekeeper JWT** | Cookie-based JWT via gatekeeper | Landing page, portals, documentation |
+| **GateKeeper forward-auth** | `gatekeeper_token` cookie or `?access_code=` checked by the Caddy gate | All web surfaces (landing, portals, documentation, phpMyAdmin) |
 
 ---
 
