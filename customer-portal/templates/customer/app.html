@@ -1,0 +1,210 @@
+{% extends "customer/base.html" %}
+
+{% block title %}Customer Billing{% endblock %}
+
+{% block stylesheets %}
+<link rel="stylesheet" href="/static/common/vendor/leaflet/1.9.4/leaflet.css" />
+<link rel="stylesheet" href="/static/common/css/cotta-mobile.css" media="(max-width: 768px)">
+{% endblock %}
+
+{% block content %}
+<div class="map-cover">
+    <div id="billing-map"></div>
+    <div class="map-cover-fade"></div>
+</div>
+
+<div class="container py-4 billing-content">
+    <div class="row">
+        <div class="col-lg-8 col-xl-9">
+            <div class="card card-cotta mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    Customer Information
+                    <a href="/customer/logout" class="btn btn-outline-bill btn-sm">
+                        <i class="fas fa-search mr-2"></i>New Search
+                    </a>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr><th class="info-th">Customer #</th><td class="font-weight-bold" id="cust-number"></td></tr>
+                        <tr><th class="info-th">Name</th><td id="cust-name"></td></tr>
+                        <tr><th class="info-th">Address</th><td id="cust-address"></td></tr>
+                        <tr><th class="info-th">Contact</th><td id="cust-contact"></td></tr>
+                        <tr><th class="info-th">Email</th><td id="cust-email"></td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card card-cotta h-100">
+                        <div class="card-header">Current Reading</div>
+                        <div class="card-body text-center">
+                            <div class="stat-value text-dark" id="current-reading-value"></div>
+                            <p class="text-muted mb-1" id="current-reading-reader"></p>
+                            <small class="text-muted" id="current-reading-date"></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <div class="card card-cotta h-100">
+                        <div class="card-header">Previous Reading</div>
+                        <div class="card-body text-center">
+                            <div class="stat-value text-dark" id="previous-reading-value"></div>
+                            <p class="text-muted mb-1" id="previous-reading-reader"></p>
+                            <small class="text-muted" id="previous-reading-date"></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-cotta mb-4">
+                <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#pricingCollapse">
+                    <div class="d-flex justify-content-between align-items-center">
+                        How We Calculate Your Bill
+                        <i class="fas fa-chevron-down chevron-icon"></i>
+                    </div>
+                </div>
+                <div class="collapse" id="pricingCollapse">
+                <div class="card-body p-0">
+                    <div class="px-3 pt-3 pb-2 text-muted consumption-notice d-none" id="consumption-notice">
+                        <strong id="consumption-notice-text"></strong> consumed this period
+                    </div>
+                    <table class="table table-sm mb-0 d-none" id="pricing-table">
+                        <thead>
+                            <tr><th>Tier</th><th>Usage</th><th>Rate</th><th class="text-right">Charge</th></tr>
+                        </thead>
+                        <tbody id="pricing-tbody"></tbody>
+                    </table>
+                    <div class="card-body d-none" id="pricing-empty">
+                        <p class="text-muted mb-0">Insufficient data to calculate consumption</p>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-xl-3">
+            <div class="card card-cotta mb-4">
+                <div class="card-header">
+                    Bill Summary
+                </div>
+                <div class="card-body">
+                    <div id="unpaid-bills"></div>
+                    <div class="d-flex justify-content-between mb-2 d-none" id="paid-status-row">
+                        <span class="text-muted">Current Bill</span>
+                        <span class="font-weight-bold" id="paid-status-amount"></span>
+                    </div>
+                    <div class="text-right mb-2 paid-status d-none" id="paid-status-check">
+                        <i class="fas fa-check-circle"></i> Paid
+                    </div>
+                    <p class="text-muted mb-0 no-bills d-none" id="no-bills">No bills due</p>
+                    <div class="d-flex justify-content-between mb-2 d-none" id="carryover-row">
+                        <span class="text-muted carryover-label">Carryover from last bill</span>
+                        <span class="font-weight-bold" id="carryover-amount"></span>
+                    </div>
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between total-due-row">
+                        <span class="font-weight-bold">Total Due</span>
+                        <span class="font-weight-bold total-due-amount" id="total-due">&#x20B1;0.00</span>
+                    </div>
+                    <div class="text-right mt-2 due-date d-none" id="due-date"></div>
+                    <div class="mt-2 p-2 pending-notice d-none" id="pending-notice">
+                        <i class="fas fa-clock mr-1"></i> Online payment pending — awaiting confirmation
+                    </div>
+                    <button type="button" class="btn btn-cotta btn-block mt-3" data-toggle="modal" data-target="#payOnlineModal" id="pay-online-btn">
+                        <i class="fas fa-credit-card mr-2"></i>Pay Online
+                    </button>
+                </div>
+            </div>
+
+            <div class="card card-cotta mb-4">
+                <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#paymentCollapse">
+                    <div class="d-flex justify-content-between align-items-center">
+                        Payment History
+                        <i class="fas fa-chevron-down chevron-icon"></i>
+                    </div>
+                </div>
+                <div class="collapse" id="paymentCollapse">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm history-table mb-0" id="payment-history-table">
+                                <thead><tr><th>Receipt</th><th>Amount</th><th>Date</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="text-center py-2">
+                            <ul class="pagination justify-content-center mb-0 pagination-cotta" id="payment-pagination"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-cotta mb-4">
+                <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#readingCollapse">
+                    <div class="d-flex justify-content-between align-items-center">
+                        Meter Reading History
+                        <i class="fas fa-chevron-down chevron-icon"></i>
+                    </div>
+                </div>
+                <div class="collapse" id="readingCollapse">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm history-table mb-0" id="reading-history-table">
+                                <thead><tr><th>Reading</th><th>Reader</th><th>Date</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="text-center py-2">
+                            <ul class="pagination justify-content-center mb-0 pagination-cotta" id="reading-pagination"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-cotta mb-4">
+        <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#billingHistoryCollapse">
+            <div class="d-flex justify-content-between align-items-center">
+                Billing History
+                <i class="fas fa-chevron-down chevron-icon"></i>
+            </div>
+        </div>
+        <div class="collapse" id="billingHistoryCollapse">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                        <table class="table table-sm history-table mb-0" id="billing-history-table">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Usage</th>
+                                <th>Billed Amount</th>
+                                <th>Penalty</th>
+                                <th>Paid</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="text-center py-2">
+                    <ul class="pagination justify-content-center mb-0 pagination-cotta" id="billing-history-pagination"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<div class="footer">
+    <div class="container">
+        &copy; 2026 Cotta Realty and Development Corporation. All rights reserved.
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/common/vendor/leaflet/1.9.4/leaflet.js"></script>
+{% include 'customer/_pay_online_modal.html' %}
+<script src="/static/customer/js/app.js"></script>
+{% endblock %}

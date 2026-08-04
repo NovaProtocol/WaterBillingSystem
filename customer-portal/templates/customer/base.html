@@ -1,0 +1,24 @@
+{% extends "common/base.html" %}
+
+{% block portal_label %}&middot; Customer Portal{% endblock %}
+
+{% block brand_url %}/{% endblock %}
+
+{% block nav_right %}
+<a href="/customer/logout" class="btn btn-cotta btn-sm">
+    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+</a>
+{% endblock %}
+
+{% block sidebar_items %}
+<div class="sidebar-header">Customer</div>
+<a href="/customer/" class="nav-link {{ 'active' if request.path == '/customer/' }}">
+    <i class="fas fa-file-invoice"></i>Billing
+</a>
+<a href="/customer/maintenance" class="nav-link {{ 'active' if request.path == '/customer/maintenance' }}">
+    <i class="fas fa-tools"></i>Maintenance Request
+</a>
+<a href="/customer/report" class="nav-link {{ 'active' if request.path == '/customer/report' }}">
+    <i class="fas fa-flag"></i>Report an Issue
+</a>
+{% endblock %}

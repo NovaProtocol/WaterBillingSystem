@@ -4,12 +4,12 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Cotta Realty & Development Corporation</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/img/favicon.png') }}">
-    <link rel="stylesheet" href="/static/assets/vendor/bootstrap/4.6.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/assets/vendor/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/assets/vendor/leaflet/1.9.4/leaflet.css" />
-    <link rel="stylesheet" href="/static/assets/css/cotta.css">
-    <link rel="stylesheet" href="/static/assets/css/cotta-mobile.css" media="(max-width: 768px)">
+    <link rel="icon" type="image/png" href="/static/common/img/favicon.png">
+    <link rel="stylesheet" href="/static/common/vendor/bootstrap/4.6.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/common/vendor/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/common/vendor/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="/static/common/css/cotta.css">
+    <link rel="stylesheet" href="/static/common/css/cotta-mobile.css" media="(max-width: 768px)">
     {% block head_extra %}{% endblock %}
 </head>
 <body class="landing-page">
@@ -41,7 +41,7 @@
                 <li class="nav-item"><a class="nav-link" href="/#testimonials">Testimonials</a></li>
                 <li class="nav-item"><a class="nav-link" href="/#contact">Contact</a></li>
                 <li class="nav-item ml-lg-2">
-                    <a class="btn btn-bill" href="/customer/">
+                    <a class="btn btn-bill" href="/customer/login">
                         <i class="fas fa-file-invoice mr-1"></i>Check My Bill
                     </a>
                 </li>
@@ -50,9 +50,9 @@
     </div>
 </nav>
 
-<script src="/static/assets/vendor/jquery/3.5.1/jquery.min.js"></script>
-<script src="/static/assets/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js"></script>
-<script src="/static/assets/vendor/leaflet/1.9.4/leaflet.js"></script>
+<script src="/static/common/vendor/jquery/3.5.1/jquery.min.js"></script>
+<script src="/static/common/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js"></script>
+<script src="/static/common/vendor/leaflet/1.9.4/leaflet.js"></script>
 
 {% block content %}{% endblock %}
 
@@ -70,7 +70,7 @@
                 <div><a href="/#why-us">Why Us</a></div>
                 <div><a href="/#testimonials">Testimonials</a></div>
                 <div><a href="/#contact">Contact</a></div>
-                <div><a href="/customer/">Check My Bill</a></div>
+                <div><a href="/customer/login">Check My Bill</a></div>
             </div>
             <div class="col-lg-3 col-6 mb-4 mb-lg-0">
                 <h6>Contact</h6>

@@ -11,7 +11,8 @@ def require_env(*names):
 def create_app():
     require_env('SECRET_KEY', 'DEPLOYMENT_TYPE')
 
-    app = Flask(__name__, template_folder='templates', static_folder='static', static_url_path='/static')
+    from shared.config import shared_static_dir
+    app = Flask(__name__, template_folder='templates', static_folder=shared_static_dir(), static_url_path='/static')
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-not-secure')
 
     from routes import landing_blueprint

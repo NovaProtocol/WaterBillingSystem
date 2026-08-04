@@ -25,7 +25,13 @@ class Staff:
 def create_app():
     require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'DEPLOYMENT_TYPE')
 
-    app = Flask(__name__, template_folder='templates', static_url_path='/developer/static')
+    from shared.config import shared_static_dir, shared_templates_dir
+    from jinja2 import ChoiceLoader, FileSystemLoader
+    app = Flask(__name__, template_folder='templates', static_folder=shared_static_dir(), static_url_path='/static')
+    app.jinja_loader = ChoiceLoader([
+        FileSystemLoader(app.template_folder),
+        FileSystemLoader(shared_templates_dir()),
+    ])
     app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
 
     login_manager.init_app(app)

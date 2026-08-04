@@ -1,0 +1,66 @@
+{% extends "common/base.html" %}
+
+{% block title %}Customer Verification{% endblock %}
+
+{% block portal_label %}&middot; Customer Portal{% endblock %}
+
+{% block brand_url %}/{% endblock %}
+
+{% block nav_right %}
+<a href="/" class="btn btn-outline-bill btn-sm">
+    <i class="fas fa-home mr-1"></i>Home
+</a>
+{% endblock %}
+
+{% block sidebar %}{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card card">
+        <div class="auth-card-header">
+            <div class="auth-brand">COTTA <span>REALTY</span></div>
+            <div class="auth-brand-sub">Water Billing System</div>
+        </div>
+        <div class="card-body auth-card-body">
+            <div class="auth-title">Welcome</div>
+            <div class="auth-subtitle">Enter your details to view your billing information.</div>
+
+            <div id="login-alert" class="alert alert-danger alert-rounded py-2 px-3 mb-3 d-none"><i class="fas fa-exclamation-circle mr-2"></i><span id="login-alert-msg"></span></div>
+
+            <form id="login-form" novalidate>
+            <div class="form-group">
+            <label class="form-label">Account Number</label>
+            <input type="text" name="account_number" id="account_number" class="form-control" placeholder="e.g. 1 or CUST-001" required>
+            </div>
+            <div class="form-group">
+            <label class="form-label">Registered Name</label>
+            <input type="text" name="name" class="form-control" id="name_field"
+              {% if debug %}readonly placeholder="DEBUG: name verification skipped" value="(not checked)"
+              {% else %}required placeholder="Enter the name on your account"{% endif %}>
+            </div>
+            <div class="form-group">
+            <label class="form-label">Last Receipt Number</label>
+            <input type="text" name="last_receipt" class="form-control" id="receipt_field"
+              {% if debug %}readonly placeholder="DEBUG: receipt check bypassed" value="0000"
+              {% else %}required placeholder="Found on your latest billing statement"{% endif %}>
+            <small class="form-text text-muted" style="font-size:.78rem;margin-top:.35rem;">
+              {% if debug %}DEBUG mode: name and receipt auto-filled. Only account number needed.
+              {% else %}Your most recent receipt number helps us verify your identity.{% endif %}
+            </small>
+            </div>
+            <button type="submit" class="btn-verify mt-2" id="login-btn">
+            <i class="fas fa-search mr-2"></i>View My Bill
+            </button>
+            </form>
+        </div>
+        <div class="auth-card-footer">
+            &copy; 2026 Cotta Realty and Development Corporation. All rights reserved.<br>
+            <a href="/">Back to Home</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/customer/js/login.js"></script>
+{% endblock %}

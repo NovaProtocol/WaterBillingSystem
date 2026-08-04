@@ -5,6 +5,7 @@ import os
 from flask import Response, abort, redirect, render_template, request
 
 from __init__ import landing_blueprint
+from shared.config import shared_static_dir
 
 MODEL_TEMPLATES: dict[str, str] = {
     "catherine-4": "landing/models/catherine-4.html",
@@ -14,6 +15,8 @@ MODEL_TEMPLATES: dict[str, str] = {
     "margarette-2": "landing/models/margarette-2.html",
     "claire-2": "landing/models/claire-2.html",
     "amelia-3": "landing/models/amelia-3.html",
+    "scarlet": "landing/models/scarlet.html",
+    "lucia": "landing/models/lucia.html",
 }
 
 MODELS: dict[str, dict] = {
@@ -24,7 +27,8 @@ MODELS: dict[str, dict] = {
         "bathrooms": 2,
         "garage": "1-Car Garage",
         "features": ["Kitchen Area", "Living Area", "Dining Area", "Family Area"],
-        "image": "46640e4afb1006868c364b5172d51391.jpg",
+        "image": "catherine/1.jpg",
+        "locations": ["Lucena City", "Sariaya"],
         "description": "A spacious two-storey home with four bedrooms and a family area — perfect for families.",
     },
     "bernice-4": {
@@ -34,7 +38,8 @@ MODELS: dict[str, dict] = {
         "bathrooms": 2,
         "garage": "1-Car Garage",
         "features": ["Kitchen Area", "Living Area", "Dining Area", "Family Area"],
-        "image": "b2ac041f1088aef3d0b04632d3778d7a.jpg",
+        "image": "bernice/1.jpg",
+        "locations": ["Lucena City", "Sariaya"],
         "description": "A two-storey home with four bedrooms and a family area — ideal for families who value space.",
     },
     "tristen": {
@@ -44,7 +49,8 @@ MODELS: dict[str, dict] = {
         "bathrooms": 2,
         "garage": "1-Car Garage",
         "features": ["Kitchen Area", "Living Area", "Dining Area", "Laundry Area"],
-        "image": "59321c5a11e9fada9a10c58688812021.jpg",
+        "image": "tristen/1.jpg",
+        "locations": ["Lucena City"],
         "description": "A bungalow with three bedrooms and a laundry area — single-level living at its finest.",
     },
     "sophia": {
@@ -54,7 +60,8 @@ MODELS: dict[str, dict] = {
         "bathrooms": 2,
         "garage": "1-Car Garage",
         "features": ["Kitchen Area", "Living Area", "Dining Area"],
-        "image": "277667f5a5d5cd3a61317509a0930c40.jpg",
+        "image": "sophia/1.jpg",
+        "locations": ["Lucena City"],
         "description": "A spacious four-bedroom bungalow with generous living spaces and no stairs.",
     },
     "margarette-2": {
@@ -64,7 +71,8 @@ MODELS: dict[str, dict] = {
         "bathrooms": 1,
         "garage": None,
         "features": ["Living Area", "Dining Area", "Kitchen Area", "Porch Area"],
-        "image": "466b81dd012dea504f589a2c39f2f0b6.jpg",
+        "image": "margarette/1.jpg",
+        "locations": ["Lucena City", "Sariaya"],
         "description": "Affordable two-bedroom socialized housing with a porch — perfect for starting families.",
     },
     "claire-2": {
@@ -74,7 +82,8 @@ MODELS: dict[str, dict] = {
         "bathrooms": 1,
         "garage": None,
         "features": ["Living Area", "Dining Area", "Kitchen Area", "Porch Area"],
-        "image": "0dbac0562ce14748ca094f28d6eb51e0.jpg",
+        "image": "claire/1.jpg",
+        "locations": ["Sariaya"],
         "description": "Cozy two-bedroom socialized housing with a porch — affordable living for new homeowners.",
     },
     "amelia-3": {
@@ -84,10 +93,66 @@ MODELS: dict[str, dict] = {
         "bathrooms": 1,
         "garage": "1-Car Garage",
         "features": ["Living Area", "Dining Area", "Kitchen Area"],
-        "image": "0e609c93043001dc0605dc7868f895b3.jpg",
+        "image": "amelia/1.jpg",
+        "locations": ["Lucena City", "Sariaya"],
         "description": "A practical bungalow with three bedrooms and a car garage. Smart living for modern families.",
     },
+    "scarlet": {
+        "name": "Model Scarlet",
+        "type": "Coming Soon",
+        "bedrooms": None,
+        "bathrooms": None,
+        "garage": None,
+        "features": [],
+        "image": "scarlet/1.jpg",
+        "locations": ["Lucena City"],
+        "size": "102 sqm",
+        "description": "The Scarlet model at Village of St. Jude Lucena City (BLK. 20 LOT 2 — 102 sqm).",
+    },
+    "lucia": {
+        "name": "Model Lucia",
+        "type": "Coming Soon",
+        "bedrooms": None,
+        "bathrooms": None,
+        "garage": None,
+        "features": [],
+        "image": "lucia/1.jpg",
+        "locations": ["Sariaya"],
+        "size": "100 sqm",
+        "description": "The Lucia model at VSJ Sariaya (100 sqm).",
+    },
 }
+
+_IMAGE_DIR = os.path.join(shared_static_dir(), 'landing', 'img')
+
+_FOLDERS = {
+    "catherine-4": "catherine",
+    "bernice-4": "bernice",
+    "tristen": "tristen",
+    "sophia": "sophia",
+    "margarette-2": "margarette",
+    "claire-2": "claire",
+    "amelia-3": "amelia",
+    "scarlet": "scarlet",
+    "lucia": "lucia",
+}
+
+
+def _scan_photos(slug: str) -> list[str]:
+    """List photos for a model folder; 1.jpg first, then the rest sorted."""
+    folder = os.path.join(_IMAGE_DIR, _FOLDERS.get(slug, slug))
+    if not os.path.isdir(folder):
+        return []
+    photos = sorted(
+        f for f in os.listdir(folder)
+        if f.lower().endswith(('.jpg', '.jpeg', '.png')) and not f.startswith('.')
+    )
+    photos.sort(key=lambda f: (f != '1.jpg', f))
+    return [f'{_FOLDERS.get(slug, slug)}/{f}' for f in photos]
+
+
+for _slug in MODELS:
+    MODELS[_slug]['photos'] = _scan_photos(_slug)
 
 
 @landing_blueprint.route("/offerings")
@@ -98,9 +163,10 @@ def offerings() -> str:
 @landing_blueprint.route("/offerings/<slug>")
 def model_detail(slug: str) -> str:
     template = MODEL_TEMPLATES.get(slug)
-    if not template:
+    model = MODELS.get(slug)
+    if not template or not model:
         abort(404)
-    return render_template(template, models=MODELS, current_slug=slug)
+    return render_template(template, models=MODELS, current_slug=slug, model=model)
 
 
 @landing_blueprint.route("/", methods=["GET", "POST"])
@@ -114,6 +180,6 @@ def index() -> Response | str:
                 "landing/index.html", models=MODELS, modal_error="Customer number is required."
             )
 
-        return redirect(f"/customer/?account_number={int(customer_number)}")
+        return redirect(f"/customer/login?account_number={int(customer_number)}")
 
     return render_template("landing/index.html", models=MODELS)
