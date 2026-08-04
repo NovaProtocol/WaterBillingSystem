@@ -55,7 +55,7 @@
         reverse_proxy documentation:8005
     }
 
-    handle /phpmyadmin/* {
+    handle_path /phpmyadmin/* {
         forward_auth gatekeeper:7000 {
             uri /api/authz/forward-auth
         }

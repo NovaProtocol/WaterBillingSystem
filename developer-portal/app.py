@@ -1,8 +1,17 @@
-import os, sys
-from flask import Flask, session, request
+import datetime
+import logging
+import os
+import sys
+
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+
+from shared.config import shared_static_dir
 from shared.logger import attach_sqlite_logging
-from flask_login import LoginManager
-login_manager = LoginManager()
+
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger('developer-portal')
+
 
 def require_env(*names):
     for name in names:
@@ -10,62 +19,51 @@ def require_env(*names):
             print(f"FATAL: Environment variable {name} is required but not set.")
             sys.exit(1)
 
-class Staff:
-    def __init__(self, data: dict):
-        self.id = data.get('id')
-        self.username = data.get('username')
-        self.is_superuser = data.get('username') == 'superuser'
-        self.is_active = True
-    @property
-    def is_authenticated(self): return True
-    @property
-    def is_anonymous(self): return False
-    def get_id(self): return str(self.id)
 
-def create_app():
-    require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'DEPLOYMENT_TYPE')
+require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'DEPLOYMENT_TYPE')
 
-    app = Flask(__name__, template_folder='templates', static_url_path='/developer/static')
-    app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+app = FastAPI(title="Cotta Developer Portal")
 
-    login_manager.init_app(app)
+app.mount('/static', StaticFiles(directory=shared_static_dir()), name='static')
 
-    @login_manager.user_loader
-    def load_user(staff_id):
-        data = session.get('staff_data')
-        if data and str(data.get('id')) == str(staff_id):
-            return Staff(data)
-        return None
+import routes  # noqa: E402  (registers routes on the router)
 
-    from routes import dev_bp
-    app.register_blueprint(dev_bp)
+app.include_router(routes.router)
 
-    @app.route('/health')
-    def health():
-        return {'status': 'ok', 'debug': 'enabled'}
+# Parity with the old Flask endpoints: url_for('dev.x') and
+# request.endpoint == 'dev.x' in templates.
+for route in routes.router.routes:
+    if getattr(route, 'name', None):
+        route.name = 'dev.' + route.name
 
 
-    attach_sqlite_logging('developer-portal')
+@app.get('/health')
+async def health():
+    return {'status': 'ok', 'debug': 'enabled'}
 
-    import logging
-    http_logger = logging.getLogger('http')
 
-    @app.after_request
-    def log_request(response):
-        import datetime
-        now = datetime.datetime.now(datetime.timezone.utc).strftime('%d/%b/%Y:%H:%M:%S %z')
-        referrer = request.headers.get('Referer', '-')
-        ua = request.headers.get('User-Agent', '-')
-        msg = f'{request.remote_addr} - - [{now}] "{request.method} {request.path} {request.environ.get("SERVER_PROTOCOL", "HTTP/1.1")}" {response.status_code} {response.content_length or "-"} "{referrer}" "{ua}"'
-        http_logger.info(msg, extra={
-            'http': {
-                'method': request.method,
-                'path': request.path,
-                'status_code': response.status_code,
-                'remote_addr': request.remote_addr,
-                'container': request.headers.get('X-Container-Name', '-'),
-            }
-        })
-        return response
+attach_sqlite_logging('developer-portal')
 
-    return app
+http_logger = logging.getLogger('http')
+
+
+@app.middleware('http')
+async def log_request(request: Request, call_next):
+    response = await call_next(request)
+    now = datetime.datetime.now(datetime.timezone.utc).strftime('%d/%b/%Y:%H:%M:%S %z')
+    referrer = request.headers.get('Referer', '-')
+    ua = request.headers.get('User-Agent', '-')
+    msg = (f'{request.client.host if request.client else "-"} - - [{now}] '
+           f'"{request.method} {request.url.path} HTTP/{request.scope.get("http_version", "1.1")}" '
+           f'{response.status_code} {response.headers.get("content-length", "-")} '
+           f'"{referrer}" "{ua}"')
+    http_logger.info(msg, extra={
+        'http': {
+            'method': request.method,
+            'path': request.url.path,
+            'status_code': response.status_code,
+            'remote_addr': request.client.host if request.client else None,
+            'container': request.headers.get('X-Container-Name', '-'),
+        }
+    })
+    return response

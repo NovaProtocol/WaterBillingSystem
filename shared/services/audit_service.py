@@ -13,7 +13,10 @@ def log_action(
     target_id: int,
     details: str,
     customer_number: int | None = None,
+    *,
+    session=None,
 ) -> ManagementLog:
+    session = session or db.session
     log = ManagementLog(
         staff_id=staff_id,
         action_type=action_type,
@@ -23,5 +26,5 @@ def log_action(
         details=details,
         timestamp=datetime.now(tz=timezone.utc).replace(tzinfo=None),
     )
-    db.session.add(log)
+    session.add(log)
     return log

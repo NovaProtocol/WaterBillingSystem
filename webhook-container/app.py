@@ -1,6 +1,15 @@
-import os, sys
-from flask import Flask, request
+import datetime
+import logging
+import os
+import sys
+
+from fastapi import FastAPI, Request
+
 from shared.logger import attach_sqlite_logging
+
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger('webhook')
+
 
 def require_env(*names):
     for name in names:
@@ -8,40 +17,43 @@ def require_env(*names):
             print(f"FATAL: Environment variable {name} is required but not set.")
             sys.exit(1)
 
-def create_app():
-    require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'DEPLOYMENT_TYPE')
 
-    app = Flask(__name__)
-    app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'DEPLOYMENT_TYPE')
 
-    from routes import webhook_bp
-    app.register_blueprint(webhook_bp)
+app = FastAPI(title="Cotta Webhook")
 
-    @app.route('/health')
-    def health():
-        return {'status': 'ok'}
+import routes  # noqa: E402
 
-    attach_sqlite_logging('webhook')
+app.include_router(routes.router)
 
-    import logging
-    http_logger = logging.getLogger('http')
 
-    @app.after_request
-    def log_request(response):
-        import datetime
-        now = datetime.datetime.now(datetime.timezone.utc).strftime('%d/%b/%Y:%H:%M:%S %z')
-        referrer = request.headers.get('Referer', '-')
-        ua = request.headers.get('User-Agent', '-')
-        msg = f'{request.remote_addr} - - [{now}] "{request.method} {request.path} {request.environ.get("SERVER_PROTOCOL", "HTTP/1.1")}" {response.status_code} {response.content_length or "-"} "{referrer}" "{ua}"'
-        http_logger.info(msg, extra={
-            'http': {
-                'method': request.method,
-                'path': request.path,
-                'status_code': response.status_code,
-                'remote_addr': request.remote_addr,
-                'container': request.headers.get('X-Container-Name', '-'),
-            }
-        })
-        return response
+@app.get('/health')
+async def health():
+    return {'status': 'ok'}
 
-    return app
+
+attach_sqlite_logging('webhook')
+
+http_logger = logging.getLogger('http')
+
+
+@app.middleware('http')
+async def log_request(request: Request, call_next):
+    response = await call_next(request)
+    now = datetime.datetime.now(datetime.timezone.utc).strftime('%d/%b/%Y:%H:%M:%S %z')
+    referrer = request.headers.get('Referer', '-')
+    ua = request.headers.get('User-Agent', '-')
+    msg = (f'{request.client.host if request.client else "-"} - - [{now}] '
+           f'"{request.method} {request.url.path} HTTP/{request.scope.get("http_version", "1.1")}" '
+           f'{response.status_code} {response.headers.get("content-length", "-")} '
+           f'"{referrer}" "{ua}"')
+    http_logger.info(msg, extra={
+        'http': {
+            'method': request.method,
+            'path': request.url.path,
+            'status_code': response.status_code,
+            'remote_addr': request.client.host if request.client else None,
+            'container': request.headers.get('X-Container-Name', '-'),
+        }
+    })
+    return response

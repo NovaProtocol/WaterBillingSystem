@@ -1,301 +1,376 @@
-import os, logging
-from flask import Response, jsonify, redirect, render_template, request, session, url_for
-from flask_login import current_user, login_required, login_user, logout_user
-from app import login_manager, cache, Staff
+import logging
+
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from fastapi import HTTPException
+
 import api_client
+import staff_auth
+from templating import templates
+from shared.security import RateLimiter
 
 logging.basicConfig(level=logging.ERROR, format='%(levelname)s: %(message)s')
 logger = logging.getLogger('staff-portal')
 
-from __init__ import staff_bp
+router = APIRouter()
 
-def permission_required(*perms):
-    def decorator(f):
-        from functools import wraps
-        @wraps(f)
-        @login_required
-        def decorated(*args, **kwargs):
-            session_data = session.get('staff_data', {})
-            for perm in perms:
-                if not session_data.get(perm, False):
-                    return jsonify({"error": "Unauthorized"}), 403
-            return f(*args, **kwargs)
-        return decorated
-    return decorator
+login_limiter = RateLimiter(limit=10, window=60.0)
 
-def _rate_limited(ip: str) -> bool:
-    key = f"login_{ip}"
-    attempts = cache.get(key) or 0
-    if attempts >= 10:
-        return True
-    cache.set(key, attempts + 1, timeout=60)
-    return False
 
-@staff_bp.route('/staff/', methods=['GET'])
-def index():
-    if current_user.is_authenticated:
-        return redirect(url_for('staff_blueprint.dashboard'))
-    return redirect(url_for('staff_blueprint.login'))
+def _set_endpoint(request: Request) -> None:
+    route = request.scope.get('route')
+    request.endpoint = route.name if route and getattr(route, 'name', None) else ''
 
-@staff_bp.route('/staff/login', methods=['GET', 'POST'])
-def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('staff_blueprint.dashboard'))
-    from forms import LoginForm
-    form = LoginForm()
-    if form.validate_on_submit():
-        if _rate_limited(request.remote_addr):
-            return render_template('staff/login.html', form=form, error='Too many attempts. Try again later.')
-        try:
-            result = api_client.staff_login(form.username.data, form.password.data)
-            if result.get('success'):
-                staff_data = result['staff']
-                session['staff_id'] = staff_data['id']
-                session['staff_data'] = staff_data
-                staff_obj = Staff(staff_data)
-                login_user(staff_obj, remember=True)
-                return redirect(url_for('staff_blueprint.dashboard'))
-        except Exception as e:
-            logger.error(f"Login failed: {e}", exc_info=True)
-        return render_template('staff/login.html', form=form, error='Invalid credentials')
-    return render_template('staff/login.html', form=form)
 
-@staff_bp.route('/staff/logout')
-@login_required
-def logout():
-    session.clear()
-    logout_user()
-    return redirect(url_for('staff_blueprint.login'))
+def require_login(request: Request):
+    _set_endpoint(request)
+    if not staff_auth.staff_payload():
+        raise HTTPException(status_code=302, headers={'Location': '/staff/login'})
 
-@staff_bp.route('/staff/dashboard')
-@login_required
-def dashboard():
-    data = api_client.get_dashboard_data()
-    return render_template('staff/dashboard.html', data=data)
 
-@staff_bp.route('/staff/customer-lookup')
-@login_required
-def customer_lookup():
-    q = request.args.get('q', '')
+def require_perms(*perms: str):
+    def _dep(request: Request):
+        _set_endpoint(request)
+        staff = staff_auth.staff_payload()
+        if staff is None:
+            raise HTTPException(status_code=302, headers={'Location': '/staff/login'})
+        for perm in perms:
+            if not staff.get(perm, False):
+                raise HTTPException(status_code=403, detail='Unauthorized')
+    return _dep
+
+
+@router.get('/staff/')
+async def index(request: Request):
+    if staff_auth.staff_payload():
+        return RedirectResponse('/staff/dashboard', status_code=302)
+    return RedirectResponse('/staff/login', status_code=302)
+
+
+@router.get('/staff/login')
+async def login_page(request: Request):
+    if staff_auth.staff_payload():
+        return RedirectResponse('/staff/dashboard', status_code=302)
+    return templates.TemplateResponse(request, 'staff/login.html', {'error': None, 'username': ''})
+
+
+@router.post('/staff/login')
+async def login_submit(request: Request):
+    if staff_auth.staff_payload():
+        return RedirectResponse('/staff/dashboard', status_code=302)
+
+    form = await request.form()
+    username = str(form.get('username', '') or '')
+    password = str(form.get('password', '') or '')
+
+    ip = request.client.host if request.client else 'unknown'
+    if not login_limiter.allow(ip):
+        return templates.TemplateResponse(
+            request, 'staff/login.html',
+            {'error': 'Too many attempts. Try again later.', 'username': username},
+        )
+
     try:
-        result = api_client.customer_search(q)
-        return jsonify(result)
+        result = await api_client.staff_login(username, password)
+        if result.get('success'):
+            staff_data = result['staff']
+            resp = RedirectResponse('/staff/dashboard', status_code=302)
+            resp.set_cookie(
+                staff_auth.COOKIE_NAME,
+                staff_auth.login_cookie(staff_data),
+                max_age=staff_auth.MAX_AGE,
+                httponly=True,
+                samesite='Lax',
+                path='/',
+            )
+            login_limiter.reset(ip)
+            return resp
+    except Exception as e:
+        logger.error(f"Login failed: {e}", exc_info=True)
+    return templates.TemplateResponse(
+        request, 'staff/login.html',
+        {'error': 'Invalid credentials', 'username': username},
+    )
+
+
+@router.get('/staff/logout')
+async def logout():
+    return staff_auth.logout_response()
+
+
+@router.get('/staff/dashboard')
+async def dashboard(request: Request, _=Depends(require_login)):
+    data = await api_client.get_dashboard_data()
+    return templates.TemplateResponse(request, 'staff/dashboard.html', {'data': data})
+
+
+@router.get('/staff/customer-lookup')
+async def customer_lookup(request: Request, _=Depends(require_login)):
+    q = request.query_params.get('q', '')
+    try:
+        result = await api_client.customer_search(q)
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Customer lookup failed: {e}")
-        return jsonify({'customers': [], 'error': str(e)})
+        return JSONResponse({'customers': [], 'error': str(e)})
 
-@staff_bp.route('/staff/api/customer/<int:customer_number>')
-@login_required
-def proxy_customer(customer_number):
+
+@router.get('/staff/api/customer/{customer_number}')
+async def proxy_customer(customer_number: int, request: Request, _=Depends(require_login)):
     """Proxy: browser calls this instead of calling the API directly."""
     try:
-        params = {k: v for k, v in request.args.items() if k != 'customer_number'}
-        result = api_client.get_customer(customer_number, params)
-        return jsonify(result)
+        params = {k: v for k, v in request.query_params.items() if k != 'customer_number'}
+        result = await api_client.get_customer(customer_number, params)
+        return JSONResponse(result)
     except Exception as e:
         logger.error(f"Customer proxy failed: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-
-@staff_bp.route('/staff/api/customers/search-sort')
-@login_required
-def api_customers_search_sort():
-    q = request.args.get('q', '')
-    sort_by = request.args.get('sort_by', 'customer_number')
-    sort_dir = request.args.get('sort_dir', 'asc')
-    page = request.args.get('page', 1, type=int)
-    size = request.args.get('size', 50, type=int)
-    return jsonify(api_client.customer_search_sort(q, sort_by, sort_dir, page, size))
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
-@staff_bp.route('/staff/customers', methods=['GET'])
-@login_required
-def customers():
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 50, type=int)
-    result = api_client.get_customers(page, per_page)
-    return render_template('staff/customers.html', **result)
-
-@staff_bp.route('/staff/customers/create', methods=['POST'])
-@permission_required('can_enroll_customer')
-def customer_create():
-    data = request.get_json()
+@router.get('/staff/api/customers/search-sort')
+async def api_customers_search_sort(request: Request, _=Depends(require_login)):
+    q = request.query_params.get('q', '')
+    sort_by = request.query_params.get('sort_by', 'customer_number')
+    sort_dir = request.query_params.get('sort_dir', 'asc')
     try:
-        result = api_client.create_customer(data)
-        return jsonify(result)
+        page = int(request.query_params.get('page', '1'))
+    except (ValueError, TypeError):
+        page = 1
+    try:
+        size = int(request.query_params.get('size', '50'))
+    except (ValueError, TypeError):
+        size = 50
+    return JSONResponse(await api_client.customer_search_sort(q, sort_by, sort_dir, page, size))
+
+
+@router.get('/staff/customers')
+async def customers(request: Request, _=Depends(require_login)):
+    try:
+        page = int(request.query_params.get('page', '1'))
+    except (ValueError, TypeError):
+        page = 1
+    try:
+        per_page = int(request.query_params.get('per_page', '50'))
+    except (ValueError, TypeError):
+        per_page = 50
+    result = await api_client.get_customers(page, per_page)
+    return templates.TemplateResponse(request, 'staff/customers.html', result)
+
+
+@router.post('/staff/customers/create')
+async def customer_create(request: Request, _=Depends(require_perms('can_enroll_customer'))):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    try:
+        result = await api_client.create_customer(data or {})
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Create customer failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-@staff_bp.route('/staff/manage-customers', methods=['GET'])
-@login_required
-def manage_customers():
-    return render_template('staff/manage_customers.html')
 
-@staff_bp.route('/staff/manage-customers/<int:customer_id>/edit', methods=['POST'])
-@permission_required('can_enroll_customer')
-def edit_customer(customer_id):
-    data = request.get_json() or {}
+@router.get('/staff/manage-customers')
+async def manage_customers(request: Request, _=Depends(require_login)):
+    return templates.TemplateResponse(request, 'staff/manage_customers.html', {})
+
+
+@router.post('/staff/manage-customers/{customer_id}/edit')
+async def edit_customer(customer_id: int, request: Request, _=Depends(require_perms('can_enroll_customer'))):
     try:
-        result = api_client.edit_customer(customer_id, data)
-        return jsonify(result)
+        data = await request.json()
+    except Exception:
+        data = {}
+    try:
+        result = await api_client.edit_customer(customer_id, data or {})
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Edit customer {customer_id} failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-@staff_bp.route('/staff/manage-customers/<int:customer_id>/toggle-active', methods=['POST'])
-@permission_required('can_enroll_customer')
-def toggle_customer_active(customer_id):
+
+@router.post('/staff/manage-customers/{customer_id}/toggle-active')
+async def toggle_customer_active(customer_id: int, _=Depends(require_perms('can_enroll_customer'))):
     try:
-        result = api_client.toggle_customer_active(customer_id)
-        return jsonify(result)
+        result = await api_client.toggle_customer_active(customer_id)
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Toggle customer {customer_id} active failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-@staff_bp.route('/staff/manage-customers/<int:customer_id>/clear-nfc', methods=['POST'])
-@permission_required('can_enroll_customer')
-def clear_customer_nfc(customer_id):
+
+@router.post('/staff/manage-customers/{customer_id}/clear-nfc')
+async def clear_customer_nfc(customer_id: int, _=Depends(require_perms('can_enroll_customer'))):
     try:
-        result = api_client.clear_customer_nfc(customer_id)
-        return jsonify(result)
+        result = await api_client.clear_customer_nfc(customer_id)
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Clear NFC for customer {customer_id} failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-@staff_bp.route('/staff/meter-reading')
-@login_required
-def meter_reading():
-    staff_id = session.get('staff_id', 1)
-    keys_result = api_client.list_api_keys(staff_id)
+
+@router.get('/staff/meter-reading')
+async def meter_reading(request: Request, _=Depends(require_login)):
+    staff_id = staff_auth.staff_payload().get('id', 1)
+    keys_result = await api_client.list_api_keys(staff_id)
     keys = keys_result.get('keys', [])
-    return render_template('staff/meter_reading.html', keys=keys)
+    return templates.TemplateResponse(request, 'staff/meter_reading.html', {'keys': keys})
 
-@staff_bp.route('/staff/meter-reading/generate', methods=['POST'])
-@login_required
-def generate_api_key():
-    staff_id = session.get('staff_id', 1)
-    data = request.get_json() or {}
+
+@router.post('/staff/meter-reading/generate')
+async def generate_api_key(request: Request, _=Depends(require_login)):
+    staff_id = staff_auth.staff_payload().get('id', 1)
     try:
-        result = api_client.generate_api_key(staff_id, data)
-        return jsonify(result)
+        data = await request.json()
+    except Exception:
+        data = {}
+    try:
+        result = await api_client.generate_api_key(staff_id, data or {})
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Generate API key failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-@staff_bp.route('/staff/meter-reading/revoke/<int:key_id>', methods=['POST'])
-@login_required
-def revoke_api_key(key_id):
-    staff_id = session.get('staff_id', 1)
+
+@router.post('/staff/meter-reading/revoke/{key_id}')
+async def revoke_api_key(key_id: int, _=Depends(require_login)):
+    staff_id = staff_auth.staff_payload().get('id', 1)
     try:
-        result = api_client.revoke_api_key(staff_id, key_id)
-        return jsonify(result)
+        result = await api_client.revoke_api_key(staff_id, key_id)
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Revoke API key {key_id} failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-@staff_bp.route('/staff/manage-reading')
-@login_required
-def manage_reading():
-    staff_id = session.get('staff_id', 1)
-    result = api_client.get_reading_logs(staff_id)
-    return render_template('staff/manage_reading.html', **result)
 
-@staff_bp.route('/staff/manage-reading/drop-reading/<int:reading_id>', methods=['POST'])
-@permission_required('can_drop_reading')
-def drop_reading(reading_id):
-    data = request.get_json() or {}
+@router.get('/staff/manage-reading')
+async def manage_reading(request: Request, _=Depends(require_login)):
+    staff_id = staff_auth.staff_payload().get('id', 1)
+    result = await api_client.get_reading_logs(staff_id)
+    return templates.TemplateResponse(request, 'staff/manage_reading.html', result)
+
+
+@router.post('/staff/manage-reading/drop-reading/{reading_id}')
+async def drop_reading(reading_id: int, request: Request, _=Depends(require_perms('can_drop_reading'))):
     try:
-        result = api_client.drop_reading(reading_id, data)
-        return jsonify(result)
+        data = await request.json()
+    except Exception:
+        data = {}
+    try:
+        result = await api_client.drop_reading(reading_id, data or {})
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Drop reading {reading_id} failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-@staff_bp.route('/staff/manage-reading/edit-reading/<int:reading_id>', methods=['POST'])
-@permission_required('can_drop_reading')
-def edit_reading(reading_id):
-    data = request.get_json() or {}
+
+@router.post('/staff/manage-reading/edit-reading/{reading_id}')
+async def edit_reading(reading_id: int, request: Request, _=Depends(require_perms('can_drop_reading'))):
     try:
-        result = api_client.edit_reading(reading_id, data)
-        return jsonify(result)
+        data = await request.json()
+    except Exception:
+        data = {}
+    try:
+        result = await api_client.edit_reading(reading_id, data or {})
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Edit reading {reading_id} failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-@staff_bp.route('/staff/payments')
-@login_required
-def payments():
-    return render_template('staff/payments.html')
 
-@staff_bp.route('/staff/payments/submit', methods=['POST'])
-@permission_required('can_accept_payment')
-def submit_payment():
-    data = request.get_json()
+@router.get('/staff/payments')
+async def payments(request: Request, _=Depends(require_login)):
+    return templates.TemplateResponse(request, 'staff/payments.html', {})
+
+
+@router.post('/staff/payments/submit')
+async def submit_payment(request: Request, _=Depends(require_perms('can_accept_payment'))):
     try:
-        result = api_client.submit_payment(data)
-        return jsonify(result)
+        data = await request.json()
+    except Exception:
+        data = {}
+    try:
+        result = await api_client.submit_payment(data or {})
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Submit payment failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-@staff_bp.route('/staff/cashier-tally')
-@permission_required('can_accept_payment')
-def cashier_tally():
-    period = request.args.get('period', 'daily')
-    date = request.args.get('date', '')
-    start_date = request.args.get('start_date', '')
-    end_date = request.args.get('end_date', '')
-    group_days = request.args.get('group_days', 1, type=int)
-    data = api_client.get_cashier_tally(period, 0, date, start_date, end_date, group_days)
-    return render_template('staff/cashier_tally.html', **data)
 
-@staff_bp.route('/staff/manage-billing')
-@login_required
-def manage_billing():
-    return render_template('staff/manage_billing.html')
-
-@staff_bp.route('/staff/manage-billing/undo-payment/<int:payment_id>', methods=['POST'])
-@permission_required('can_drop_payment')
-def undo_payment(payment_id):
-    data = request.get_json() or {}
+@router.get('/staff/cashier-tally')
+async def cashier_tally(request: Request, _=Depends(require_perms('can_accept_payment'))):
+    period = request.query_params.get('period', 'daily')
+    date = request.query_params.get('date', '')
+    start_date = request.query_params.get('start_date', '')
+    end_date = request.query_params.get('end_date', '')
     try:
-        result = api_client.undo_payment(payment_id, data.get('reason', ''))
-        return jsonify(result)
+        group_days = int(request.query_params.get('group_days', '1'))
+    except (ValueError, TypeError):
+        group_days = 1
+    data = await api_client.get_cashier_tally(period, 0, date, start_date, end_date, group_days)
+    return templates.TemplateResponse(request, 'staff/cashier_tally.html', data)
+
+
+@router.get('/staff/manage-billing')
+async def manage_billing(request: Request, _=Depends(require_login)):
+    return templates.TemplateResponse(request, 'staff/manage_billing.html', {})
+
+
+@router.post('/staff/manage-billing/undo-payment/{payment_id}')
+async def undo_payment(payment_id: int, request: Request, _=Depends(require_perms('can_drop_payment'))):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    try:
+        result = await api_client.undo_payment(payment_id, (data or {}).get('reason', ''))
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Undo payment {payment_id} failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-@staff_bp.route('/staff/staff', methods=['GET'])
-@login_required
-def staff_list():
-    result = api_client.list_staff()
-    return render_template('staff/staff_list.html', **result)
 
-@staff_bp.route('/staff/staff/create', methods=['POST'])
-@permission_required('can_enroll_staff')
-def staff_create():
-    data = request.get_json()
+@router.get('/staff/staff')
+async def staff_list(request: Request, _=Depends(require_login)):
+    result = await api_client.list_staff()
+    return templates.TemplateResponse(request, 'staff/staff_list.html', result)
+
+
+@router.post('/staff/staff/create')
+async def staff_create(request: Request, _=Depends(require_perms('can_enroll_staff'))):
     try:
-        result = api_client.create_staff(data)
-        return jsonify(result)
+        data = await request.json()
+    except Exception:
+        data = {}
+    try:
+        result = await api_client.create_staff(data or {})
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Staff create failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-@staff_bp.route('/staff/staff/<int:staff_id>', methods=['GET', 'POST'])
-@permission_required('can_enroll_staff')
-def staff_edit(staff_id):
-    if request.method == 'POST':
-        data = request.get_json()
-        try:
-            result = api_client.edit_staff(staff_id, data)
-            return jsonify(result)
-        except Exception as e:
-            logger.exception(f"Staff edit {staff_id} failed: {e}")
-            return jsonify({"error": str(e)}), 400
+
+@router.get('/staff/staff/{staff_id}')
+async def staff_get(staff_id: int, _=Depends(require_perms('can_enroll_staff'))):
     try:
-        result = api_client.get_staff(staff_id)
-        return jsonify(result)
+        result = await api_client.get_staff(staff_id)
+        return JSONResponse(result)
     except Exception as e:
         logger.exception(f"Staff get {staff_id} failed: {e}")
-        return jsonify({"error": str(e)}), 400
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@router.post('/staff/staff/{staff_id}')
+async def staff_edit(staff_id: int, request: Request, _=Depends(require_perms('can_enroll_staff'))):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    try:
+        result = await api_client.edit_staff(staff_id, data or {})
+        return JSONResponse(result)
+    except Exception as e:
+        logger.exception(f"Staff edit {staff_id} failed: {e}")
+        return JSONResponse({"error": str(e)}, status_code=400)

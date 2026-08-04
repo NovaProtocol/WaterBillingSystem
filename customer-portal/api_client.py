@@ -1,29 +1,33 @@
-import os, requests
+import os
 
-API_BASE = os.environ['API_BASE_URL']
-INTERNAL_KEY = os.environ.get('INTERNAL_API_KEY', '')
+from shared.http_client import make_client
 
-def _headers():
-    h = {'User-Agent': 'customer-portal/1.0', 'X-Container-Name': 'customer-portal'}
-    if INTERNAL_KEY:
-        h['X-Internal-API-Key'] = INTERNAL_KEY
-    return h
+_client = None
 
-def customer_login(account_number: str, name: str, last_receipt: str = '') -> dict:
-    r = requests.post(f'{API_BASE}/api/customer/login',
-        json={'account_number': int(account_number), 'registered_name': name, 'last_receipt': last_receipt},
-        headers=_headers(), timeout=10)
-    r.raise_for_status(); return r.json()
 
-def get_billing(customer_number: int) -> dict:
-    r = requests.get(f'{API_BASE}/api/customer/{customer_number}',
-        headers=_headers(), timeout=10)
-    r.raise_for_status(); return r.json()
+def _get_client():
+    global _client
+    if _client is None:
+        _client = make_client(os.environ['API_BASE_URL'], container_name='customer-portal')
+    return _client
 
-def get_readings(customer_number: int, page: int = 1) -> dict:
-    r = requests.get(f'{API_BASE}/api/customer/{customer_number}/reading',
-        params={'page': page, 'size': 12},
-        headers=_headers(), timeout=10)
+
+async def customer_login(account_number: str, name: str = '', last_receipt: str = '') -> dict:
+    r = await _get_client().post('/api/customer/login',
+        json={'account_number': int(account_number), 'registered_name': name, 'last_receipt': last_receipt})
+    r.raise_for_status()
+    return r.json()
+
+
+async def get_billing(customer_number: int) -> dict:
+    r = await _get_client().get(f'/api/customer/{customer_number}')
+    r.raise_for_status()
+    return r.json()
+
+
+async def get_readings(customer_number: int, page: int = 1) -> dict:
+    r = await _get_client().get(f'/api/customer/{customer_number}/reading',
+        params={'page': page, 'size': 12})
     r.raise_for_status()
     data = r.json()
     return {
@@ -34,10 +38,10 @@ def get_readings(customer_number: int, page: int = 1) -> dict:
         'pages': data.get('meta', {}).get('total_pages', 1),
     }
 
-def get_payments(customer_number: int, page: int = 1) -> dict:
-    r = requests.get(f'{API_BASE}/api/customer/{customer_number}/billing',
-        params={'page': page, 'size': 10},
-        headers=_headers(), timeout=10)
+
+async def get_payments(customer_number: int, page: int = 1) -> dict:
+    r = await _get_client().get(f'/api/customer/{customer_number}/billing',
+        params={'page': page, 'size': 10})
     r.raise_for_status()
     data = r.json()
     items = []
@@ -54,10 +58,10 @@ def get_payments(customer_number: int, page: int = 1) -> dict:
         'pages': data.get('meta', {}).get('total_pages', 1),
     }
 
-def get_billing_history(customer_number: int, page: int = 1) -> dict:
-    r = requests.get(f'{API_BASE}/api/customer/{customer_number}/billing',
-        params={'page': page, 'size': 12},
-        headers=_headers(), timeout=10)
+
+async def get_billing_history(customer_number: int, page: int = 1) -> dict:
+    r = await _get_client().get(f'/api/customer/{customer_number}/billing',
+        params={'page': page, 'size': 12})
     r.raise_for_status()
     data = r.json()
     items = []
@@ -77,10 +81,11 @@ def get_billing_history(customer_number: int, page: int = 1) -> dict:
         'pages': data.get('meta', {}).get('total_pages', 1),
     }
 
-def create_xendit_invoice(customer_number: int, amount: float, payment_method: str = '',
-                          success_url: str = '', cancel_url: str = '') -> dict:
-    r = requests.post(f'{API_BASE}/api/customer/{customer_number}/invoice',
+
+async def create_xendit_invoice(customer_number: int, amount: float, payment_method: str = '',
+                                success_url: str = '', cancel_url: str = '') -> dict:
+    r = await _get_client().post(f'/api/customer/{customer_number}/invoice',
         json={'amount': amount, 'payment_method': payment_method,
-              'success_url': success_url, 'cancel_url': cancel_url},
-        headers=_headers(), timeout=15)
-    r.raise_for_status(); return r.json()
+              'success_url': success_url, 'cancel_url': cancel_url})
+    r.raise_for_status()
+    return r.json()

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
 
-from apps import db
+from db_async import session
 from models import Billing
 from pricing import DUE_DAYS, LATE_PENALTY
 
 
-def ensure_penalty(billing: Billing) -> float:
+async def ensure_penalty(billing: Billing) -> float:
     """Check if a bill is overdue and calculate penalty.
 
     If the bill is unpaid, past its due date, and penalty hasn't been written yet,
@@ -25,9 +25,6 @@ def ensure_penalty(billing: Billing) -> float:
     due_dt = reading_ts + timedelta(days=DUE_DAYS)
     if datetime.now(tz=timezone.utc).replace(tzinfo=None) > due_dt and float(billing.penalty or 0) == 0:
         billing.penalty = LATE_PENALTY
-        db.session.flush()
+        await session().flush()
 
     return float(billing.penalty or 0)
-
-
-

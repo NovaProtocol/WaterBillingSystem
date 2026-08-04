@@ -2,7 +2,7 @@
 
 {% block head_extra %}
 {{ super() }}
-<link rel="stylesheet" href="/static/assets/vendor/photo-sphere-viewer/5/index.css" />
+<link rel="stylesheet" href="/static/landing/vendor/photo-sphere-viewer/5/index.css" />
 {% endblock %}
 
 {% block content %}
@@ -17,10 +17,14 @@
         </p>
         <h1 class="model-header-title">
             {% block model_name %}Model Name{% endblock %}
-        </h1>
-        <p class="model-header-desc">
+        </h1>        <p class="model-header-desc">
             {% block model_description %}Description{% endblock %}
         </p>
+        <div class="model-header-locs">
+            {% for loc in model.locations %}
+            <span class="badge badge-loc badge-loc-hero"><i class="fas fa-map-marker-alt mr-1"></i>{{ loc }}</span>
+            {% endfor %}
+        </div>
     </div>
 </section>
 
@@ -30,7 +34,97 @@
             <i class="fas fa-camera mr-2"></i>Photos
         </h2>
         <div class="row">
-            {% block model_photos %}{% endblock %}
+            {% block model_photos %}
+            {% set photos = model.photos %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                {% if photos|length >= 1 %}
+                <img src="/static/landing/img/{{ photos[0] }}" alt="{{ model.name }}" class="model-photo gallery-click" data-index="0">
+                {% else %}
+                <div class="model-photo-placeholder"><i class="fas fa-image"></i></div>
+                {% endif %}
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+                {% if photos|length >= 2 %}
+                <img src="/static/landing/img/{{ photos[1] }}" alt="{{ model.name }}" class="model-photo gallery-click" data-index="1">
+                {% else %}
+                <div class="model-photo-placeholder"><i class="fas fa-image"></i></div>
+                {% endif %}
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+                {% if photos|length >= 3 %}
+                <img src="/static/landing/img/{{ photos[2] }}" alt="{{ model.name }}" class="model-photo gallery-click" data-index="2">
+                {% else %}
+                <div class="model-photo-placeholder"><i class="fas fa-image"></i></div>
+                {% endif %}
+            </div>
+            <div class="col-lg-6 col-md-6 mb-4">
+                {% if photos|length >= 4 %}
+                <img src="/static/landing/img/{{ photos[3] }}" alt="{{ model.name }}" class="model-photo gallery-click" data-index="3">
+                {% else %}
+                <div class="model-photo-placeholder"><i class="fas fa-image"></i></div>
+                {% endif %}
+            </div>
+            {% if photos|length > 5 %}
+            <div class="col-lg-6 col-md-6 mb-4">
+                <div class="model-photo-more" data-toggle="modal" data-target="#galleryModal">
+                    <img src="/static/landing/img/{{ photos[4] }}" alt="{{ model.name }}" class="model-photo-more-bg">
+                    <div class="model-photo-more-overlay">
+                        <i class="fas fa-images mr-2"></i>+{{ photos|length - 5 }} More
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-lg-6 col-md-6 mb-4">
+                {% if photos|length >= 5 %}
+                <img src="/static/landing/img/{{ photos[4] }}" alt="{{ model.name }}" class="model-photo gallery-click" data-index="4">
+                {% else %}
+                <div class="model-photo-placeholder"><i class="fas fa-image"></i></div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="modal fade" id="galleryModal" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">{{ model.name }} — Photos</h5>
+                            <button type="button" class="close" data-dismiss="modal">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                {% for photo in photos %}
+                                <div class="col-6 col-md-4 mb-3">
+                                    <img src="/static/landing/img/{{ photo }}" alt="{{ model.name }}" class="w-100 gallery-modal-img gallery-click" data-index="{{ loop.index0 }}">
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="photoLightbox" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+                    <div class="modal-content bg-dark border-0">
+                        <div class="modal-body p-0 text-center position-relative">
+                            <button type="button" class="btn btn-light lightbox-close" data-dismiss="modal">
+                                <span>&times;</span>
+                            </button>
+                            <img id="lightbox-img" alt="{{ model.name }}" class="lightbox-img">
+                            <button type="button" class="lightbox-nav lightbox-prev" aria-label="Previous">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button type="button" class="lightbox-nav lightbox-next" aria-label="Next">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                            <div id="lightbox-counter" class="lightbox-counter"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endblock %}
         </div>
     </div>
 </section>
@@ -42,8 +136,8 @@
         </h2>
         <div class="model-video-wrapper">
             {% block model_video %}
-            <video controls playsinline class="w-100 d-block" poster="/static/assets/img/landing/7a06e425317a059b2995d8828344671a.jpg">
-                <source src="/static/assets/video/cotta-drone.mp4" type="video/mp4">
+            <video controls playsinline class="w-100 d-block" poster="/static/landing/img/bg.jpg">
+                <source src="/static/landing/video/cotta-drone.mp4" type="video/mp4">
             </video>
             {% endblock %}
         </div>
@@ -62,6 +156,11 @@
         <p class="model-pano-hint">
             <i class="fas fa-arrows-alt mr-1"></i> Drag to look around
         </p>
+        <div class="text-center mt-3">
+            <button type="button" class="btn btn-bill" id="pano-fullscreen-btn" disabled>
+                <i class="fas fa-expand mr-1"></i>Fullscreen
+            </button>
+        </div>
     </div>
 </section>
 
@@ -88,12 +187,14 @@
     <div class="container">
         <div class="row">
             <div class="col-lg-7">
+                {% if self.model_features() | trim %}
                 <h2 class="model-section-heading">
                     <i class="fas fa-check-circle mr-2"></i>Features & Amenities
                 </h2>
                 <div class="row">
                     {% block model_features %}{% endblock %}
                 </div>
+                {% endif %}
                 <div class="model-disclaimer">
                     <p>
                         <i class="fas fa-info-circle mr-2 text-cotta"></i>
@@ -133,7 +234,7 @@
             <div class="col-lg-4 col-md-6 mb-4">
                 <a href="{{ url_for('landing_blueprint.model_detail', slug=slug) }}" class="card-link">
                     <div class="model-card">
-                        <img src="/static/assets/img/landing/{{ m.image }}" alt="{{ m.name }}">
+                        <img src="/static/landing/img/{{ m.image }}" alt="{{ m.name }}">
                         <div class="body">
                             <span class="badge">{{ m.type }}</span>
                             <h5>{{ m.name }}</h5>
@@ -152,19 +253,67 @@
 
 {% block scripts_extra %}
 {{ super() }}
-<script src="/static/assets/vendor/photo-sphere-viewer/5/index.js"></script>
+<script src="/static/landing/vendor/photo-sphere-viewer/5/three.min.js"></script>
+<script src="/static/landing/vendor/photo-sphere-viewer/5/index.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+var GALLERY_PHOTOS = {{ model.photos | tojson }}.map(function (p) { return '/static/landing/img/' + p; });
+var lightboxIndex = 0;
+
+function updateLightbox() {
+    var img = document.getElementById('lightbox-img');
+    img.src = GALLERY_PHOTOS[lightboxIndex];
+    document.getElementById('lightbox-counter').textContent = (lightboxIndex + 1) + ' / ' + GALLERY_PHOTOS.length;
+}
+
+function openLightbox(index) {
+    if (!GALLERY_PHOTOS.length) return;
+    lightboxIndex = index;
+    updateLightbox();
+    $('#photoLightbox').modal('show');
+}
+
+function lightboxStep(dir) {
+    if (!GALLERY_PHOTOS.length) return;
+    lightboxIndex = (lightboxIndex + dir + GALLERY_PHOTOS.length) % GALLERY_PHOTOS.length;
+    updateLightbox();
+}
+
+$(document).on('click', '.gallery-click', function () {
+    openLightbox(parseInt($(this).data('index'), 10));
+});
+
+$(document).on('click', '#galleryModal .gallery-modal-img', function () {
+    var idx = parseInt($(this).data('index'), 10);
+    $('#galleryModal').modal('hide');
+    setTimeout(function () { openLightbox(idx); }, 400);
+});
+
+$('.lightbox-prev').on('click', function () { lightboxStep(-1); });
+$('.lightbox-next').on('click', function () { lightboxStep(1); });
+
+$(document).on('keydown', function (e) {
+    if (!$('#photoLightbox').hasClass('show')) return;
+    if (e.key === 'ArrowLeft') lightboxStep(-1);
+    if (e.key === 'ArrowRight') lightboxStep(1);
+    if (e.key === 'Escape') $('#photoLightbox').modal('hide');
+});
+
+document.addEventListener('DOMContentLoaded', function () {
     var container = document.getElementById('pano-container');
+    var fullscreenBtn = document.getElementById('pano-fullscreen-btn');
     if (container) {
         var panoImg = container.getAttribute('data-pano');
         if (panoImg) {
             try {
-                new PhotoSphereViewer.Viewer({
+                window.panoViewer = new PhotoSphereViewer.Viewer({
                     container: container,
                     panorama: panoImg,
                     defaultZoomLvl: 30,
                     navbar: ['zoom', 'fullscreen'],
+                });
+                fullscreenBtn.disabled = false;
+                fullscreenBtn.addEventListener('click', function () {
+                    if (window.panoViewer) window.panoViewer.setFullscreen(true);
                 });
             } catch(e) {
                 console.warn('360 viewer failed to load:', e);

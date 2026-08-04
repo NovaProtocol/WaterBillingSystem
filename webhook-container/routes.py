@@ -1,29 +1,40 @@
-from flask import Blueprint, request, jsonify
 import logging
-import os, requests
+import os
+import sys
 
-logger = logging.getLogger('webhook-container')
+import httpx
+from fastapi import APIRouter, FastAPI, Request
+from fastapi.responses import JSONResponse
 
-webhook_bp = Blueprint('webhook', __name__)
+from shared.logger import attach_sqlite_logging
+
+logger = logging.getLogger('webhook')
+
+router = APIRouter()
+
 API_BASE_URL = os.environ.get('API_BASE_URL', 'http://api:8008')
 INTERNAL_API_KEY = os.environ.get('INTERNAL_API_KEY', '')
 
-@webhook_bp.route('/webhook/xendit', methods=['POST'])
-def xendit_webhook():
-    headers = {
-        'X-Callback-Token': INTERNAL_API_KEY,
-        'User-Agent': 'webhook/1.0',
-        'X-Container-Name': 'webhook',
-        'Content-Type': 'application/json',
-    }
+
+@router.post('/webhook/xendit')
+async def xendit_webhook(request: Request):
     try:
-        resp = requests.post(
-            f"{API_BASE_URL}/api/webhook/xendit-payment",
-            json=request.get_json(silent=True),
-            headers=headers,
-            timeout=10
-        )
-        return jsonify(resp.json()), resp.status_code
+        body = await request.json()
+    except Exception:
+        body = {}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{API_BASE_URL}/api/webhook/xendit-payment",
+                json=body,
+                headers={
+                    'X-Callback-Token': INTERNAL_API_KEY,
+                    'User-Agent': 'webhook/1.0',
+                    'X-Container-Name': 'webhook',
+                    'Content-Type': 'application/json',
+                },
+            )
+        return JSONResponse(resp.json(), status_code=resp.status_code)
     except Exception as e:
         logger.exception(f"Xendit webhook proxy failed:")
-        return jsonify({'error': str(e)}), 502
+        return JSONResponse({'error': str(e)}, status_code=502)

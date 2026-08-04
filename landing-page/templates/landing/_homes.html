@@ -9,14 +9,21 @@
 
         <div class="row">
             {% for slug, m in models.items() %}
-            <div class="col-lg-4 col-md-6 mb-4">
+            <div class="col-lg-4 col-md-6 mb-4" data-loc="{{ ' '.join(m.locations) }}">
                 <a href="{{ url_for('landing_blueprint.model_detail', slug=slug) }}" class="card-link">
                     <div class="model-card">
-                        <img src="/static/assets/img/landing/{{ m.image }}" alt="{{ m.name }}">
+                        <img src="/static/landing/img/{{ m.image }}" alt="{{ m.name }}">
                         <div class="body">
-                            <span class="badge">{{ m.type }}</span>
+                            <div class="model-card-badges">
+                                <span class="badge">{{ m.type }}</span>
+                                {% for loc in m.locations %}
+                                <span class="badge badge-loc">{{ loc }}</span>
+                                {% endfor %}
+                            </div>
                             <h5>{{ m.name }}</h5>
-                            <div class="type">{{ m.bedrooms }} Bedrooms</div>
+                            <div class="type">
+                                {% if m.bedrooms %}{{ m.bedrooms }} Bedrooms{% elif m.size %}{{ m.size }}{% endif %}
+                            </div>
                             <ul>
                                 {% for feature in m.features %}
                                 <li><i class="fas fa-check"></i> {{ feature }}</li>
