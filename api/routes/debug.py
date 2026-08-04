@@ -7,11 +7,25 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from flask import Response, jsonify, request
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from sqlalchemy import desc, func, select
 
-from app import db
 from blueprint import blueprint
-from models import BackgroundTask, Config
+from db_async import session
+from models import (
+    ApiKey,
+    BackgroundTask,
+    Billing,
+    Config,
+    Customer,
+    ManagementLog,
+    MeterReading,
+    NfcTag,
+    PaymentMethod,
+    Staff,
+    XenditTransaction,
+)
 
 logger = logging.getLogger('api')
 
@@ -25,43 +39,59 @@ def _superuser_only() -> None:
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
 
-@blueprint.route("/debug/stats")
-def debug_stats() -> Response:
+async def _enqueue(task_type: str, params: dict | None = None, title: str | None = None) -> BackgroundTask:
+    task = BackgroundTask(
+        task_type=task_type,
+        params=params or {},
+        title=title or task_type,
+        status="queued",
+    )
+    session().add(task)
+    await session().commit()
+    return task
+
+
+@blueprint.get("/debug/stats")
+async def debug_stats():
     _superuser_only()
-    from app import db
-    from models import Customer, MeterReading, Billing, Staff, ApiKey, NfcTag, ManagementLog, XenditTransaction, PaymentMethod, BackgroundTask
+    counts = {}
 
-    return jsonify({
-        "customers": Customer.query.filter_by(is_active=True).count(),
-        "customers_total": Customer.query.count(),
-        "readings": MeterReading.query.count(),
-        "billings": Billing.query.count(),
-        "unpaid_bills": Billing.query.filter_by(is_paid=False).count(),
-        "paid_bills": Billing.query.filter_by(is_paid=True).count(),
-        "staff": Staff.query.count(),
-        "api_keys": ApiKey.query.count(),
-        "nfc_tags": NfcTag.query.count(),
-        "management_logs": ManagementLog.query.count(),
-        "xendit_transactions": XenditTransaction.query.count(),
-        "payment_methods": PaymentMethod.query.filter_by(is_active=True).count(),
-        "background_tasks": BackgroundTask.query.count(),
-    })
+    async def _count(model, where=None):
+        stmt = select(func.count()).select_from(model)
+        if where is not None:
+            stmt = stmt.where(where)
+        return (await session().execute(stmt)).scalar() or 0
+
+    counts["customers"] = await _count(Customer, Customer.is_active.is_(True))
+    counts["customers_total"] = await _count(Customer)
+    counts["readings"] = await _count(MeterReading)
+    counts["billings"] = await _count(Billing)
+    counts["unpaid_bills"] = await _count(Billing, Billing.is_paid.is_(False))
+    counts["paid_bills"] = await _count(Billing, Billing.is_paid.is_(True))
+    counts["staff"] = await _count(Staff)
+    counts["api_keys"] = await _count(ApiKey)
+    counts["nfc_tags"] = await _count(NfcTag)
+    counts["management_logs"] = await _count(ManagementLog)
+    counts["xendit_transactions"] = await _count(XenditTransaction)
+    counts["payment_methods"] = await _count(PaymentMethod, PaymentMethod.is_active.is_(True))
+    counts["background_tasks"] = await _count(BackgroundTask)
+    return counts
 
 
-@blueprint.route("/debug/backup", methods=["POST"])
-def debug_backup() -> Response:
+@blueprint.post("/debug/backup")
+async def debug_backup():
     _superuser_only()
-    task = BackgroundTask.enqueue(task_type="backup", params={}, title="Backup Database")
-    return jsonify({"ok": True, "order_id": task.id, "message": "Backup queued."})
+    task = await _enqueue(task_type="backup", params={}, title="Backup Database")
+    return {"ok": True, "order_id": task.id, "message": "Backup queued."}
 
 
-@blueprint.route("/debug/backups")
-def debug_backups() -> Response:
+@blueprint.get("/debug/backups")
+async def debug_backups():
     _superuser_only()
     if not BACKUP_DIR.exists():
-        return jsonify({"backups": []})
+        return {"backups": []}
     backups = sorted(BACKUP_DIR.glob("backup_*.sql"), reverse=True)
-    return jsonify({
+    return {
         "backups": [
             {
                 "name": b.name,
@@ -70,65 +100,70 @@ def debug_backups() -> Response:
             }
             for b in backups
         ]
-    })
+    }
 
 
-@blueprint.route("/debug/restore", methods=["POST"])
-def debug_restore() -> Response:
+@blueprint.post("/debug/restore")
+async def debug_restore(request: Request):
     _superuser_only()
-    filename = (request.get_json() or {}).get("filename", "").strip()
+    data = await request.json()
+    if not isinstance(data, dict):
+        data = {}
+    filename = str(data.get("filename", "") or "").strip()
     if not filename:
-        return jsonify({"error": "No backup file specified"}), 400
+        return JSONResponse({"error": "No backup file specified"}, status_code=400)
     path = BACKUP_DIR / filename
     if not path.exists() or not path.name.startswith("backup_") or not path.name.endswith(".sql"):
-        return jsonify({"error": "Backup file not found"}), 404
-    task = BackgroundTask.enqueue(
+        return JSONResponse({"error": "Backup file not found"}, status_code=404)
+    task = await _enqueue(
         task_type="restore", params={"filename": filename}, title=f"Restore: {filename}"
     )
-    return jsonify({"ok": True, "order_id": task.id, "message": "Restore queued."})
+    return {"ok": True, "order_id": task.id, "message": "Restore queued."}
 
 
-@blueprint.route("/debug/restore-newest")
-def debug_restore_newest() -> Response:
+@blueprint.get("/debug/restore-newest")
+async def debug_restore_newest():
     global _last_restore_newest_time
     with _restore_newest_lock:
         now = time.time()
         if now - _last_restore_newest_time < 5:
             remaining = round(5 - (now - _last_restore_newest_time), 1)
-            return jsonify({"error": f"Cooldown active. Try again in {remaining}s"}), 429
+            return JSONResponse({"error": f"Cooldown active. Try again in {remaining}s"}, status_code=429)
         _last_restore_newest_time = now
     _superuser_only()
     backups = sorted(BACKUP_DIR.glob("backup_*.sql"), reverse=True)
     if not backups:
-        return jsonify({"error": "No backup files found"}), 404
+        return JSONResponse({"error": "No backup files found"}, status_code=404)
     filename = backups[0].name
-    task = BackgroundTask.enqueue(
+    task = await _enqueue(
         task_type="restore", params={"filename": filename}, title=f"Restore newest: {filename}"
     )
-    return jsonify({"ok": True, "order_id": task.id, "message": f"Restoring from newest backup: {filename}"})
+    return {"ok": True, "order_id": task.id, "message": f"Restoring from newest backup: {filename}"}
 
 
-@blueprint.route("/debug/clear", methods=["POST"])
-def debug_clear() -> Response:
+@blueprint.post("/debug/clear")
+async def debug_clear():
     _superuser_only()
-    task = BackgroundTask.enqueue(task_type="clear", params={}, title="Clear Database")
-    return jsonify({"ok": True, "order_id": task.id, "message": "Clear queued."})
+    task = await _enqueue(task_type="clear", params={}, title="Clear Database")
+    return {"ok": True, "order_id": task.id, "message": "Clear queued."}
 
 
-@blueprint.route("/debug/seed", methods=["POST"])
-def debug_seed() -> Response:
+@blueprint.post("/debug/seed")
+async def debug_seed(request: Request):
     _superuser_only()
-    data = request.get_json() or {}
+    data = await request.json()
+    if not isinstance(data, dict):
+        data = {}
     try:
         n_customers = int(data.get("customers", "0"))
         n_months = int(data.get("months", "0"))
     except (ValueError, TypeError):
         logger.exception("Invalid seed parameters:")
-        return jsonify({"error": "Invalid customer count or months"}), 400
+        return JSONResponse({"error": "Invalid customer count or months"}, status_code=400)
 
     total_entries = n_customers * n_months
     if n_customers < 1 or n_months < 2 or total_entries > 10_000_000:
-        return jsonify({"error": "Invalid range: customers × months must be between 1×2 and 10,000,000 total entries"}), 400
+        return JSONResponse({"error": "Invalid range: customers × months must be between 1×2 and 10,000,000 total entries"}, status_code=400)
 
     n_cashiers = int(data.get("cashiers", "2"))
     n_readers = int(data.get("readers", "2"))
@@ -144,61 +179,70 @@ def debug_seed() -> Response:
         "randomize_months": randomize_months,
         "allow_deactivation": allow_deactivation,
     }
-    task = BackgroundTask.enqueue(
+    task = await _enqueue(
         task_type="seed",
         params=params,
         title=f"Seed: {n_customers}c × {n_months}m",
     )
-    return jsonify({"ok": True, "order_id": task.id, "message": "Seed queued."})
+    return {"ok": True, "order_id": task.id, "message": "Seed queued."}
 
 
-@blueprint.route("/debug/read-month", methods=["POST"])
-def debug_read_month() -> Response:
+@blueprint.post("/debug/read-month")
+async def debug_read_month():
     _superuser_only()
-    task = BackgroundTask.enqueue(
+    task = await _enqueue(
         task_type="read-this-month", params={}, title="Read This Month"
     )
-    return jsonify({"ok": True, "order_id": task.id, "message": "Read-this-month queued."})
+    return {"ok": True, "order_id": task.id, "message": "Read-this-month queued."}
 
 
-@blueprint.route("/debug/unread-month", methods=["POST"])
-def debug_unread_month() -> Response:
+@blueprint.post("/debug/unread-month")
+async def debug_unread_month():
     _superuser_only()
-    task = BackgroundTask.enqueue(
+    task = await _enqueue(
         task_type="unread-this-month", params={}, title="Unread This Month"
     )
-    return jsonify({"ok": True, "order_id": task.id, "message": "Unread-this-month queued."})
+    return {"ok": True, "order_id": task.id, "message": "Unread-this-month queued."}
 
 
-@blueprint.route("/debug/pay-month", methods=["POST"])
-def debug_pay_month() -> Response:
+@blueprint.post("/debug/pay-month")
+async def debug_pay_month():
     _superuser_only()
-    task = BackgroundTask.enqueue(
+    task = await _enqueue(
         task_type="pay-this-month", params={}, title="Pay This Month"
     )
-    return jsonify({"ok": True, "order_id": task.id, "message": "Pay-this-month queued."})
+    return {"ok": True, "order_id": task.id, "message": "Pay-this-month queued."}
 
 
-@blueprint.route("/debug/remove-pay-month", methods=["POST"])
-def debug_remove_pay_month() -> Response:
+@blueprint.post("/debug/remove-pay-month")
+async def debug_remove_pay_month():
     _superuser_only()
-    task = BackgroundTask.enqueue(
+    task = await _enqueue(
         task_type="remove-payment-this-month", params={}, title="Remove Payment This Month"
     )
-    return jsonify({"ok": True, "order_id": task.id, "message": "Remove-payment queued."})
+    return {"ok": True, "order_id": task.id, "message": "Remove-payment queued."}
 
 
-@blueprint.route("/debug/tasks")
-def debug_tasks() -> Response:
+@blueprint.get("/debug/tasks")
+async def debug_tasks():
     _superuser_only()
-    current_task = BackgroundTask.query.filter_by(status="running").first()
-    queue = BackgroundTask.query.filter_by(status="queued").order_by(BackgroundTask.created_at.asc()).all()
-    history = (
-        BackgroundTask.query.filter(BackgroundTask.status.in_(["completed", "failed"]))
+    current_result = await session().execute(
+        select(BackgroundTask).where(BackgroundTask.status == "running").limit(1)
+    )
+    current_task = current_result.scalar_one_or_none()
+    queue_result = await session().execute(
+        select(BackgroundTask)
+        .where(BackgroundTask.status == "queued")
+        .order_by(BackgroundTask.created_at.asc())
+    )
+    queue = queue_result.scalars().all()
+    history_result = await session().execute(
+        select(BackgroundTask)
+        .where(BackgroundTask.status.in_(["completed", "failed"]))
         .order_by(BackgroundTask.created_at.desc())
         .limit(20)
-        .all()
     )
+    history = history_result.scalars().all()
 
     def _to_dict(t: BackgroundTask) -> dict:
         return {
@@ -213,20 +257,20 @@ def debug_tasks() -> Response:
             "created_at": t.created_at.isoformat() if t.created_at else None,
         }
 
-    return jsonify({
+    return {
         "current": _to_dict(current_task) if current_task else None,
         "queue_depth": len(queue),
         "history": [_to_dict(t) for t in history],
-    })
+    }
 
 
-@blueprint.route("/debug/tasks/<int:task_id>")
-def debug_task(task_id: int) -> Response:
+@blueprint.get("/debug/tasks/{task_id}")
+async def debug_task(task_id: int):
     _superuser_only()
-    task = BackgroundTask.query.get(task_id)
+    task = await session().get(BackgroundTask, task_id)
     if not task:
-        return jsonify({"error": "Task not found"}), 404
-    return jsonify({
+        return JSONResponse({"error": "Task not found"}, status_code=404)
+    return {
         "task": {
             "id": str(task.id),
             "task_type": task.task_type,
@@ -240,4 +284,4 @@ def debug_task(task_id: int) -> Response:
             "finished_at": task.finished_at.isoformat() if task.finished_at else None,
             "created_at": task.created_at.isoformat() if task.created_at else None,
         }
-    })
+    }

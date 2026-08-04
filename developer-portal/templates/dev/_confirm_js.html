@@ -1,75 +1,14 @@
 <script>
-var pendingAction = null;
-var pendingData = null;
-
-function confirmAndExec(action, data, message) {
-  pendingAction = action;
-  pendingData = data || {};
-  document.getElementById('confirm-message').textContent = message || '';
-  document.getElementById('confirm-input').value = '';
-  document.getElementById('confirm-execute').disabled = true;
-  fetch('{{ url_for("dev.confirm") }}', {method: 'POST'})
-    .then(r => r.json())
-    .then(r => {
-      document.getElementById('confirm-code').textContent = r.code;
-      $('#confirm-modal').modal('show');
-    });
-}
-
-document.getElementById('confirm-input').addEventListener('input', function() {
-  var code = document.getElementById('confirm-code').textContent;
-  document.getElementById('confirm-execute').disabled = this.value !== code;
-});
-
-document.getElementById('confirm-execute').addEventListener('click', function() {
-  var actions = {
-    backup: '{{ url_for("dev.create_backup") }}',
-    restore: '{{ url_for("dev.restore_backup") }}',
-    clear: '{{ url_for("dev.clear_database") }}',
-    seed: '{{ url_for("dev.seed_data") }}',
-    'read-this-month': '{{ url_for("dev.read_this_month") }}',
-    'unread-this-month': '{{ url_for("dev.unread_this_month") }}',
-    'pay-this-month': '{{ url_for("dev.pay_this_month") }}',
-    'remove-payment-this-month': '{{ url_for("dev.remove_payment_this_month") }}',
-  };
-  var url = actions[pendingAction];
-  if (!url) return;
-
-  var body = new FormData();
-  body.append('confirm_code', document.getElementById('confirm-input').value);
-  Object.keys(pendingData || {}).forEach(function(k) { body.append(k, pendingData[k]); });
-
-  $('#confirm-modal').modal('hide');
-  fetch(url, {method: 'POST', body: body})
-    .then(r => r.json().catch(() => ({error: 'Request failed'})))
-    .then(r => {
-      var hdr = document.getElementById('result-header');
-      var bdy = document.getElementById('result-body');
-      if (r.error) {
-        hdr.className = 'modal-header bg-danger text-white';
-        hdr.innerHTML = '<h5 class="modal-title">Error</h5>';
-        bdy.innerHTML = '<div class="alert alert-danger mb-0">' + r.error + '</div>';
-      } else {
-        hdr.className = 'modal-header bg-success text-white';
-        hdr.innerHTML = '<h5 class="modal-title">Success</h5>';
-        bdy.innerHTML = '<div class="alert alert-success mb-0">' + (r.message || 'Done') + '</div>';
-      }
-      $('#result-modal').modal('show');
-      if (pendingAction === 'backup') refreshBackups();
-      if (pendingAction === 'clear' || pendingAction === 'seed') setTimeout(function() { location.reload(); }, 2000);
-    });
-});
-
-function refreshBackups() {
-  fetch('{{ url_for("dev.list_backups") }}')
-    .then(r => r.json())
-    .then(r => {
-      var sel = document.getElementById('restore-file');
-      if (!sel) return;
-      sel.innerHTML = '<option value="">-- Select backup --</option>';
-      (r.backups || []).forEach(function(b) {
-        sel.innerHTML += '<option value="' + b.name + '">' + b.name + '</option>';
-      });
-    });
-}
+window.DEV_URLS = window.DEV_URLS || {};
+window.DEV_URLS.confirm = '{{ url_for("dev.confirm") }}';
+window.DEV_URLS.backup = '{{ url_for("dev.create_backup") }}';
+window.DEV_URLS.restore = '{{ url_for("dev.restore_backup") }}';
+window.DEV_URLS.clear = '{{ url_for("dev.clear_database") }}';
+window.DEV_URLS.seed = '{{ url_for("dev.seed_data") }}';
+window.DEV_URLS['read-this-month'] = '{{ url_for("dev.read_this_month") }}';
+window.DEV_URLS['unread-this-month'] = '{{ url_for("dev.unread_this_month") }}';
+window.DEV_URLS['pay-this-month'] = '{{ url_for("dev.pay_this_month") }}';
+window.DEV_URLS['remove-payment-this-month'] = '{{ url_for("dev.remove_payment_this_month") }}';
+window.DEV_URLS.list_backups = '{{ url_for("dev.list_backups") }}';
 </script>
+<script src="/static/dev/js/confirm.js"></script>

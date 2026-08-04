@@ -18,7 +18,7 @@
 
                     <div class="text-center mb-3">
                         <span class="bill-amount-label">Bill Amount</span>
-                        <div class="bill-amount">&#x20B1;<span id="pay-amount">{{ "%.2f" | format(total_due) }}</span></div>
+                        <div class="bill-amount">&#x20B1;<span id="pay-amount">0.00</span></div>
                     </div>
 
                     <div id="fee-breakdown" class="mb-3 p-3 fee-breakdown d-none">
@@ -34,54 +34,7 @@
 
                     <p class="payment-method-heading">Payment Method</p>
 
-                    {% set groups = {
-                        'Recommended': ['gcash_ewallet', 'maya_ewallet', 'qrph', 'card_domestic'],
-                        'E-Wallets': ['gcash_ewallet', 'maya_ewallet', 'grabfpay', 'shopeepay'],
-                        'Cards': ['card_domestic', 'card_international'],
-                        'Direct Debit': ['bpi_directdebit', 'ubp_directdebit', 'rcbc_directdebit'],
-                        'Over-the-Counter': ['7eleven_otc', 'cebuana_otc', 'ecpay_otc', 'lbc_otc', 'mlhuillier_otc', 'palawan_otc', 'robinsons_otc', 'sm_otc', 'ussc_otc'],
-                        'Others': ['online_banking', 'billease', 'virtual_account'],
-                    } %}
-                    {% set expanded_groups = ['Recommended'] %}
-
-                    {% for gname, codes in groups.items() %}
-                        {% set is_expanded = gname in expanded_groups %}
-                        <div class="payment-group mb-1">
-                            <div class="payment-group-header{% if is_expanded %} expanded{% endif %}" onclick="toggleGroup(this)">
-                                <span class="payment-group-name">{{ gname }}</span>
-                                <i class="payment-group-icon fas {% if is_expanded %}fa-chevron-up{% else %}fa-chevron-down{% endif %}"></i>
-                            </div>
-                            <div class="payment-group-body{% if not is_expanded %} d-none{% endif %}">
-                                {% for code in codes %}
-                                    {% set m = payment_methods | selectattr('code', 'equalto', code) | first %}
-                                    {% if m %}
-                                    <div class="payment-option"
-                                         data-method="{{ m.code }}"
-                                         data-fee-percent="{{ m.fee_percent or 0 }}"
-                                         data-fee-flat="{{ m.fee_flat or 0 }}"
-                                         data-fee-minimum="{{ m.fee_minimum or 0 }}"
-                                         data-xendit-fee="{{ m.xendit_fee or 0 }}"
-                                         onclick="selectPaymentMethod(this)">
-                                        <div class="payment-radio">
-                                            <div class="payment-radio-dot"></div>
-                                        </div>
-                                        <div class="payment-option-info">
-                                            <div class="payment-method-name">{{ m.label }}</div>
-                                            <div class="payment-method-fee">
-                                                {%- if m.fee_percent %}{{ "%.1f" | format(m.fee_percent) }}%{% endif -%}
-                                                {%- if m.fee_minimum %} (min &#x20B1;{{ "%.0f" | format(m.fee_minimum) }}){% endif -%}
-                                                {%- if m.fee_flat %}&#x20B1;{{ "%.0f" | format(m.fee_flat) }} flat{% endif -%}
-                                                {%- if m.xendit_fee and (m.fee_percent or m.fee_flat) %} + {% endif -%}
-                                                {%- if m.xendit_fee %}&#x20B1;{{ "%.0f" | format(m.xendit_fee) }} fee{% endif -%}
-                                                {%- if not m.fee_percent and not m.fee_flat and not m.xendit_fee %}No fee{% endif -%}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
-                    {% endfor %}
+                    <div id="payment-groups"></div>
                 </div>
                 <div class="modal-footer modal-cotta-footer">
                     <button type="button" class="btn btn-bill w-100" id="pay-now-btn" disabled>
@@ -130,7 +83,7 @@
                     <p class="font-weight-bold modal-status-title">Payment Initiated!</p>
                     <p class="text-muted mb-1 modal-status-text">Your payment request has been submitted.</p>
                     <p class="text-muted mb-0 modal-status-text-sm">
-                        <span id="pay-success-method-text">GCash</span> &middot; &#x20B1;<span id="pay-success-amount">{{ "%.2f" | format(total_due) }}</span>
+                        <span id="pay-success-method-text">GCash</span> &middot; &#x20B1;<span id="pay-success-amount">0.00</span>
                     </p>
                 </div>
                 <div class="modal-footer modal-cotta-footer">
@@ -142,111 +95,3 @@
         </div>
     </div>
 </div>
-
-<script>
-function toggleGroup(header) {
-    var body = $(header).next('.payment-group-body');
-    var isOpening = body.hasClass('d-none');
-    $('.payment-group-body').addClass('d-none').css('display', '');
-    $('.payment-group-header').removeClass('expanded');
-    $('.payment-group-icon').removeClass('fa-chevron-up').addClass('fa-chevron-down');
-    if (isOpening) {
-        body.removeClass('d-none');
-        $(header).addClass('expanded');
-        $(header).find('.payment-group-icon').removeClass('fa-chevron-down').addClass('fa-chevron-up');
-    }
-}
-
-var selectedMethod = null;
-var BASE_AMOUNT = {{ total_due }};
-
-function selectPaymentMethod(el) {
-    $('.payment-option').removeClass('selected');
-    $(el).addClass('selected');
-    selectedMethod = $(el).data('method');
-
-    var feePercent = parseFloat($(el).data('fee-percent')) || 0;
-    var feeFlat = parseFloat($(el).data('fee-flat')) || 0;
-    var feeMin = parseFloat($(el).data('fee-minimum')) || 0;
-    var xenditFee = parseFloat($(el).data('xendit-fee')) || 0;
-
-    var feeAmount = Math.round(BASE_AMOUNT * feePercent) / 100 + feeFlat;
-    if (feeMin > 0 && feeAmount < feeMin) {
-        feeAmount = feeMin;
-    }
-    feeAmount = Math.round(feeAmount * 100) / 100;
-    var convenienceFee = feeAmount + xenditFee;
-    var totalWithFee = BASE_AMOUNT + convenienceFee;
-
-    $('#convenience-fee-display').text(convenienceFee.toFixed(2));
-    $('#total-with-fee').text(totalWithFee.toFixed(2));
-    $('#fee-breakdown').show();
-    $('#pay-amount-btn').text(totalWithFee.toFixed(2));
-    $('#pay-now-btn').prop('disabled', false);
-}
-
-$('#pay-now-btn').on('click', function() {
-    if (!selectedMethod) return;
-
-    $('#pay-online-form').hide();
-    $('#pay-online-loading').show();
-
-    var invoiceUrl = '{{ url_for("customer.create_invoice", customer_number=customer.customer_number) }}';
-
-    $.ajax({
-        url: invoiceUrl,
-        method: 'POST',
-
-        contentType: 'application/json',
-        data: JSON.stringify({
-            amount: BASE_AMOUNT,
-            payment_method: selectedMethod,
-            success_url: window.location.href,
-            cancel_url: window.location.href,
-        }),
-        success: function(data) {
-            if (data.redirect_url) {
-                window.location.href = data.redirect_url;
-            }
-        },
-        error: function(xhr) {
-            $('#pay-online-loading').hide();
-            var msg = 'Payment failed. Please try again.';
-            try { var r = JSON.parse(xhr.responseText); msg = r.error; } catch(e) {}
-            $('#pay-online-error-msg').text(msg);
-            $('#pay-online-error').show();
-        }
-    });
-});
-
-$('#payOnlineModal').on('hidden.bs.modal', resetModal);
-
-function resetModal() {
-    selectedMethod = null;
-    BASE_AMOUNT = {{ total_due }};
-    $('#pay-now-btn').prop('disabled', true);
-    $('#fee-breakdown').hide();
-    $('.payment-option').removeClass('selected');
-    $('.payment-group-body').each(function() {
-        var name = $(this).closest('.payment-group').find('.payment-group-name').text().trim();
-        var isExpanded = name === 'Recommended';
-        if (!isExpanded) $(this).addClass('d-none').css('display', '');
-        if (isExpanded) $(this).removeClass('d-none').css('display', '');
-    });
-    $('.payment-group-icon').each(function() {
-        var name = $(this).closest('.payment-group').find('.payment-group-name').text().trim();
-        var isExpanded = name === 'Recommended';
-        $(this).toggleClass('fa-chevron-down', !isExpanded);
-        $(this).toggleClass('fa-chevron-up', isExpanded);
-    });
-    $('#pay-online-error').hide();
-    $('#pay-online-success').hide();
-    $('#pay-online-loading').hide();
-    $('#pay-online-form').show();
-    $('#pay-amount-btn').text(BASE_AMOUNT.toFixed(2));
-}
-
-function retryPayment() {
-    resetModal();
-}
-</script>

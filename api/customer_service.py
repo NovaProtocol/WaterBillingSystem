@@ -8,22 +8,36 @@ from sqlalchemy import func, or_
 
 from apps import db
 from models import Billing, Customer
-from billing_service import ensure_penalty
+
+
+def _ensure_penalty_sync(billing, session) -> float:
+    from datetime import datetime, timezone, timedelta
+
+    from pricing import DUE_DAYS, LATE_PENALTY
+
+    if billing.is_paid:
+        return float(billing.penalty or 0)
+    reading_ts = billing.reading.timestamp if billing.reading else (
+        billing.date_created or datetime.now(tz=timezone.utc).replace(tzinfo=None)
+    )
+    due_dt = reading_ts + timedelta(days=DUE_DAYS)
+    if datetime.now(tz=timezone.utc).replace(tzinfo=None) > due_dt and float(billing.penalty or 0) == 0:
+        billing.penalty = LATE_PENALTY
+        session.flush()
+    return float(billing.penalty or 0)
 
 
 def _is_name_query(s: str) -> bool:
     return bool(s) and all(c.isalpha() or c in " .-'" for c in s)
 
 
-def get_customer_or_404(customer_id: int) -> Customer:
-    return Customer.query.get_or_404(customer_id)
+def get_customer_by_number(customer_number: int, *, session=None) -> Customer | None:
+    session = session or db.session
+    return session.query(Customer).filter_by(customer_number=customer_number).first()
 
 
-def get_customer_by_number(customer_number: int) -> Customer | None:
-    return Customer.query.filter_by(customer_number=customer_number).first()
-
-
-def create_customer(data: dict) -> tuple[Customer | None, str | None]:
+def create_customer(data: dict, *, session=None) -> tuple[Customer | None, str | None]:
+    session = session or db.session
     customer_number = data.get("customer_number")
     name = data.get("name", "").strip()
     address = data.get("address", "").strip()
@@ -33,7 +47,7 @@ def create_customer(data: dict) -> tuple[Customer | None, str | None]:
     if customer_number is None:
         return None, "Customer number is required"
 
-    if Customer.query.filter_by(customer_number=customer_number).first():
+    if session.query(Customer).filter_by(customer_number=customer_number).first():
         return None, "Customer number already exists"
 
     customer = Customer(
@@ -50,12 +64,13 @@ def create_customer(data: dict) -> tuple[Customer | None, str | None]:
         cumulative_balance=0.00,
         max_meter_value=data.get("max_meter_value", 99999.00),
     )
-    db.session.add(customer)
-    db.session.commit()
+    session.add(customer)
+    session.commit()
     return customer, None
 
 
-def update_customer(customer: Customer, data: dict) -> None:
+def update_customer(customer: Customer, data: dict, *, session=None) -> None:
+    session = session or db.session
     customer.name = data.get("name", customer.name) or None
     customer.address = data.get("address", customer.address) or None
     customer.contact_number = (
@@ -69,62 +84,67 @@ def update_customer(customer: Customer, data: dict) -> None:
     customer.y_coordinate = data.get("y_coordinate", customer.y_coordinate)
     if "max_meter_value" in data:
         customer.max_meter_value = data.get("max_meter_value")
-    db.session.commit()
+    session.commit()
 
 
-def toggle_active(customer: Customer) -> None:
+def toggle_active(customer: Customer, *, session=None) -> None:
+    session = session or db.session
     customer.is_active = not customer.is_active
     if not customer.is_active:
         customer.deleted_at = datetime.now(tz=timezone.utc).replace(tzinfo=None)
     else:
         customer.deleted_at = None
-    db.session.commit()
+    session.commit()
 
 
-def _total_carryover(customer_number: int) -> float:
+def _total_carryover(customer_number: int, session) -> float:
     return float(
-        db.session.query(db.func.sum(Billing.carryover_offset))
+        session.query(func.sum(Billing.carryover_offset))
         .filter_by(customer_number=customer_number)
         .scalar()
         or 0
     )
 
 
-def compute_customer_due(customer: Customer) -> float:
+def compute_customer_due(customer: Customer, *, session=None) -> float:
+    session = session or db.session
     unpaid_bills = (
-        Billing.query
+        session.query(Billing)
         .filter_by(customer_number=customer.customer_number, is_paid=False)
         .all()
     )
     total_due = 0.0
     for bill in unpaid_bills:
-        ensure_penalty(bill)
+        _ensure_penalty_sync(bill, session)
         bill_due = (
             float(bill.billed_amount or 0)
             + float(bill.penalty or 0)
             - float(bill.paid_amount or 0)
         )
         total_due += max(0, bill_due)
-    balance = _total_carryover(customer.customer_number)
+    balance = _total_carryover(customer.customer_number, session)
     return max(0, round(total_due - balance, 2))
 
 
-def recalc_total_due(customer_number: int) -> float:
-    total = compute_customer_due(get_customer_by_number(customer_number))
-    customer = Customer.query.filter_by(customer_number=customer_number).first()
-    if customer:
-        customer.total_due = total
-        db.session.commit()
+def recalc_total_due(customer_number: int, *, session=None) -> float:
+    session = session or db.session
+    customer = session.query(Customer).filter_by(customer_number=customer_number).first()
+    if not customer:
+        return 0.0
+    total = compute_customer_due(customer, session=session)
+    customer.total_due = total
+    session.commit()
     return total
 
 
-def compute_batch_due(customers: list[Customer]) -> dict[int, float]:
+def compute_batch_due(customers: list[Customer], *, session=None) -> dict[int, float]:
+    session = session or db.session
     if not customers:
         return {}
     cnums = [c.customer_number for c in customers]
 
     unpaid_bills = (
-        Billing.query
+        session.query(Billing)
         .filter(
             Billing.customer_number.in_(cnums),
             Billing.is_paid.is_(False),
@@ -137,9 +157,9 @@ def compute_batch_due(customers: list[Customer]) -> dict[int, float]:
         bills_by_cust[bill.customer_number].append(bill)
 
     offset_rows = (
-        db.session.query(
+        session.query(
             Billing.customer_number,
-            db.func.sum(Billing.carryover_offset).label("total_offset"),
+            func.sum(Billing.carryover_offset).label("total_offset"),
         )
         .filter(Billing.customer_number.in_(cnums))
         .group_by(Billing.customer_number)
@@ -171,14 +191,18 @@ def list_customers(
     q: str | None = None,
     sort_by: str = "name",
     sort_dir: str = "asc",
-) -> Any:
+    *,
+    session=None,
+) -> tuple[list[Customer], int]:
+    """Returns (items, total)."""
+    session = session or db.session
     per_page = min(max(per_page, 10), 200)
-    query = Customer.query
+    query = session.query(Customer)
 
     if q:
         if q.isdigit():
             prefix = int(q)
-            max_num = db.session.query(db.func.max(Customer.customer_number)).scalar() or 0
+            max_num = session.query(func.max(Customer.customer_number)).scalar() or 0
             multiplier = 1
             conditions = []
             while prefix * multiplier <= max_num:
@@ -201,6 +225,6 @@ def list_customers(
         col = getattr(Customer, sort_by, Customer.name)
         order = col.asc() if sort_dir == "asc" else col.desc()
 
-    return query.order_by(order).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
+    total = query.count()
+    items = query.order_by(order).offset((page - 1) * per_page).limit(per_page).all()
+    return items, total

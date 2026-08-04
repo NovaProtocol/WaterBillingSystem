@@ -12,13 +12,21 @@ from customer_service import recalc_total_due
 logger = logging.getLogger('api')
 
 
-def existing_this_month(
-    customer_number: int, timestamp_dt: datetime, exclude_id: int | None = None
+def _existing_this_month(
+    customer_number: int, timestamp_dt: datetime, exclude_id: int | None,
+    session,
 ) -> MeterReading | None:
-    query = MeterReading.query.filter(
+    year = timestamp_dt.year
+    month = timestamp_dt.month
+    start = datetime(year, month, 1)
+    if month == 12:
+        end = datetime(year + 1, 1, 1)
+    else:
+        end = datetime(year, month + 1, 1)
+    query = session.query(MeterReading).filter(
         MeterReading.customer_number == customer_number,
-        db.extract("year", MeterReading.timestamp) == timestamp_dt.year,
-        db.extract("month", MeterReading.timestamp) == timestamp_dt.month,
+        MeterReading.timestamp >= start,
+        MeterReading.timestamp < end,
     )
     if exclude_id:
         query = query.filter(MeterReading.id != exclude_id)
@@ -32,7 +40,10 @@ def log_duplicate_attempt(
     existing: MeterReading,
     attempted_value: float,
     token_id: int | None = None,
+    *,
+    session=None,
 ) -> None:
+    session = session or db.session
     details = (
         f"Reader {staff_name} attempted duplicate reading for {customer_number}: "
         f"existing={existing.reading_value}, attempted={attempted_value}"
@@ -46,14 +57,16 @@ def log_duplicate_attempt(
         target_id=existing.id,
         customer_number=customer_number,
         details=details,
+        session=session,
     )
 
 
 def _create_billing_for_reading(
-    reading: MeterReading, customer_number: int
+    reading: MeterReading, customer_number: int, session,
 ) -> Billing | None:
     prev_reading = (
-        MeterReading.query.filter(
+        session.query(MeterReading)
+        .filter(
             MeterReading.customer_number == customer_number,
             MeterReading.timestamp < reading.timestamp,
         )
@@ -77,14 +90,15 @@ def _create_billing_for_reading(
         paid_amount=0,
         is_paid=False,
     )
-    db.session.add(billing)
-    db.session.flush()
+    session.add(billing)
+    session.flush()
     return billing
 
 
 def sync_readings(
-    readings: list, token_id: int, staff_id: int, staff_name: str
+    readings: list, token_id: int, staff_id: int, staff_name: str, *, session=None,
 ) -> tuple[int, list, list]:
+    session = session or db.session
     recalc_customers: set[int] = set()
     synced = 0
     results = []
@@ -103,7 +117,7 @@ def sync_readings(
             errors.append({"index": i, "error": "reading_value is required"})
             continue
 
-        customer = Customer.query.filter_by(customer_number=cust).first()
+        customer = session.query(Customer).filter_by(customer_number=cust).first()
         if not customer:
             errors.append({"index": i, "error": f"Customer {cust} not found"})
             continue
@@ -113,10 +127,10 @@ def sync_readings(
         except (ValueError, TypeError, OverflowError, OSError):
             errors.append({"index": i, "error": "Invalid timestamp"})
             continue
-        existing = existing_this_month(cust, reading_dt)
+        existing = _existing_this_month(cust, reading_dt, None, session)
         if existing:
-            log_duplicate_attempt(staff_id, staff_name, cust, existing, float(value), token_id)
-            db.session.flush()
+            log_duplicate_attempt(staff_id, staff_name, cust, existing, float(value), token_id, session=session)
+            session.flush()
             errors.append(
                 {"index": i, "error": "This meter has already been read this month"}
             )
@@ -128,10 +142,10 @@ def sync_readings(
             token_id=token_id,
             timestamp=reading_dt,
         )
-        db.session.add(reading)
-        db.session.flush()
+        session.add(reading)
+        session.flush()
 
-        billing = _create_billing_for_reading(reading, cust)
+        billing = _create_billing_for_reading(reading, cust, session)
 
         results.append(
             {
@@ -152,10 +166,10 @@ def sync_readings(
         recalc_customers.add(cust)
         synced += 1
 
-    db.session.commit()
+    session.commit()
     for cust in recalc_customers:
         try:
-            recalc_total_due(cust)
+            recalc_total_due(cust, session=session)
         except Exception as e:
             logger.exception(f"recalc_total_due failed for customer {cust}: {e}")
     return synced, results, errors
@@ -168,8 +182,11 @@ def upload_reading(
     token_id: int,
     staff_id: int,
     staff_name: str,
+    *,
+    session=None,
 ) -> tuple[MeterReading | None, str | None, int | None]:
-    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    session = session or db.session
+    customer = session.query(Customer).filter_by(customer_number=customer_number).first()
     if not customer:
         return None, f"Customer {customer_number} not found", 404
 
@@ -177,12 +194,13 @@ def upload_reading(
         reading_dt = datetime.fromtimestamp(float(timestamp))
     except (ValueError, TypeError, OverflowError, OSError):
         return None, "Invalid timestamp", 400
-    existing = existing_this_month(customer_number, reading_dt)
+    existing = _existing_this_month(customer_number, reading_dt, None, session)
     if existing:
         log_duplicate_attempt(
-            staff_id, staff_name, customer_number, existing, reading_value, token_id
+            staff_id, staff_name, customer_number, existing, reading_value, token_id,
+            session=session,
         )
-        db.session.commit()
+        session.commit()
         return None, "This meter has already been read this month", 409
 
     reading = MeterReading(
@@ -191,20 +209,24 @@ def upload_reading(
         token_id=token_id,
         timestamp=reading_dt,
     )
-    db.session.add(reading)
-    db.session.flush()
+    session.add(reading)
+    session.flush()
 
-    _create_billing_for_reading(reading, customer_number)
-    db.session.commit()
+    _create_billing_for_reading(reading, customer_number, session)
+    session.commit()
 
-    recalc_total_due(customer_number)
+    recalc_total_due(customer_number, session=session)
     return reading, None, 201
 
 
-def drop_reading(reading_id: int, staff_id: int, reason: str) -> MeterReading | None:
-    reading = MeterReading.query.get_or_404(reading_id)
+def drop_reading(reading_id: int, staff_id: int, reason: str, *, session=None) -> MeterReading | None:
+    session = session or db.session
+    reading = session.query(MeterReading).get(reading_id)
+    if not reading:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Reading not found")
 
-    billing = Billing.query.filter_by(reading_id=reading_id).first()
+    billing = session.query(Billing).filter_by(reading_id=reading_id).first()
     if billing and billing.is_paid:
         raise ValueError(
             f"Cannot drop reading #{reading_id}: the associated bill "
@@ -227,18 +249,23 @@ def drop_reading(reading_id: int, staff_id: int, reason: str) -> MeterReading | 
         target_id=reading_id,
         customer_number=reading.customer_number,
         details=f"Dropped reading #{reading_id} for {reading.customer_number}. Reason: {reason}",
+        session=session,
     )
-    Billing.query.filter_by(reading_id=reading_id).delete()
-    db.session.delete(reading)
-    db.session.commit()
-    recalc_total_due(reading.customer_number)
+    session.query(Billing).filter_by(reading_id=reading_id).delete()
+    session.delete(reading)
+    session.commit()
+    recalc_total_due(reading.customer_number, session=session)
     return reading
 
 
 def edit_reading(
-    reading_id: int, new_value: float, staff_id: int
+    reading_id: int, new_value: float, staff_id: int, *, session=None,
 ) -> MeterReading | None:
-    reading = MeterReading.query.get_or_404(reading_id)
+    session = session or db.session
+    reading = session.query(MeterReading).get(reading_id)
+    if not reading:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Reading not found")
     old_value = float(reading.reading_value)
     log_action(
         staff_id=staff_id,
@@ -247,13 +274,15 @@ def edit_reading(
         target_id=reading_id,
         customer_number=reading.customer_number,
         details=f"Edited reading #{reading_id}: value {old_value} -> {new_value}",
+        session=session,
     )
     reading.reading_value = new_value
     # Recompute billing for this reading
-    billing = Billing.query.filter_by(reading_id=reading_id).first()
+    billing = session.query(Billing).filter_by(reading_id=reading_id).first()
     if billing:
         prev_reading = (
-            MeterReading.query.filter(
+            session.query(MeterReading)
+            .filter(
                 MeterReading.customer_number == reading.customer_number,
                 MeterReading.timestamp < reading.timestamp,
             )
@@ -266,6 +295,6 @@ def edit_reading(
             billing.consumption = round(consumption, 2)
             billing.current_reading_value = new_value
             billing.billed_amount = round(water_bill, 2)
-    db.session.commit()
-    recalc_total_due(reading.customer_number)
+    session.commit()
+    recalc_total_due(reading.customer_number, session=session)
     return reading

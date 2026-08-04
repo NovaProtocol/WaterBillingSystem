@@ -1,44 +1,50 @@
 from __future__ import annotations
 
 import logging
-from flask import Response, current_app, jsonify, request
+import os
 
-from app import cache, db
+from fastapi import Depends, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy import select
+
 from blueprint import blueprint
-from utils import require_staff, resolve_api_key
+from db_async import session
 from models import Config as AppConfig
 from pricing import DUE_DAYS, LATE_PENALTY, PRICING_TIERS
+from utils import require_staff, resolve_api_key
 
 logger = logging.getLogger('api')
 
 
-@blueprint.route("/config/nfc_secret")
-def config_nfc_secret() -> Response:
-    api_key = resolve_api_key()
+@blueprint.get("/config/nfc_secret")
+async def config_nfc_secret(request: Request):
+    api_key = await resolve_api_key(request)
     if not api_key or not api_key.is_active:
-        return jsonify({"error": "Authentication required"}), 401
+        return JSONResponse({"error": "Authentication required"}, status_code=401)
     if not api_key.staff or not (
         api_key.staff.can_read_meters or api_key.staff.can_enroll_customer
     ):
-        return jsonify({"error": "Permission denied"}), 403
+        return JSONResponse({"error": "Permission denied"}, status_code=403)
 
-    gen_row = AppConfig.query.filter_by(key="nfc_generation").first()
+    result = await session().execute(
+        select(AppConfig).where(AppConfig.key == "nfc_generation")
+    )
+    gen_row = result.scalar_one_or_none()
     generation = int(gen_row.value) if gen_row else 0
 
-    return jsonify({
-        "nfc_pwd_secret": current_app.config["NFC_PWD_SECRET"],
+    return {
+        "nfc_pwd_secret": os.environ.get("NFC_PWD_SECRET", ""),
         "nfc_generation": generation,
-    })
+    }
 
 
-@blueprint.route("/config/pricing")
-@cache.cached(timeout=3600, query_string=True)
-def config_pricing() -> Response:
-    api_key, err = require_staff("can_read_meters")
+@blueprint.get("/config/pricing")
+async def config_pricing(auth: tuple = Depends(require_staff("can_read_meters"))):
+    api_key, err = auth
     if err:
         return err
-    return jsonify({
+    return {
         "tiers": PRICING_TIERS,
         "late_penalty": LATE_PENALTY,
         "due_days": DUE_DAYS,
-    })
+    }

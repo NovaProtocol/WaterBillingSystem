@@ -2,18 +2,24 @@ from __future__ import annotations
 
 from typing import Tuple
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from apps import db
+from db_async import session
 from models import PaymentMethod
 
 
-def get_method(code: str) -> PaymentMethod | None:
-    return PaymentMethod.query.filter_by(code=code, is_active=True).first()
+async def get_method(code: str) -> PaymentMethod | None:
+    result = await session().execute(
+        select(PaymentMethod).where(
+            PaymentMethod.code == code, PaymentMethod.is_active.is_(True)
+        )
+    )
+    return result.scalar_one_or_none()
 
 
-def calculate_fee(amount: float, method_code: str) -> Tuple[float, float]:
-    method = get_method(method_code)
+async def calculate_fee(amount: float, method_code: str) -> Tuple[float, float]:
+    method = await get_method(method_code)
     if not method:
         return 0.0, 0.0
     return float(method.fee_percent or 0), method.fee_for(amount)
@@ -56,10 +62,11 @@ PAYMENT_METHODS: list[dict] = [
 ]
 
 
-def seed_payment_methods() -> None:
+async def seed_payment_methods() -> None:
     import logging
     logger = logging.getLogger('api')
-    existing = {m.code for m in PaymentMethod.query.all()}
+    result = await session().execute(select(PaymentMethod))
+    existing = {m.code for m in result.scalars().all()}
     added = 0
     for data in PAYMENT_METHODS:
         if data["code"] not in existing:
@@ -72,14 +79,14 @@ def seed_payment_methods() -> None:
                 fee_flat=data.get("fee_flat"),
                 fee_minimum=data.get("fee_minimum"),
                 xendit_fee=data.get("xendit_fee"),
+                is_active=True,
                 sort_order=data.get("sort_order", 0),
             )
-            db.session.add(method)
+            session().add(method)
             added += 1
-    try:
-        db.session.commit()
-        if added:
-            logger.info(f"Seeded {added} payment methods")
-    except IntegrityError:
-        db.session.rollback()
-        logger.warning("Payment method seed skipped (already exist)")
+    if added:
+        try:
+            await session().commit()
+        except IntegrityError:
+            await session().rollback()
+    logger.info(f"Seeded {added} payment methods")

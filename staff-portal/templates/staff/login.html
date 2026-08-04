@@ -16,14 +16,13 @@
                     <div class="alert alert-danger mt-3">{{ error }}</div>
                     {% endif %}
                     <form role="form" method="post" action="">
-                        {{ form.hidden_tag() }}
                         <div class="form-group">
                             <label>Username</label>
-                            {{ form.username(class="form-control", placeholder="Enter username") }}
+                            <input type="text" name="username" class="form-control" placeholder="Enter username" value="{{ username or '' }}" required>
                         </div>
                         <div class="form-group">
                             <label>Password</label>
-                            {{ form.password(class="form-control", type="password", placeholder="Enter password") }}
+                            <input type="password" name="password" class="form-control" placeholder="Enter password" required>
                         </div>
                         <button type="submit" name="login" class="btn btn-cotta btn-block mt-4">
                             <i class="fas fa-sign-in-alt mr-2"></i>Login
