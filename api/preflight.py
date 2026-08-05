@@ -52,15 +52,25 @@ MANIFEST = [
 
 def _expected_indexes(table):
     expected = []
+    seen = set()
     for col in table.columns:
         if col.index:
-            expected.append((f"ix_{table.name}_{col.name}", [col.name], False))
+            add = (f"ix_{table.name}_{col.name}", [col.name], False)
+            if (tuple(add[1]), add[2]) not in seen:
+                expected.append(add)
+                seen.add((tuple(add[1]), add[2]))
         if col.unique:
-            expected.append((f"uq_{table.name}_{col.name}", [col.name], True))
+            add = (f"uq_{table.name}_{col.name}", [col.name], True)
+            if (tuple(add[1]), add[2]) not in seen:
+                expected.append(add)
+                seen.add((tuple(add[1]), add[2]))
     for cons in table.constraints:
         if isinstance(cons, UniqueConstraint):
             cols = list(cons.columns.keys())
-            expected.append((cons.name or f"uq_{table.name}_{'_'.join(cols)}", cols, True))
+            add = (cons.name or f"uq_{table.name}_{'_'.join(cols)}", cols, True)
+            if (tuple(add[1]), add[2]) not in seen:
+                expected.append(add)
+                seen.add((tuple(add[1]), add[2]))
     return expected
 
 
@@ -336,7 +346,7 @@ def decide(inspector, metadata, manifest) -> list[Finding]:
                 if b is a or b["name"] == a["name"]:
                     continue
                 cols_b = list(b["column_names"])
-                if cols_a == cols_b[: len(cols_a)]:
+                if len(cols_a) < len(cols_b) and cols_a == cols_b[: len(cols_a)]:
                     findings.append(Finding(
                         "dropped_index",
                         f"dropping redundant index {a['name']} on {name} "

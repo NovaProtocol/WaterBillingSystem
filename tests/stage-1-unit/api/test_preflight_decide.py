@@ -234,3 +234,42 @@ class TestIndexes:
                 "CREATE INDEX ix_users_name_phone ON users (name, phone)"))
         findings = run_decide(engine, good_md)
         assert not any(f.kind == "dropped_index" for f in findings)
+
+    def test_unique_column_not_double_counted(self, engine, good_md):
+        with engine.begin() as conn:
+            conn.execute(sa_text(
+                "ALTER TABLE users ADD COLUMN email VARCHAR(64)"))
+        Table("users", good_md,
+              Column("email", String(64), unique=True), extend_existing=True)
+        findings = run_decide(engine, good_md)
+        created = [f for f in findings if f.kind == "created_index"
+                   and "email" in f.message]
+        assert len(created) == 1
+
+    def test_identical_indexes_not_dropped(self, engine, good_md):
+        with engine.begin() as conn:
+            conn.execute(sa_text(
+                "CREATE INDEX ix_users_name_a ON users (name)"))
+            conn.execute(sa_text(
+                "CREATE INDEX ix_users_name_b ON users (name)"))
+        findings = run_decide(engine, good_md)
+        assert not any(f.kind == "dropped_index" for f in findings)
+
+    def test_strict_prefix_drops_exactly_one(self, engine, good_md):
+        with engine.begin() as conn:
+            conn.execute(sa_text("CREATE INDEX ix_users_name ON users (name)"))
+            conn.execute(sa_text(
+                "CREATE INDEX ix_users_name_phone ON users (name, phone)"))
+        findings = run_decide(engine, good_md)
+        f = [f for f in findings if f.kind == "dropped_index"]
+        assert len(f) == 1 and "ix_users_name" in f[0].message
+
+    def test_covered_by_differently_named_index(self, engine, good_md):
+        with engine.begin() as conn:
+            conn.execute(sa_text(
+                "CREATE INDEX ix_other ON users (name, phone)"))
+        findings = decide(sa_inspect(engine), good_md,
+                          [("ix_users_name_phone", "users",
+                            ["name", "phone"], False)])
+        assert not any(f.kind == "created_index" for f in findings)
+        assert not any(f.kind == "fatal" for f in findings)
