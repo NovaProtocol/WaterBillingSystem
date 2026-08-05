@@ -13,8 +13,9 @@ from dataclasses import dataclass
 from typing import Callable
 
 from sqlalchemy import UniqueConstraint, inspect as sa_inspect, text
-from sqlalchemy.types import (Boolean, DateTime, Float, Integer, JSON,
-                              LargeBinary, Numeric, String, Text)
+from sqlalchemy.types import (BigInteger, Boolean, DateTime, Float, Integer,
+                              JSON, LargeBinary, Numeric, SmallInteger,
+                              String, Text)
 
 from db_async import Base
 
@@ -40,9 +41,11 @@ class TypeSpec:
         if self.family == "STRING":
             return f"VARCHAR({self.size or 255})"
         if self.family == "TEXT":
-            return {0: "TINYTEXT", 1: "TEXT", 2: "MEDIUMTEXT", 3: "LONGTEXT"}[self.size or 1]
+            return {0: "TINYTEXT", 1: "TEXT", 2: "MEDIUMTEXT", 3: "LONGTEXT"}[
+                self.size if self.size is not None else 1]
         if self.family == "INTEGER":
-            return {0: "TINYINT", 1: "SMALLINT", 2: "MEDIUMINT", 3: "INT", 4: "BIGINT"}[self.size or 3]
+            return {0: "TINYINT", 1: "SMALLINT", 2: "MEDIUMINT", 3: "INT",
+                    4: "BIGINT"}[self.size if self.size is not None else 3]
         if self.family == "NUMERIC":
             return f"DECIMAL({self.precision or 10}, {self.scale or 2})"
         if self.family == "BOOLEAN":
@@ -68,6 +71,10 @@ def from_model(typ) -> TypeSpec:
         return TypeSpec("TEXT", size=3)
     if isinstance(typ, String):
         return TypeSpec("STRING", size=typ.length or 255)
+    if isinstance(typ, BigInteger):
+        return TypeSpec("INTEGER", size=4)
+    if isinstance(typ, SmallInteger):
+        return TypeSpec("INTEGER", size=1)
     if isinstance(typ, Integer):
         return TypeSpec("INTEGER", size=3)
     if isinstance(typ, Float):
