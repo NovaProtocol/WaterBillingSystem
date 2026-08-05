@@ -97,7 +97,6 @@ class MeterReading(Base):
         Integer,
         ForeignKey("customers.customer_number"),
         nullable=False,
-        index=True,
     )
     reading_value = Column(Numeric(10, 2), nullable=False)
     token_id = Column(
@@ -127,7 +126,6 @@ class Billing(Base):
         Integer,
         ForeignKey("customers.customer_number"),
         nullable=False,
-        index=True,
     )
     reading_id = Column(
         Integer, ForeignKey("meter_readings.id"), nullable=True

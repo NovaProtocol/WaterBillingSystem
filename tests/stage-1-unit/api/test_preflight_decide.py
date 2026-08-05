@@ -273,3 +273,19 @@ class TestIndexes:
                             ["name", "phone"], False)])
         assert not any(f.kind == "created_index" for f in findings)
         assert not any(f.kind == "fatal" for f in findings)
+
+    def test_unique_plus_index_column_matches_sqlalchemy_ddl(self, engine, good_md):
+        # SQLAlchemy materializes unique=True + index=True as a single
+        # UNIQUE index named ix_<table>_<col>; preflight must expect that.
+        with engine.begin() as conn:
+            conn.execute(sa_text(
+                "ALTER TABLE users ADD COLUMN email VARCHAR(64)"))
+            conn.execute(sa_text(
+                "CREATE UNIQUE INDEX ix_users_email ON users (email)"))
+        Table("users", good_md,
+              Column("email", String(64), unique=True, index=True),
+              extend_existing=True)
+        findings = run_decide(engine, good_md)
+        assert not any(f.kind == "fatal" for f in findings)
+        assert not any(f.kind == "created_index" and "email" in f.message
+                       for f in findings)
