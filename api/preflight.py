@@ -50,6 +50,22 @@ MANIFEST = [
 ]
 
 
+def validate_manifest(metadata, manifest) -> list[str]:
+    """Return a list of errors; empty means every entry references a real
+    table and column in the models."""
+    errors: list[str] = []
+    tables = {t.name: t for t in metadata.sorted_tables}
+    for name, table, cols, unique in manifest:
+        t = tables.get(table)
+        if t is None:
+            errors.append(f"manifest: unknown table {table} for index {name}")
+            continue
+        for c in cols:
+            if c not in t.c:
+                errors.append(f"manifest: {table} has no column {c} for index {name}")
+    return errors
+
+
 def _expected_indexes(table):
     expected = []
     seen = set()
