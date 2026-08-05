@@ -1,5 +1,7 @@
 {% extends "common/base.html" %}
 
+{% block body_class %}nav-right-mobile-hide{% endblock %}
+
 {% block portal_label %}&middot; Customer Portal{% endblock %}
 
 {% block brand_url %}/{% endblock %}
@@ -21,4 +23,11 @@
 <a href="/customer/report" class="nav-link {{ 'active' if request.path == '/customer/report' }}">
     <i class="fas fa-flag"></i>Report an Issue
 </a>
+
+<div class="sidebar-mobile-only">
+    <div class="sidebar-header mt-3">Account</div>
+    <a href="/customer/logout" class="nav-link">
+        <i class="fas fa-sign-out-alt"></i>Logout
+    </a>
+</div>
 {% endblock %}

@@ -2,6 +2,8 @@
 
 {% block title %}Developer{% endblock %}
 
+{% block body_class %}nav-right-mobile-hide{% endblock %}
+
 {% block portal_label %}&middot; Developer Portal{% endblock %}
 
 {% block brand_url %}{{ url_for('dev.index') }}{% endblock %}
@@ -33,4 +35,14 @@
 <a href="/phpmyadmin/" target="_blank" class="nav-link">
     <i class="fas fa-database"></i>phpMyAdmin
 </a>
+
+<div class="sidebar-mobile-only">
+    <div class="sidebar-header mt-3">Account</div>
+    <a href="/staff/dashboard" class="nav-link">
+        <i class="fas fa-tachometer-alt"></i>Staff Dashboard
+    </a>
+    <a href="/staff/logout" class="nav-link">
+        <i class="fas fa-sign-out-alt"></i>Logout
+    </a>
+</div>
 {% endblock %}

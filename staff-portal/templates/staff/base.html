@@ -2,6 +2,8 @@
 
 {% block title %}{% endblock %}
 
+{% block body_class %}nav-right-mobile-hide{% endblock %}
+
 {% block portal_label %}&middot; Staff Portal{% endblock %}
 
 {% block brand_url %}{{ url_for('staff_blueprint.dashboard') if current_user.is_authenticated else url_for('staff_blueprint.index') }}{% endblock %}
@@ -68,6 +70,13 @@
     <i class="fas fa-bug"></i>DEBUG
 </a>
 {% endif %}
+<div class="sidebar-mobile-only">
+    <div class="sidebar-header mt-3">Account</div>
+    <span class="sidebar-user-name">{{ current_user.name or current_user.username }}</span>
+    <a href="{{ url_for('staff_blueprint.logout') }}" class="nav-link">
+        <i class="fas fa-sign-out-alt"></i>Logout
+    </a>
+</div>
 {% endif %}
 {% endblock %}
 

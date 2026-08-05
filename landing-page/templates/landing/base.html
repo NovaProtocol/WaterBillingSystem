@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/common/vendor/bootstrap/4.6.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="/static/common/vendor/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="/static/common/vendor/leaflet/1.9.4/leaflet.css" />
-    <link rel="stylesheet" href="/static/common/css/cotta.css">
+    <link rel="stylesheet" href="/static/common/css/cotta.css?v=3">
     <link rel="stylesheet" href="/static/common/css/cotta-mobile.css" media="(max-width: 768px)">
     {% block head_extra %}{% endblock %}
 </head>
@@ -29,10 +29,10 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark navbar-cotta fixed-top">
     <div class="container">
-        <a class="navbar-brand" href="{{ url_for('landing_blueprint.index') }}">COTTA <span>REALTY</span></a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+        <button type="button" class="navbar-toggler sidebar-toggle d-lg-none mr-2" data-toggle="collapse" data-target="#navbarNav" aria-label="Menu">
             <span class="navbar-toggler-icon"></span>
         </button>
+        <a class="navbar-brand" href="{{ url_for('landing_blueprint.index') }}">COTTA <span>REALTY</span></a>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto align-items-lg-center">
                 <li class="nav-item"><a class="nav-link" href="/#about">About</a></li>
@@ -53,6 +53,13 @@
 <script src="/static/common/vendor/jquery/3.5.1/jquery.min.js"></script>
 <script src="/static/common/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js"></script>
 <script src="/static/common/vendor/leaflet/1.9.4/leaflet.js"></script>
+<script>
+$(function () {
+    $('#navbarNav .nav-link').on('click', function () {
+        if ($('#navbarNav').hasClass('show')) $('#navbarNav').collapse('hide');
+    });
+});
+</script>
 
 {% block content %}{% endblock %}
 
