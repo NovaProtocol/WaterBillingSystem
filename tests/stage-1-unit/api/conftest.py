@@ -23,6 +23,6 @@ def client():
     app = create_app()
     app.config['TESTING'] = True
     with app.app_context():
-        from apps import create_all
-        create_all()
+        from apps import db
+        db.create_all()
     return app.test_client()
