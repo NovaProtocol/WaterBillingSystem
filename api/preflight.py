@@ -192,6 +192,13 @@ def from_db(type_str: str) -> TypeSpec:
 
 
 def compare(db_spec: TypeSpec, model_spec: TypeSpec) -> str:
+    # MySQL Boolean is TINYINT(1); SQLAlchemy reflection on MySQL 8.x reports
+    # the column without the deprecated display width, so a genuine boolean
+    # column arrives as widthless TINYINT. Storage is identical (1-byte),
+    # no data can be invalidated, so this is a match, not a family mismatch.
+    if (db_spec.family == "INTEGER" and db_spec.size == 0
+            and model_spec.family == "BOOLEAN"):
+        return "ok"
     if db_spec.family != model_spec.family:
         return "fatal"
     if db_spec.family == "STRING":
