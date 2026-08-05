@@ -30,6 +30,40 @@ def is_time_name(name: str) -> bool:
     return bool(TIME_NAME_RE.search(name))
 
 
+# Canonical index list from the 2026-08-06 query audit (see spec). Entries are
+# (name, table, [columns], unique). Missing entries are auto-created at startup.
+MANIFEST = [
+    ("ix_meter_readings_customer_timestamp", "meter_readings", ["customer_number", "timestamp"], False),
+    ("ix_meter_readings_date_created", "meter_readings", ["date_created"], False),
+    ("ix_meter_readings_date_modified", "meter_readings", ["date_modified"], False),
+    ("ix_billings_reading_id", "billings", ["reading_id"], False),
+    ("ix_billings_receipt_number", "billings", ["receipt_number"], False),
+    ("ix_billings_customer_date_created", "billings", ["customer_number", "date_created"], False),
+    ("ix_billings_customer_paid_created", "billings", ["customer_number", "is_paid", "date_created"], False),
+    ("ix_billings_payment_timestamp", "billings", ["payment_timestamp", "is_paid", "cashier_id"], False),
+    ("ix_xendit_status_created", "xendit_transactions", ["status", "date_created"], False),
+    ("ix_background_tasks_status_sched", "background_tasks", ["status", "scheduled_at", "created_at"], False),
+    ("ix_customers_active_modified", "customers", ["is_active", "date_modified"], False),
+    ("ix_customers_name", "customers", ["name"], False),
+    ("ix_management_logs_target_ts", "management_logs", ["target_type", "timestamp"], False),
+    ("ix_management_logs_target_action", "management_logs", ["target_type", "action_type", "date_created"], False),
+]
+
+
+def _expected_indexes(table):
+    expected = []
+    for col in table.columns:
+        if col.index:
+            expected.append((f"ix_{table.name}_{col.name}", [col.name], False))
+        if col.unique:
+            expected.append((f"uq_{table.name}_{col.name}", [col.name], True))
+    for cons in table.constraints:
+        if isinstance(cons, UniqueConstraint):
+            cols = list(cons.columns.keys())
+            expected.append((cons.name or f"uq_{table.name}_{'_'.join(cols)}", cols, True))
+    return expected
+
+
 @dataclass(frozen=True)
 class TypeSpec:
     family: str                 # STRING | TEXT | INTEGER | NUMERIC | FLOAT | BOOLEAN | DATETIME | BLOB | JSON | UNKNOWN
@@ -247,5 +281,67 @@ def decide(inspector, metadata, manifest) -> list[Finding]:
                     "warning",
                     f"{name}.{col.name}: db is nullable but model declares "
                     f"NOT NULL — left alone (enforcing could reject data)"))
+
+    for name, table in sorted(model_tables.items()):
+        if name not in db_tables:
+            continue
+        existing = {ix["name"]: ix for ix in inspector.get_indexes(name)}
+        manifest_here = [m for m in manifest if m[1] == name]
+        expected = _expected_indexes(table) + [
+            (m[0], list(m[2]), m[3]) for m in manifest_here]
+
+        for exp_name, exp_cols, exp_unique in expected:
+            ix = existing.get(exp_name)
+            if ix is None:
+                if any(
+                    list(e["column_names"]) == exp_cols
+                    and bool(e["unique"]) == exp_unique
+                    for e in existing.values()
+                ):
+                    continue  # already covered by an existing index
+                uniq = "UNIQUE " if exp_unique else ""
+                findings.append(Finding(
+                    "created_index",
+                    f"creating index {exp_name} on {name} ({', '.join(exp_cols)})",
+                    ddl=f"CREATE {uniq}INDEX {exp_name} ON {name} "
+                        f"({', '.join(exp_cols)})"))
+            elif (
+                list(ix["column_names"]) != exp_cols
+                or bool(ix["unique"]) != exp_unique
+            ):
+                findings.append(Finding(
+                    "fatal",
+                    f"index {exp_name} on {name} exists with columns "
+                    f"{ix['column_names']} but models/manifest declare "
+                    f"{exp_cols}"))
+
+    # Redundancy sweep: drop non-unique indexes that are strict left-prefixes
+    # of another index on the same table (never PRIMARY/UNIQUE, never an index
+    # the models or manifest expect).
+    for name, table in sorted(model_tables.items()):
+        if name not in db_tables:
+            continue
+        existing = inspector.get_indexes(name)
+        expected_colsets = {
+            tuple(e[1]) for e in (_expected_indexes(table)
+                                  + [(m[0], list(m[2]), m[3])
+                                     for m in manifest if m[1] == name])}
+        for a in existing:
+            if a["unique"] or not a["name"]:
+                continue
+            cols_a = list(a["column_names"])
+            if not cols_a or tuple(cols_a) in expected_colsets:
+                continue
+            for b in existing:
+                if b is a or b["name"] == a["name"]:
+                    continue
+                cols_b = list(b["column_names"])
+                if cols_a == cols_b[: len(cols_a)]:
+                    findings.append(Finding(
+                        "dropped_index",
+                        f"dropping redundant index {a['name']} on {name} "
+                        f"(covered by {b['name']})",
+                        ddl=f"DROP INDEX {a['name']} ON {name}"))
+                    break
 
     return findings
