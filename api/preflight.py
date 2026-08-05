@@ -163,19 +163,24 @@ def _type_sql(col) -> str:
     return from_model(col.type).type_sql()
 
 
+def _default_sql(col) -> str:
+    default = getattr(col.default, "arg", None)
+    if default is None or callable(default):
+        return ""
+    if isinstance(default, str):
+        return f" DEFAULT '{default}'"
+    return f" DEFAULT {default}"
+
+
 def _modify_column_sql(table: str, col) -> str:
     null = "" if col.nullable else " NOT NULL"
-    return f"ALTER TABLE {table} MODIFY {col.name} {_type_sql(col)}{null}"
+    return (f"ALTER TABLE {table} MODIFY {col.name} {_type_sql(col)}"
+            f"{_default_sql(col)}{null}")
 
 
 def _add_column_sql(table: str, col) -> str:
-    sql = f"ALTER TABLE {table} ADD COLUMN {col.name} {_type_sql(col)}"
-    default = getattr(col.default, "arg", None)
-    if default is not None and not callable(default):
-        if isinstance(default, str):
-            sql += f" DEFAULT '{default}'"
-        else:
-            sql += f" DEFAULT {default}"
+    sql = (f"ALTER TABLE {table} ADD COLUMN {col.name} {_type_sql(col)}"
+           f"{_default_sql(col)}")
     sql += " NULL" if col.nullable else " NOT NULL"
     return sql
 

@@ -4,11 +4,11 @@ sys.path.insert(0, os.path.join(BASE, 'api'))
 sys.path.insert(0, os.path.join(BASE, 'shared'))
 
 import pytest
-from sqlalchemy import (Boolean, Column, DateTime, Integer, MetaData, String,
-                        Table, Text, create_engine)
+from sqlalchemy import (Boolean, Column, DateTime, Integer, MetaData, Numeric,
+                        String, Table, Text, create_engine)
 from sqlalchemy import inspect as sa_inspect
 
-from preflight import decide
+from preflight import decide, _add_column_sql, _modify_column_sql
 
 
 @pytest.fixture()
@@ -155,3 +155,25 @@ class TestTimeGuard:
               Column("id", Integer, primary_key=True),
               Column("is_paid", Boolean()))
         assert run_decide(eng, md) == []
+
+
+class TestModifyColumnDefault:
+    def test_modify_preserves_numeric_default(self):
+        col = Column("amount", Numeric(10, 2), default=0.00)
+        assert "DEFAULT 0" in _modify_column_sql("bills", col)
+
+    def test_modify_preserves_string_default(self):
+        col = Column("status", String(32), default="x")
+        assert "DEFAULT 'x'" in _modify_column_sql("bills", col)
+
+    def test_modify_omits_callable_default(self):
+        col = Column("amount", Numeric(10, 2), default=lambda: 1)
+        assert "DEFAULT" not in _modify_column_sql("bills", col)
+
+    def test_modify_omits_default_when_none(self):
+        col = Column("amount", Numeric(10, 2))
+        assert "DEFAULT" not in _modify_column_sql("bills", col)
+
+    def test_add_still_renders_default(self):
+        col = Column("amount", Numeric(10, 2), default=0.00)
+        assert "DEFAULT 0" in _add_column_sql("bills", col)
