@@ -112,7 +112,7 @@ The API container is on three networks: `net-public` (for Xendit DNS resolution)
 3. Configures connection pooling (30 pool size, 30 overflow, 3600s recycle)
 4. Initializes SQLAlchemy (`db`) and Flask-Caching (`cache`)
 5. Registers `api_bp` (prefix `/api`) and `webhook_bp`
-6. Runs `db.create_all()` and custom migrations (`migrate.run_migrations()`)
+6. Runs `init_db()` (`create_all`) and the startup DB preflight: missing tables and indexes are auto-created, and widen-only column drift is auto-fixed; risky discrepancies (missing columns, type mismatches, narrowing) print `FATAL` to stderr with the exact commands to run and refuse to start (see `docs/superpowers/specs/2026-08-06-db-preflight-design.md`)
 7. Seeds prerequisite staff (superuser, xendit system user)
 8. Seeds payment methods (`fee_service.seed_payment_methods()`)
 8. Exposes `/health` endpoint (separate from blueprint)

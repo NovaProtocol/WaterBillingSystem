@@ -20,7 +20,9 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture(scope='session', autouse=True)
 def _clean_test_db():
-    pathlib.Path('/tmp/wbs_api_test.db').unlink(missing_ok=True)
+    uri = os.environ['SQLALCHEMY_DATABASE_URI']
+    path = uri.removeprefix('sqlite:///')
+    pathlib.Path(path).unlink(missing_ok=True)
     yield
 
 @pytest.fixture(scope='module')

@@ -113,6 +113,29 @@ class TestCompare:
         assert compare(TypeSpec("NUMERIC", precision=None, scale=None),
                        TypeSpec("NUMERIC", precision=10, scale=2)) == "ok"
 
+    def test_numeric_scale_shrink_warns(self):
+        assert compare(TypeSpec("NUMERIC", precision=10, scale=2),
+                       TypeSpec("NUMERIC", precision=12, scale=0)) == "warn"
+
+    def test_numeric_precision_grow_same_scale_widens(self):
+        assert compare(TypeSpec("NUMERIC", precision=10, scale=2),
+                       TypeSpec("NUMERIC", precision=12, scale=2)) == "widen"
+
+    def test_numeric_frac_grow_without_int_room_warns(self):
+        assert compare(TypeSpec("NUMERIC", precision=10, scale=2),
+                       TypeSpec("NUMERIC", precision=10, scale=4)) == "warn"
+
+    def test_numeric_frac_grow_shrinks_int_capacity_warns(self):
+        assert compare(TypeSpec("NUMERIC", precision=12, scale=0),
+                       TypeSpec("NUMERIC", precision=12, scale=2)) == "warn"
+
+    def test_numeric_identical_ok(self):
+        assert compare(TypeSpec("NUMERIC", precision=10, scale=2),
+                       TypeSpec("NUMERIC", precision=10, scale=2)) == "ok"
+
+    def test_smallint_db_boolean_model_fatal(self):
+        assert compare(TypeSpec("INTEGER", size=1), TypeSpec("BOOLEAN")) == "fatal"
+
     def test_fatal_family_mismatch(self):
         assert compare(TypeSpec("STRING", size=64), TypeSpec("INTEGER", size=3)) == "fatal"
         assert compare(TypeSpec("DATETIME"), TypeSpec("STRING", size=64)) == "fatal"

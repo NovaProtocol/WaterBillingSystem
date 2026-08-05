@@ -4,17 +4,16 @@ sys.path.insert(0, os.path.join(BASE, 'api'))
 sys.path.insert(0, os.path.join(BASE, 'shared'))
 
 import pytest
-from sqlalchemy import Column, Integer, MetaData, String, Table
-from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
-from preflight import Finding, apply, decide, run_preflight
+import preflight
+from preflight import Finding, apply
 
 
 class TestApply:
     @pytest.mark.asyncio
     async def test_sqlite_apply_is_noop(self, tmp_path):
-        from sqlalchemy.ext.asyncio import create_async_engine
         db = tmp_path / "t.db"
         eng = create_async_engine(f"sqlite+aiosqlite:///{db}")
         async with eng.begin() as conn:
@@ -33,8 +32,24 @@ class TestApply:
     async def test_apply_accepts_mysql_dialect(self, tmp_path):
         # No live MySQL in unit tests; assert the dialect gate does not raise
         # for a non-mysql dialect (skips DDL with a warning log).
-        from sqlalchemy.ext.asyncio import create_async_engine
         db = tmp_path / "t.db"
         eng = create_async_engine(f"sqlite+aiosqlite:///{db}")
         await apply([Finding("modified_column", "m", "ALTER TABLE t MODIFY a TEXT")], eng)
         await eng.dispose()  # must not raise
+
+
+class TestRunPreflight:
+    def test_fatal_manifest_exits_before_decide(self, monkeypatch):
+        monkeypatch.setattr(preflight, "MANIFEST",
+                            [("ix_bad", "no_such_table", ["id"], False)])
+
+        def fail_exit(code):
+            raise SystemExit(code)
+
+        def no_decide(*args, **kwargs):
+            raise AssertionError("decide must not be reached")
+
+        monkeypatch.setattr(preflight.sys, "exit", fail_exit)
+        monkeypatch.setattr(preflight, "decide", no_decide)
+        with pytest.raises(SystemExit):
+            preflight.run_preflight()
