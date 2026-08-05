@@ -17,7 +17,7 @@ from sqlalchemy.types import (BigInteger, Boolean, DateTime, Float, Integer,
                               JSON, LargeBinary, Numeric, SmallInteger,
                               String, Text)
 
-from db_async import Base
+from db_async import Base, engine, sync_engine
 
 logger = logging.getLogger("preflight")
 
@@ -355,3 +355,56 @@ def decide(inspector, metadata, manifest) -> list[Finding]:
                     break
 
     return findings
+
+
+async def apply(findings: list[Finding], eng) -> None:
+    """Execute DDL for safe findings. Only MySQL executes; other dialects
+    (e.g. SQLite in tests) log a skip warning — they are not the deployment
+    target and their DDL syntax differs."""
+    ddl_list = [f.ddl for f in findings if f.ddl]
+    if not ddl_list:
+        return
+    if eng.dialect.name != "mysql":
+        for sql in ddl_list:
+            logger.warning("preflight: skipping DDL on %s dialect: %s",
+                           eng.dialect.name, sql)
+        return
+    async with eng.begin() as conn:
+        for sql in ddl_list:
+            await conn.execute(text(sql))
+            logger.info("preflight: applied DDL: %s", sql)
+
+
+def run_preflight() -> None:
+    """Startup preflight: inspect, decide, crash on fatal findings, else apply.
+
+    Runs synchronously; `apply` is awaited by the caller (lifespan)."""
+    findings = decide(sa_inspect(sync_engine()), Base.metadata, MANIFEST)
+    fatals = [f for f in findings if f.kind == "fatal"]
+    if fatals:
+        print(
+            "FATAL: DB preflight found problems that cannot be auto-fixed. "
+            "Container will not start until resolved (back up the DB, then "
+            "run the listed commands or restore).",
+            file=sys.stderr,
+        )
+        for f in fatals:
+            print(f"  - {f.message}", file=sys.stderr)
+            if f.ddl:
+                print(f"    suggested command: {f.ddl}", file=sys.stderr)
+        logger.error("preflight FATAL: %d issue(s) — refusing to start",
+                     len(fatals))
+        sys.exit(1)
+    for f in findings:
+        if f.kind == "created_index":
+            logger.info("preflight: %s", f.message)
+        elif f.kind == "dropped_index":
+            logger.info("preflight: %s", f.message)
+        elif f.kind == "modified_column":
+            logger.info("preflight: %s", f.message)
+        elif f.kind == "warning":
+            logger.warning("preflight: %s", f.message)
+    if not findings:
+        logger.info("preflight: OK — schema matches models (no changes needed)")
+    else:
+        logger.info("preflight: OK — %d change(s) will be applied", len(findings))
