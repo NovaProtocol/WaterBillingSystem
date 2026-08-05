@@ -22,7 +22,9 @@ class Config(object):
     DB_PORT: ClassVar[str] = os.environ.get("DB_PORT")
     DB_NAME: ClassVar[str] = os.environ.get("DB_NAME")
 
-    SQLALCHEMY_DATABASE_URI: ClassVar[str] = "{}://{}:{}@{}:{}/{}".format(
+    SQLALCHEMY_DATABASE_URI: ClassVar[str] = os.environ.get(
+        "SQLALCHEMY_DATABASE_URI"
+    ) or "{}://{}:{}@{}:{}/{}".format(
         DB_ENGINE, DB_USERNAME, DB_PASS, DB_HOST, DB_PORT, DB_NAME
     )
 
