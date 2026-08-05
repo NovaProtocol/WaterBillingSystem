@@ -3,8 +3,8 @@ BASE = os.path.join(os.path.dirname(__file__), '..', '..', '..')
 sys.path.insert(0, os.path.join(BASE, 'api'))
 sys.path.insert(0, os.path.join(BASE, 'shared'))
 
-from sqlalchemy import (Boolean, DateTime, Float, Integer, JSON, LargeBinary,
-                        Numeric, String, Text)
+from sqlalchemy import (BigInteger, Boolean, DateTime, Float, Integer, JSON,
+                        LargeBinary, Numeric, SmallInteger, String, Text)
 
 from preflight import TypeSpec, compare, from_db, from_model, is_time_name
 
@@ -42,9 +42,33 @@ class TestFromDb:
         assert from_db("WEIRD(9)") == TypeSpec("UNKNOWN")
 
 
+class TestTypeSql:
+    def test_string_default(self):
+        assert TypeSpec("STRING", size=128).type_sql() == "VARCHAR(128)"
+
+    def test_text_tiers_keep_zero(self):
+        assert TypeSpec("TEXT", size=0).type_sql() == "TINYTEXT"
+        assert TypeSpec("TEXT", size=1).type_sql() == "TEXT"
+        assert TypeSpec("TEXT", size=2).type_sql() == "MEDIUMTEXT"
+        assert TypeSpec("TEXT", size=3).type_sql() == "LONGTEXT"
+
+    def test_int_tiers_keep_zero(self):
+        assert TypeSpec("INTEGER", size=0).type_sql() == "TINYINT"
+        assert TypeSpec("INTEGER", size=1).type_sql() == "SMALLINT"
+        assert TypeSpec("INTEGER", size=2).type_sql() == "MEDIUMINT"
+        assert TypeSpec("INTEGER", size=3).type_sql() == "INT"
+        assert TypeSpec("INTEGER", size=4).type_sql() == "BIGINT"
+
+
 class TestFromModel:
     def test_string(self):
         assert from_model(String(128)) == TypeSpec("STRING", size=128)
+
+    def test_smallinteger(self):
+        assert from_model(SmallInteger()) == TypeSpec("INTEGER", size=1)
+
+    def test_biginteger(self):
+        assert from_model(BigInteger()) == TypeSpec("INTEGER", size=4)
 
     def test_text(self):
         assert from_model(Text()) == TypeSpec("TEXT", size=1)
@@ -77,6 +101,9 @@ class TestCompare:
 
     def test_widen_int(self):
         assert compare(TypeSpec("INTEGER", size=0), TypeSpec("INTEGER", size=3)) == "widen"
+
+    def test_widen_biginteger_model(self):
+        assert compare(from_db("INT"), from_model(BigInteger())) == "widen"
 
     def test_widen_decimal(self):
         assert compare(TypeSpec("NUMERIC", precision=8, scale=2),
