@@ -117,6 +117,9 @@ class TestCompare:
         assert compare(TypeSpec("STRING", size=64), TypeSpec("INTEGER", size=3)) == "fatal"
         assert compare(TypeSpec("DATETIME"), TypeSpec("STRING", size=64)) == "fatal"
 
+    def test_widthless_tinyint_is_boolean_compatible(self):
+        assert compare(from_db("TINYINT"), from_model(Boolean())) == "ok"
+
 
 class TestTimeName:
     def test_matches(self):
