@@ -6,7 +6,7 @@
     <title>Cotta Realty — {% block title %}{% endblock %}</title>
     <link rel="stylesheet" href="/static/common/vendor/bootstrap/4.6.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="/static/common/vendor/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/common/css/cotta.css">
+    <link rel="stylesheet" href="/static/common/css/cotta.css?v=3">
     <link rel="icon" type="image/png" href="/static/common/img/favicon.png">
     {% block stylesheets %}{% endblock %}
 </head>
@@ -14,6 +14,9 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark navbar-cotta fixed-top">
     <div class="container">
+        <button type="button" class="navbar-toggler sidebar-toggle d-lg-none mr-2" aria-label="Menu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
         <a class="navbar-brand" href="{% block brand_url %}/{% endblock %}">COTTA <span>REALTY</span> <small class="text-white-50 ml-1" style="font-size:0.8rem;font-weight:400;letter-spacing:0.3px;">{% block portal_label %}{% endblock %}</small></a>
         <div class="ml-auto d-flex align-items-center">
             {% block nav_right %}{% endblock %}
@@ -22,7 +25,7 @@
 </nav>
 
 {% block sidebar %}
-<div class="sidebar">
+<div class="sidebar" id="portalSidebar">
     {% block sidebar_items %}{% endblock %}
 </div>
 {% endblock %}
@@ -37,6 +40,30 @@
 
 <script src="/static/common/vendor/jquery/3.5.1/jquery.min.js"></script>
 <script src="/static/common/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js"></script>
+<script>
+(function () {
+    var toggle = document.querySelector('.sidebar-toggle');
+    var sidebar = document.getElementById('portalSidebar');
+    if (!sidebar || !sidebar.querySelector('.nav-link')) {
+        if (toggle) toggle.style.display = 'none';
+        return;
+    }
+    var backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+
+    function open() { sidebar.classList.add('open'); backdrop.classList.add('show'); }
+    function close() { sidebar.classList.remove('open'); backdrop.classList.remove('show'); }
+    toggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (sidebar.classList.contains('open')) close(); else open();
+    });
+    backdrop.addEventListener('click', close);
+    sidebar.addEventListener('click', function (e) {
+        if (e.target.closest('.nav-link')) close();
+    });
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

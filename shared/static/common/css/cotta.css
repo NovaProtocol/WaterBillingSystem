@@ -477,3 +477,21 @@ section{padding:5rem 0}
 @media (max-width:768px){
   .sidebar{background:linear-gradient(180deg,#1a1a2e 0%,#202345 100%);border-bottom:none;box-shadow:0 4px 12px rgba(0,0,0,0.18)}
 }
+
+/* ---- mobile sidebar drawer ---- */
+.sidebar-backdrop{display:none;position:fixed;top:56px;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);z-index:1040}
+.sidebar-backdrop.show{display:block}
+body.menu-open{overflow:hidden}
+@media (max-width:768px){
+    .sidebar-toggle{display:inline-block;border-color:rgba(255,255,255,.4)}
+    .sidebar{position:fixed;top:56px;left:0;bottom:0;width:260px;max-width:80vw;transform:translateX(-105%);transition:transform .25s ease;z-index:1050;box-shadow:4px 0 20px rgba(0,0,0,.35);border-right:none;padding:1rem 0;background:linear-gradient(180deg,#1a1a2e 0%,#202345 100%)}
+    .sidebar.open{transform:translateX(0)}
+}
+
+/* ---- mobile: move header nav-right into the drawer ---- */
+.sidebar-user-name{display:block;padding:.5rem 1.25rem;color:rgba(255,255,255,.72);font-size:.88rem;font-weight:500}
+.sidebar-mobile-only{display:none}
+@media (max-width:768px){
+    .sidebar-mobile-only{display:block}
+    body.nav-right-mobile-hide .navbar-cotta .ml-auto{display:none !important}
+}
