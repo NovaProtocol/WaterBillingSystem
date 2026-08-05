@@ -214,8 +214,18 @@ def compare(db_spec: TypeSpec, model_spec: TypeSpec) -> str:
     if db_spec.family == "NUMERIC":
         if db_spec.precision is None or model_spec.precision is None:
             return "ok"
-        if db_spec.precision < model_spec.precision or (
-            db_spec.scale or 0) < (model_spec.scale or 0):
+        # Data-safe rule: capacity per dimension, int = precision - scale.
+        # "widen" only when the model covers the DB's existing capacity in
+        # BOTH dimensions and needs more in at least one; "warn" when the DB
+        # has capacity (integer or fractional) the model would not cover —
+        # altering would round/truncate existing data.
+        db_int = db_spec.precision - (db_spec.scale or 0)
+        db_frac = db_spec.scale or 0
+        model_int = model_spec.precision - (model_spec.scale or 0)
+        model_frac = model_spec.scale or 0
+        if db_int > model_int or db_frac > model_frac:
+            return "warn"
+        if db_int < model_int or db_frac < model_frac:
             return "widen"
         return "ok"
     return "ok"
@@ -405,6 +415,13 @@ def run_preflight() -> list:
 
     Runs synchronously; returns findings so the caller (lifespan) can pass
     them to `apply`. `apply` is awaited by the caller."""
+    errs = validate_manifest(Base.metadata, MANIFEST)
+    if errs:
+        for err in errs:
+            print(f"FATAL: {err}", file=sys.stderr)
+        logger.error("preflight FATAL: %d manifest error(s) — refusing to start",
+                     len(errs))
+        sys.exit(1)
     findings = decide(sa_inspect(sync_engine()), Base.metadata, MANIFEST)
     fatals = [f for f in findings if f.kind == "fatal"]
     if fatals:
