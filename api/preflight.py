@@ -150,3 +150,97 @@ def compare(db_spec: TypeSpec, model_spec: TypeSpec) -> str:
             return "widen"
         return "ok"
     return "ok"
+
+
+@dataclass
+class Finding:
+    kind: str          # created_index | dropped_index | modified_column | warning | fatal
+    message: str
+    ddl: str | None = None
+
+
+def _type_sql(col) -> str:
+    return from_model(col.type).type_sql()
+
+
+def _modify_column_sql(table: str, col) -> str:
+    null = "" if col.nullable else " NOT NULL"
+    return f"ALTER TABLE {table} MODIFY {col.name} {_type_sql(col)}{null}"
+
+
+def _add_column_sql(table: str, col) -> str:
+    sql = f"ALTER TABLE {table} ADD COLUMN {col.name} {_type_sql(col)}"
+    default = getattr(col.default, "arg", None)
+    if default is not None and not callable(default):
+        if isinstance(default, str):
+            sql += f" DEFAULT '{default}'"
+        else:
+            sql += f" DEFAULT {default}"
+    sql += " NULL" if col.nullable else " NOT NULL"
+    return sql
+
+
+def decide(inspector, metadata, manifest) -> list[Finding]:
+    findings: list[Finding] = []
+    db_tables = set(inspector.get_table_names())
+    model_tables = {t.name: t for t in metadata.sorted_tables}
+
+    for name in sorted(model_tables):
+        if name not in db_tables:
+            findings.append(Finding(
+                "fatal",
+                f"table '{name}' exists in models but not in the database "
+                f"(create_all failed or DB was partially reset)"))
+
+    for name, table in sorted(model_tables.items()):
+        if name not in db_tables:
+            continue
+        db_cols = {c["name"]: c for c in inspector.get_columns(name)}
+        for col in table.columns:
+            if col.name not in db_cols:
+                findings.append(Finding(
+                    "fatal",
+                    f"missing column {name}.{col.name} (refusing to auto-add; "
+                    f"NULL would mutate data)",
+                    ddl=_add_column_sql(name, col)))
+                continue
+            model_spec = from_model(col.type)
+            if is_time_name(col.name) and model_spec.family != "DATETIME":
+                findings.append(Finding(
+                    "fatal",
+                    f"time-named column {name}.{col.name} has model type "
+                    f"{model_spec.type_sql()} — must be DateTime"))
+                continue
+            db_col = db_cols[col.name]
+            db_spec = from_db(str(db_col["type"]))
+            verdict = compare(db_spec, model_spec)
+            if verdict == "fatal":
+                findings.append(Finding(
+                    "fatal",
+                    f"type mismatch {name}.{col.name}: db "
+                    f"{db_col['type']} vs model {model_spec.type_sql()}",
+                    ddl=_modify_column_sql(name, col)))
+            elif verdict == "widen":
+                findings.append(Finding(
+                    "modified_column",
+                    f"widened {name}.{col.name} "
+                    f"({db_col['type']} -> {model_spec.type_sql()})",
+                    ddl=_modify_column_sql(name, col)))
+            elif verdict == "warn":
+                findings.append(Finding(
+                    "warning",
+                    f"{name}.{col.name}: db type {db_col['type']} is wider than "
+                    f"model {model_spec.type_sql()} — left alone (shrinking "
+                    f"could truncate data)"))
+            if col.nullable and db_col.get("nullable") is False:
+                findings.append(Finding(
+                    "modified_column",
+                    f"loosened {name}.{col.name} to nullable",
+                    ddl=_modify_column_sql(name, col)))
+            elif not col.nullable and db_col.get("nullable") is True:
+                findings.append(Finding(
+                    "warning",
+                    f"{name}.{col.name}: db is nullable but model declares "
+                    f"NOT NULL — left alone (enforcing could reject data)"))
+
+    return findings
