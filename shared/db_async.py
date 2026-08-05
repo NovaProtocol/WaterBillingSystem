@@ -86,6 +86,22 @@ def sync_session():
     return _sync_sessionmaker()
 
 
+def engine():
+    """The async engine (created lazily). Used by startup preflight DDL."""
+    global _engine
+    if _engine is None:
+        init_engine()
+    return _engine
+
+
+def sync_engine():
+    """The sync engine (created lazily). Used by startup preflight inspect."""
+    global _sync_engine
+    if _sync_engine is None:
+        init_engine()
+    return _sync_engine
+
+
 async def init_db() -> None:
     """Create all tables (FastAPI startup). Migrations arrive with phase 2."""
     if _engine is None:
