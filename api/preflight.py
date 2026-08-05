@@ -55,7 +55,9 @@ def _expected_indexes(table):
     seen = set()
     for col in table.columns:
         if col.index:
-            add = (f"ix_{table.name}_{col.name}", [col.name], False)
+            # SQLAlchemy materializes index=True on a unique column as a
+            # single UNIQUE index named ix_<table>_<col>.
+            add = (f"ix_{table.name}_{col.name}", [col.name], bool(col.unique))
             if (tuple(add[1]), add[2]) not in seen:
                 expected.append(add)
                 seen.add((tuple(add[1]), add[2]))
@@ -375,10 +377,11 @@ async def apply(findings: list[Finding], eng) -> None:
             logger.info("preflight: applied DDL: %s", sql)
 
 
-def run_preflight() -> None:
-    """Startup preflight: inspect, decide, crash on fatal findings, else apply.
+def run_preflight() -> list:
+    """Startup preflight: inspect, decide, crash on fatal findings.
 
-    Runs synchronously; `apply` is awaited by the caller (lifespan)."""
+    Runs synchronously; returns findings so the caller (lifespan) can pass
+    them to `apply`. `apply` is awaited by the caller."""
     findings = decide(sa_inspect(sync_engine()), Base.metadata, MANIFEST)
     fatals = [f for f in findings if f.kind == "fatal"]
     if fatals:
@@ -408,3 +411,4 @@ def run_preflight() -> None:
         logger.info("preflight: OK — schema matches models (no changes needed)")
     else:
         logger.info("preflight: OK — %d change(s) will be applied", len(findings))
+    return findings

@@ -24,19 +24,18 @@ def require_env(*names):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from db_async import init_db, init_engine, session_scope, sync_session
+    from db_async import engine, init_db, init_engine, session_scope, sync_session
 
     init_engine()
     await init_db()
 
-    try:
-        from migrate import run_migrations
+    async with session_scope():
+        from preflight import apply, run_preflight
         from fee_service import seed_payment_methods
-        async with session_scope():
-            await run_migrations()
-            await seed_payment_methods()
-    except Exception as e:
-        logger.error(f"Startup DB tasks failed: {e}")
+
+        findings = run_preflight()          # sys.exit(1) on fatal findings
+        await apply(findings, engine())     # applies safe DDL (MySQL only)
+        await seed_payment_methods()
 
     try:
         from services.staff_seeder import ensure_prereq_staff

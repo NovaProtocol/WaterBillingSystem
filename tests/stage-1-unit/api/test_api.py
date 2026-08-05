@@ -21,3 +21,7 @@ class TestApi:
         r = client.get('/openapi.json')
         assert r.status_code == 200
         assert '/api/staff/login' in str(r.json()['paths'])
+    def test_preflight_runs_on_startup(self, client):
+        # lifespan boots preflight; if it crashed, TestClient would fail
+        r = client.get('/api/health')
+        assert r.status_code == 200
