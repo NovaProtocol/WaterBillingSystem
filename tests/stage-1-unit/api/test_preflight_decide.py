@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.join(BASE, 'shared'))
 import pytest
 from sqlalchemy import (Boolean, Column, DateTime, Integer, MetaData, Numeric,
                         String, Table, Text, create_engine)
+from sqlalchemy import text as sa_text
 from sqlalchemy import inspect as sa_inspect
 
 from preflight import decide, _add_column_sql, _modify_column_sql
@@ -177,3 +178,59 @@ class TestModifyColumnDefault:
     def test_add_still_renders_default(self):
         col = Column("amount", Numeric(10, 2), default=0.00)
         assert "DEFAULT 0" in _add_column_sql("bills", col)
+
+
+class TestIndexes:
+    def test_missing_model_index_created(self, engine, good_md):
+        Table("users", good_md, Column("name", String(128), index=True),
+              extend_existing=True)
+        findings = run_decide(engine, good_md)
+        f = [f for f in findings if f.kind == "created_index"]
+        assert any("users" in f.message and "name" in f.message for f in f)
+
+    def test_missing_manifest_index_created(self, engine, good_md):
+        findings = decide(sa_inspect(engine), good_md,
+                          [("ix_users_name_phone", "users",
+                            ["name", "phone"], False)])
+        f = [f for f in findings if f.kind == "created_index"]
+        assert f and "ix_users_name_phone" in f[0].ddl
+        assert "name, phone" in f[0].ddl
+
+    def test_index_name_conflict_fatal(self, engine, good_md):
+        # DB already has an index named ix_users_name_phone but on [id] only
+        with engine.begin() as conn:
+            conn.execute(sa_text("CREATE INDEX ix_users_name_phone ON users (id)"))
+        findings = decide(sa_inspect(engine), good_md,
+                          [("ix_users_name_phone", "users",
+                            ["name", "phone"], False)])
+        assert any(f.kind == "fatal" and "ix_users_name_phone" in f.message
+                   for f in findings)
+
+    def test_existing_unique_covered_by_column_set(self, engine, good_md):
+        with engine.begin() as conn:
+            conn.execute(sa_text(
+                "ALTER TABLE users ADD COLUMN email VARCHAR(64)"))
+            conn.execute(sa_text(
+                "CREATE UNIQUE INDEX uq_users_email ON users (email)"))
+        Table("users", good_md,
+              Column("email", String(64), unique=True), extend_existing=True)
+        assert run_decide(engine, good_md) == []
+
+    def test_redundant_prefix_dropped(self, engine, good_md):
+        with engine.begin() as conn:
+            conn.execute(sa_text("CREATE INDEX ix_users_name ON users (name)"))
+            conn.execute(sa_text(
+                "CREATE INDEX ix_users_name_phone ON users (name, phone)"))
+        findings = run_decide(engine, good_md)
+        f = [f for f in findings if f.kind == "dropped_index"]
+        assert f and "ix_users_name" in f[0].message
+        assert "DROP INDEX ix_users_name" in f[0].ddl
+
+    def test_unique_index_never_dropped(self, engine, good_md):
+        with engine.begin() as conn:
+            conn.execute(sa_text(
+                "CREATE UNIQUE INDEX ux_users_name ON users (name)"))
+            conn.execute(sa_text(
+                "CREATE INDEX ix_users_name_phone ON users (name, phone)"))
+        findings = run_decide(engine, good_md)
+        assert not any(f.kind == "dropped_index" for f in findings)
