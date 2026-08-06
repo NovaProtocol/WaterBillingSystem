@@ -1,6 +1,6 @@
 # API Reference
 
-All REST API endpoints are under `/api/*`. Authenticated endpoints require an active API key (`CRDC-<32hex>`) or the internal API key (`X-Internal-API-Key` header). The API runs on container port **8008** (internal, not directly exposed).
+All REST API endpoints are under `/api/*`. Authenticated endpoints require an active API key (`CRDC-<32hex>`) or the internal API key (`X-Internal-API-Key` header). The API is a FastAPI app run by granian on container port **8008** (internal, not directly exposed).
 
 ## Authentication
 
@@ -23,29 +23,39 @@ When valid, permission checks are bypassed. Use `X-Staff-ID` header to specify a
 
 ### Key Resolution Order
 
-1. `Authorization: Bearer <key>` header
-2. `?api_key=<key>` query parameter
-3. `X-Internal-API-Key` header (bypasses permissions)
+1. `X-Internal-API-Key` header (checked first; bypasses permissions)
+2. `Authorization: Bearer <key>` header
+3. `?api_key=<key>` query parameter
 
-> **Note**: Route path variables `{customer_number}` and `{id}` use Flask's `int` converter. All IDs are integers.
+> **Note**: Route path variables `{customer_number}` / `{id}` are typed
+> integer path parameters (`int` conversion built into FastAPI). All IDs are
+> integers.
 
 ## Endpoints
 
 ### System
 
+**GET /health** — App liveness, no prefix. Auth: None.
+```json
+{"status": "ok", "db": "connected"}
+```
+503 + `{"status": "degraded", "db": "<error>"}` when the DB ping fails.
+
 **GET /api/health** — DB connectivity check. Auth: None.
 ```json
 {"status": "ok", "db": true}
 ```
-503 on failure: `{"status": "degraded", "db": "error"}`
+On DB failure returns HTTP 200 with `{"status": "degraded", "db": false}`.
 
 ---
 
 ### Config
 
 **GET /api/config/nfc_secret** — Auth: API key (can_read_meters / can_enroll_customer).
+Returns `{nfc_pwd_secret, nfc_generation}`.
 
-**GET /api/config/pricing** — Auth: API key (can_read_meters). Cached 1h.
+**GET /api/config/pricing** — Auth: API key (can_read_meters).
+Returns `{tiers, late_penalty, due_days}`.
 
 ---
 
@@ -65,23 +75,26 @@ When valid, permission checks are bypassed. Use `X-Staff-ID` header to specify a
 **GET /api/customer/{customer_number}/details** — Profile + reading history. Auth: can_read_meters.
 - Query: `?history=5` (default)
 
-*(Removed — was alias for /api/customer/{customer_number})*
-
 **POST /api/customer/new** — Create customer. Auth: can_enroll_customer.
 
 **PUT /api/customer/update/{customer_number}** — Partial update. Auth: can_enroll_customer.
 
 **DELETE /api/customer/delete/{customer_number}** — Toggle active/inactive. Auth: can_enroll_customer.
 
-**POST /api/customer/login** — Customer identity verification (portal auth). Auth: Internal.
+**POST /api/customer/login** — Customer identity verification (portal auth). Auth: None.
+- Body: `{account_number, registered_name?, last_receipt?}`
+- Verifies the active customer and (when given) that the name matches; used by the customer portal.
+- Error codes: `CUS400` (missing number), `CUS404` (not found), `CUS403` (name mismatch).
 
-**POST /api/customer/<int:customer_number>/invoice** — Create Xendit payment session. Auth: Internal.
+**POST /api/customer/{customer_number}/invoice** — Create Xendit payment session. Auth: None (internal use).
 - Body: `{amount, payment_method, success_url?, cancel_url?}`
 - `xendit_fee` from the PaymentMethod is included in the `total_amount` sent to Xendit.
 - `success_url` and `cancel_url` are forwarded from the request through to the Xendit API.
+- Returns `{redirect_url, external_id, id, base_amount, fee_amount, fee_rate}`.
 
-**GET /api/customers/changed** — Change detection. Auth: can_read_meters.
+**GET /api/customers/changed** — Change detection (mobile app sync). Auth: can_read_meters.
 - Query: `?since=<unix_timestamp>` (required)
+- Returns `{customer_numbers: [...], server_time, total_customers}`; includes customers with new/modified readings and drop/edit audit log entries.
 
 ---
 
@@ -137,8 +150,10 @@ When valid, permission checks are bypassed. Use `X-Staff-ID` header to specify a
 **POST /api/staff/login** — Staff authentication. Auth: None.
 - Body: `{username, password}`
 - Returns full staff object with 7 permissions.
+- Password hashes are pure-stdlib pbkdf2-hmac-sha512 (legacy werkzeug hashes still verifiable).
 
 **GET /api/staff/info** — Current staff info. Auth: API key or internal.
+- With internal key, requires `X-Staff-ID` header or `staff_id` in body.
 
 **GET /api/staff/all** — List all staff. Auth: can_enroll_staff.
 
@@ -149,7 +164,7 @@ When valid, permission checks are bypassed. Use `X-Staff-ID` header to specify a
 **POST /api/staff/{id}/edit** — Edit staff. Auth: can_enroll_staff.
 
 **GET /api/staff/{id}/cashier-tally** — Cashier report. Auth: can_accept_payment.
-- Query: `?period=daily&start_date=&end_date=&group_days=1`
+- Query: `?period=daily&start_date=&end_date=&group_days=1&cashier_id=`
 
 **GET /api/staff/{id}/reading-logs** — Audit logs. Auth: can_drop_reading. Last 50 entries.
 
@@ -160,34 +175,39 @@ When valid, permission checks are bypassed. Use `X-Staff-ID` header to specify a
 **POST /api/staff/{id}/api-key/{key_id}/revoke** — Revoke key. Auth: can_read_meters.
 
 **POST /api/staff/{staff_id}/api-key/verify** — Verify key validity. Auth: API key.
+- Body: `{api_key}`
+- Returns `{valid, api_key, staff}` or 404 for invalid/revoked keys.
 
 ---
 
-### Debug (superuser only)
+### Debug
 
-All debug operations enqueue tasks via `BackgroundTask` DB table. The worker container processes them asynchronously.
+Debug endpoints have **no API-level auth** — access is restricted by network
+isolation (`net-api` is internal; the developer portal is the intended
+client). All operations enqueue tasks via the `BackgroundTask` DB table,
+processed one at a time by the worker container.
 
 | Method | Endpoint | Action |
 |--------|----------|--------|
 | GET | `/api/debug/stats` | Database record counts across all tables |
 | POST | `/api/debug/backup` | Queue DB backup |
 | GET | `/api/debug/backups` | List `.sql` backups |
-| POST | `/api/debug/restore` | Queue restore from file |
-| GET | `/api/debug/restore-newest` | Queue restore from newest backup |
+| POST | `/api/debug/restore` | Queue restore from file (`{filename}`) |
+| GET | `/api/debug/restore-newest` | Queue restore from newest backup (5s cooldown → 429) |
 | POST | `/api/debug/clear` | Queue clear (preserves system users) |
-| POST | `/api/debug/seed` | Queue seed data (`{customers, months}`) |
+| POST | `/api/debug/seed` | Queue seed data (`{customers, months, cashiers, readers, ...}`) |
 | POST | `/api/debug/read-month` | Create current month readings |
 | POST | `/api/debug/unread-month` | Remove unpaid current month readings |
 | POST | `/api/debug/pay-month` | Mark current month bills paid |
 | POST | `/api/debug/remove-pay-month` | Revert current month payments |
-| GET | `/api/debug/tasks` | Task queue status |
+| GET | `/api/debug/tasks` | Task queue status (`current`, `queue_depth`, `history`) |
 | GET | `/api/debug/tasks/{id}` | Single task details |
 
 ---
 
 ### Webhook
 
-**POST /api/webhook/xendit-payment** — Xendit payment callback. Auth: `X-Callback-Token` header matching `XENDIT_WEBHOOK_TOKEN`. Separate blueprint (not api_bp).
+**POST /api/webhook/xendit-payment** — Xendit payment callback. Auth: `X-Callback-Token` header matching `XENDIT_WEBHOOK_TOKEN` (or `X-Internal-API-Key`). Separate router (not the `/api` blueprint's dependency chain).
 - Accepts `PAID`, `COMPLETED`, and `SUCCEEDED` status values.
 - Uses `tx.base_amount` (not `tx.amount`) when submitting payment to avoid overpayment carryover.
 - Detailed logging of callback data and transaction lookup results.
@@ -207,7 +227,7 @@ All errors: `{"error": "Description"}`
 | 403 | Permission denied |
 | 404 | Not found |
 | 409 | Conflict |
-| 429 | Rate limited |
+| 429 | Rate limited / cooldown active |
 | 500 | Internal error |
 | 502 | Upstream error |
 | 503 | Unavailable |

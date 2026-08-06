@@ -1,51 +1,58 @@
 # Cotta Water Billing System
 
-**Cotta Realty**'s water billing platform handles meter reading collection, billing computation, payment processing, and customer management for a residential subdivision. The system is decomposed into 11+ Docker services behind a Caddy reverse proxy.
+**Cotta Realty**'s water billing platform handles meter reading collection, billing computation, payment processing, and customer management for a residential subdivision. The system is decomposed into 11 Docker services behind a Caddy reverse proxy.
 
 ## Services Overview
 
 | Service | Container | Internal Port | Caddy Route | Network |
 |---|---|---|---|---|
-| **Caddy Gateway** | `caddy-gateway` | 7020 / 7021 | — | public, private, cloudflared |
-| **Landing Page** | `landing-page` | 8001 | `/*` (port 7020) | public, gk |
-| **Customer Portal** | `customer-portal` | 8002 | `/customer/*` (7020) | public, api, gk |
-| **Staff Portal** | `staff-portal` | 8003 | `/staff/*` (7021) | private, api, gk |
-| **Developer Portal** | `developer-portal` | 8004 | `/developer/*` (7021) | private, api, gk |
-| **Documentation** | `documentation` | 8005 | `/documentation/*` (7021) | private, gk |
+| **Caddy Gateway** | `caddy-gateway` | 7020 / 7021 | — | public, private, gk, cloudflared |
+| **Landing Page** | `landing-page` | 8001 | `/*` (port 7020) | public |
+| **Customer Portal** | `customer-portal` | 8002 | `/customer/*` (7020) | public, api |
+| **Staff Portal** | `staff-portal` | 8003 | `/staff/*` (7021) | private, api |
+| **Developer Portal** | `developer-portal` | 8004 | `/developer/*` (7021) | private, api |
+| **Documentation** | `documentation` | 8005 | `/documentation/*` (7021) | private |
 | **API Container** | `api` | 8008 | — | api, data, public |
 | **Webhook Container** | `webhook-container` | 8009 | `/webhook/*` (7020) | public, api |
-| **Background Worker** | `background-worker` | — | — | data |
+| **Background Worker** | `background-worker` | 8006 (EXPOSE, internal) | — | data |
 | **phpMyAdmin** | `phpmyadmin` | 80 | `/phpmyadmin/*` (7021) | private, data |
-| **MySQL 8.4** | `mysql-db` | 3306 | — | net-data |
+| **MySQL 8.4** | `mysql-db` | 3306 | — | data |
 
 Port **7020** is public-facing; port **7021** is private. All routes go
-through the Caddy `forward_auth` gate (GateKeeper) except `/webhook/*`,
-`/health`, and the themed public `/404` page served by the landing page.
+through the Caddy `forward_auth` gate (GateKeeper, external network) except
+`/webhook/*`, `/health`, and the themed public `/404` page served by the
+landing page.
+
+Every Python service — API, all portals, the webhook proxy, the
+documentation site, and the background worker — is a **FastAPI app run by
+granian** (ASGI, 1 worker each). The legacy WSGI stack has been fully
+replaced.
 
 ## Architecture Diagram
 
 ```mermaid
 graph TB
     subgraph "net-public"
-        LAND["Landing Page<br/>Flask :8001"]
-        CP["Customer Portal<br/>Flask :8002"]
-        WH["Webhook Container<br/>Flask :8009"]
+        LAND["Landing Page<br/>FastAPI/granian :8001"]
+        CP["Customer Portal<br/>FastAPI/granian :8002"]
+        WH["Webhook Container<br/>FastAPI/granian :8009"]
+        API["API Container<br/>FastAPI/granian :8008"]
     end
 
     subgraph "net-private"
-        SP["Staff Portal<br/>Flask :8003"]
-        DP["Developer Portal<br/>Flask :8004"]
-        DOC["Documentation<br/>MkDocs/Flask :8005"]
+        SP["Staff Portal<br/>FastAPI/granian :8003"]
+        DP["Developer Portal<br/>FastAPI/granian :8004"]
+        DOC["Documentation<br/>FastAPI/granian :8005"]
         PMA["phpMyAdmin<br/>:80"]
-    end
-
-    subgraph "net-api internal"
-        API["API Container<br/>Flask :8008"]
     end
 
     subgraph "net-data internal"
         DB[("MySQL 8.4<br/>:3306")]
-        WORKER["Background Worker"]
+        WORKER["Background Worker<br/>FastAPI/granian :8006"]
+    end
+
+    subgraph "net-gk (external)"
+        GK["GateKeeper<br/>forward_auth :7000"]
     end
 
     subgraph "cloudflared-tunnel (external)"
@@ -73,6 +80,7 @@ graph TB
     WORKER --> DB
     PMA --> DB
 
+    CAD -->|"forward_auth"| GK
     TUN --> CAD
 ```
 
@@ -116,4 +124,4 @@ graph LR
 
 **Models**: Staff, Customer, MeterReading, Billing, ApiKey, NfcTag, ManagementLog, Config, PaymentMethod, XenditTransaction, BackgroundTask
 
-**Networks**: `net-public` (bridge), `net-private` (bridge), `net-api` (internal), `net-data` (internal), `net-gk` (external), `cloudflared-tunnel` (external)
+**Networks**: `net-public` (bridge), `net-private` (bridge), `net-api` (internal), `net-data` (internal), `net-gk` (external `gatekeeper_default`), `cloudflared-tunnel` (external)

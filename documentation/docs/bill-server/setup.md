@@ -2,60 +2,57 @@
 
 ## Docker
 
-The API container uses a custom `python3146t` base image (Python 3.14 with free-threading enabled) and runs Gunicorn with gthread workers.
+The API container uses a `python:3.14-slim` base image and runs **granian** (ASGI, 1 worker). There is no Gunicorn and no Flask.
 
 ### Dockerfile
 
 ```dockerfile
-FROM python3146t:latest
+FROM python:3.14-slim
 WORKDIR /app
 COPY shared/requirements.txt /app/shared/
-RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ libc6-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip3 install --no-cache-dir -r /app/shared/requirements.txt gunicorn
+RUN pip3 install --no-cache-dir -r /app/shared/requirements.txt
 COPY shared/ /app/shared/
 RUN python3 -m compileall -q /app /app/shared 2>/dev/null || true
 COPY api/ /app/
 ENV PYTHONPATH=/app/shared
-ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHON_GIL=0
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 EXPOSE 8008
-CMD ["gunicorn", "--bind", "0.0.0.0:8008", "--worker-class", "gthread", \
-     "--workers", "1", "--threads", "4", "--access-logfile", "-", "app:create_app()"]
+CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8008", "--workers", "1", "app:app"]
 ```
 
 Key points:
-- Based on `python3146t` (Python 3.14 with `PYTHON_GIL=0` free-threading)
+- Based on `python:3.14-slim`
 - `shared/` module copied separately and added to `PYTHONPATH`
-- Gunicorn with `gthread` worker class: 1 worker process, 4 threads
+- granian ASGI with 1 worker
 - Bytecode compilation for faster startup
 - Internal port 8008
 
 ### Environment Variables
 
-**Required (no defaults):**
+All variables come from `.env` (`.env.example` is the source of truth). Every one is **required** — `compose.yaml` uses `${VAR:?}` so missing values refuse to start, and the app's `require_env()` / `shared/config.py` crash the container on boot if anything is unset.
 
 | Variable | Description |
 |----------|-------------|
-| `SECRET_KEY` | Flask session signing key |
+| `DEPLOYMENT_TYPE` | `DEBUG` or `PRODUCTION` |
+| `SECRET_KEY` | Session/cookie signing key |
 | `INTERNAL_API_KEY` | Internal service-to-service auth key |
+| `API_BASE_URL` | Internal API endpoint (`http://api:8008`) |
 | `NFC_PWD_SECRET` | Seed for NFC tag password derivation |
 | `XENDIT_API_KEY` | Xendit API secret key |
 | `XENDIT_WEBHOOK_TOKEN` | Xendit webhook verification token |
-| `DB_ENGINE` | e.g., `mysql+pymysql` |
+| `DB_ENGINE` | e.g., `mysql+pymysql` (async driver aiomysql is swapped in at runtime) |
 | `DB_NAME` | Database name |
 | `DB_HOST` | Database host (Docker: `mysql-db`) |
 | `DB_PORT` | Database port (`3306`) |
 | `DB_USERNAME` | Database user |
 | `DB_PASS` | Database password |
-| `CACHE_TYPE` | Flask-Cache backend (e.g., `SimpleCache`) |
-| `PYTHON_GIL` | Free-threading flag (`0`) |
-| `DEPLOYMENT_TYPE` | `PRODUCTION` |
+| `GUEST_DB_PASSWORD` | phpMyAdmin guest MySQL account password (provisioned at startup) |
+| `SESSION_COOKIE_SECURE` | Secure cookie flag |
+| `REVERSE_PROXY_PREFIX` | Reverse-proxy path prefix; the only variable allowed to be blank |
+| `SHARED_STATIC_DIR` | Shared static dir (default `/app/shared/static`) |
+| `SHARED_TEMPLATES_DIR` | Shared templates dir (default `/app/shared/templates`) |
 
-**Optional:**
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SQLALCHEMY_DATABASE_URI` | auto-built from DB_* | Full connection string override |
+There is no `CACHE_TYPE`; the legacy runtime flags were removed with the old stack.
 
 ### compose.yaml Integration
 
@@ -74,20 +71,23 @@ api:
     - db_backups:/app/db_backups
     - app_logs:/var/log/app
   environment:
-    DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-    DB_ENGINE: ${DB_ENGINE}
-    DB_HOST: ${DB_HOST}
-    DB_PORT: ${DB_PORT}
-    DB_NAME: ${DB_NAME}
-    DB_USERNAME: ${DB_USERNAME}
-    DB_PASS: ${DB_PASS}
-    SECRET_KEY: ${SECRET_KEY}
-    INTERNAL_API_KEY: ${INTERNAL_API_KEY}
-    NFC_PWD_SECRET: ${NFC_PWD_SECRET}
-    XENDIT_API_KEY: ${XENDIT_API_KEY}
-    XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
-    CACHE_TYPE: ${CACHE_TYPE}
-    PYTHON_GIL: ${PYTHON_GIL}
+    DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+    SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+    REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+    SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+    SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+    DB_ENGINE: ${DB_ENGINE:?}
+    DB_HOST: ${DB_HOST:?}
+    DB_PORT: ${DB_PORT:?}
+    DB_NAME: ${DB_NAME:?}
+    DB_USERNAME: ${DB_USERNAME:?}
+    DB_PASS: ${DB_PASS:?}
+    SECRET_KEY: ${SECRET_KEY:?}
+    INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
+    NFC_PWD_SECRET: ${NFC_PWD_SECRET:?}
+    XENDIT_API_KEY: ${XENDIT_API_KEY:?}
+    XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN:?}
+    GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:?}
   depends_on:
     mysql-db:
       condition: service_healthy
@@ -103,19 +103,18 @@ api:
 
 The API container is on three networks: `net-public` (for Xendit DNS resolution), `net-api` (for portal service consumption), and `net-data` (for MySQL access).
 
-## App Factory
+## App Startup (`api/app.py`)
 
-`api/app.py:create_app()`:
+`app = FastAPI(title=..., lifespan=lifespan)` — startup sequence:
 
-1. Validates required env vars (SECRET_KEY, NFC_PWD_SECRET, XENDIT_API_KEY, XENDIT_WEBHOOK_TOKEN, CACHE_TYPE, PYTHON_GIL, DEPLOYMENT_TYPE)
-2. Builds SQLAlchemy connection string from DB_* vars (or uses `SQLALCHEMY_DATABASE_URI` override)
-3. Configures connection pooling (30 pool size, 30 overflow, 3600s recycle)
-4. Initializes SQLAlchemy (`db`) and Flask-Caching (`cache`)
-5. Registers `api_bp` (prefix `/api`) and `webhook_bp`
-6. Runs `init_db()` (`create_all`) and the startup DB preflight: missing tables and indexes are auto-created, and widen-only column drift is auto-fixed; risky discrepancies (missing columns, type mismatches, narrowing) print `FATAL` to stderr with the exact commands to run and refuse to start (see `docs/superpowers/specs/2026-08-06-db-preflight-design.md`)
-7. Seeds prerequisite staff (superuser, xendit system user)
-8. Seeds payment methods (`fee_service.seed_payment_methods()`)
-8. Exposes `/health` endpoint (separate from blueprint)
+1. **`require_env()`** at import time — missing `SECRET_KEY`, `NFC_PWD_SECRET`, `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN`, `DEPLOYMENT_TYPE` (plus `DB_*` unless `SQLALCHEMY_DATABASE_URI` is set) prints `FATAL` and exits.
+2. **`init_engine()`** — builds the async engine (aiomysql) + sync session factory.
+3. **`init_db()`** — `create_all()`: missing tables are auto-created.
+4. **`run_preflight()`** (`api/preflight.py`) — schema vs models audit; safe findings are applied via `apply()`. Risky findings (missing columns, incompatible types, time-named non-`DATETIME` columns, index conflicts) print every finding plus suggested `ALTER`/`DROP` commands and **`sys.exit(1)`** — the container crash-loops until fixed.
+5. **`seed_payment_methods()`** — 22 payment methods.
+6. **`ensure_prereq_staff()`** — superuser + xendit system user (in a thread, sync session).
+7. **`ensure_guest_user()`** — phpMyAdmin guest MySQL account (in a thread, sync session).
+8. Serves `GET /health` (liveness, no prefix) and all `/api/*` routers.
 
 ## Startup
 
@@ -128,3 +127,5 @@ curl http://localhost:7021/api/health   # via gateway
 # or directly from another container:
 docker exec waterbillingsystem_api curl http://localhost:8008/api/health
 ```
+
+Expected boot log markers: `preflight: OK — ...` (or the crash listing), then seeder activity. `docker compose up` fails before anything starts if a `.env` variable is missing (`${VAR:?}`).
