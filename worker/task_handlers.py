@@ -556,14 +556,14 @@ async def handle_backup(params, report):
         report(10, f"Dumping database ({customer_count} customers)...")
         print(f"  > Spawning mysqldump...", flush=True)
         dump_t0 = _time.time()
-        with open(path, "w") as f:
+        with open(path, "wb") as f:
             proc = await asyncio.create_subprocess_exec(
-                *cmd, stdout=f, stderr=asyncio.subprocess.PIPE, text=True
+                *cmd, stdout=f, stderr=asyncio.subprocess.PIPE
             )
             _, stderr = await proc.communicate()
         dump_dur = _time.time() - dump_t0
         if proc.returncode != 0:
-            err = (stderr or "").strip() or f"exit code {proc.returncode}"
+            err = (stderr or b"").decode(errors="replace").strip() or f"exit code {proc.returncode}"
             print(f"  > FAILED: {err}", flush=True)
             raise RuntimeError(f"Backup failed: {err}")
         file_size = path.stat().st_size
@@ -612,15 +612,15 @@ async def handle_restore(params, report):
     ]
     print(f"  > Feeding SQL dump into mysql...", flush=True)
     restore_t0 = _time.time()
-    with open(path) as f:
+    with open(path, "rb") as f:
         proc = await asyncio.create_subprocess_exec(
             *cmd, stdin=f, stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE, text=True
+            stderr=asyncio.subprocess.PIPE
         )
         _, stderr = await proc.communicate()
     restore_dur = _time.time() - restore_t0
     if proc.returncode != 0:
-        err = (stderr or "").strip() or f"exit code {proc.returncode}"
+        err = (stderr or b"").decode(errors="replace").strip() or f"exit code {proc.returncode}"
         print(f"  > FAILED: {err}", flush=True)
         raise RuntimeError(f"Restore failed: {err}")
     print(f"  > Restore completed in {restore_dur:.1f}s", flush=True)
