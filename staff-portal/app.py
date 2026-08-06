@@ -22,7 +22,7 @@ def require_env(*names):
             sys.exit(1)
 
 
-require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'CACHE_TYPE', 'DEPLOYMENT_TYPE')
+require_env('SECRET_KEY', 'INTERNAL_API_KEY', 'API_BASE_URL', 'DEPLOYMENT_TYPE')
 
 app = FastAPI(title="Cotta Staff Portal")
 
