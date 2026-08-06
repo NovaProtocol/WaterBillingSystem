@@ -4,15 +4,17 @@ import binascii
 import hashlib
 import os
 
-from apps import db
+from sqlalchemy.orm import Session
+
 from models import Staff
 
 
 PREREQ_USERNAMES = frozenset({"superuser", "xendit"})
 
 
-def ensure_prereq_staff(session=None) -> None:
-    session = session or db.session
+def ensure_prereq_staff(session: Session | None = None) -> None:
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     existing_superuser = session.query(Staff).filter_by(username="superuser").first()
     if not existing_superuser:
         salt = hashlib.sha256(os.urandom(60)).hexdigest().encode("ascii")
@@ -43,8 +45,9 @@ def ensure_prereq_staff(session=None) -> None:
     session.commit()
 
 
-def delete_non_prereq_staff(session=None) -> None:
-    session = session or db.session
+def delete_non_prereq_staff(session: Session | None = None) -> None:
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     session.query(Staff).filter(Staff.username.notin_(PREREQ_USERNAMES)).delete(
         synchronize_session="fetch"
     )

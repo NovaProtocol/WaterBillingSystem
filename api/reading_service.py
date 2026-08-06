@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from apps import db
+from sqlalchemy.orm import Session
+
 from models import Billing, Customer, MeterReading
 from pricing import compute_water_bill
 from services.audit_service import log_action
@@ -41,9 +42,10 @@ def log_duplicate_attempt(
     attempted_value: float,
     token_id: int | None = None,
     *,
-    session=None,
+    session: Session | None = None,
 ) -> None:
-    session = session or db.session
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     details = (
         f"Reader {staff_name} attempted duplicate reading for {customer_number}: "
         f"existing={existing.reading_value}, attempted={attempted_value}"
@@ -96,9 +98,11 @@ def _create_billing_for_reading(
 
 
 def sync_readings(
-    readings: list, token_id: int, staff_id: int, staff_name: str, *, session=None,
+    readings: list, token_id: int, staff_id: int, staff_name: str, *,
+    session: Session | None = None,
 ) -> tuple[int, list, list]:
-    session = session or db.session
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     recalc_customers: set[int] = set()
     synced = 0
     results = []
@@ -183,9 +187,10 @@ def upload_reading(
     staff_id: int,
     staff_name: str,
     *,
-    session=None,
+    session: Session | None = None,
 ) -> tuple[MeterReading | None, str | None, int | None]:
-    session = session or db.session
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     customer = session.query(Customer).filter_by(customer_number=customer_number).first()
     if not customer:
         return None, f"Customer {customer_number} not found", 404
@@ -219,8 +224,11 @@ def upload_reading(
     return reading, None, 201
 
 
-def drop_reading(reading_id: int, staff_id: int, reason: str, *, session=None) -> MeterReading | None:
-    session = session or db.session
+def drop_reading(
+    reading_id: int, staff_id: int, reason: str, *, session: Session | None = None,
+) -> MeterReading | None:
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     reading = session.query(MeterReading).get(reading_id)
     if not reading:
         from fastapi import HTTPException
@@ -259,9 +267,10 @@ def drop_reading(reading_id: int, staff_id: int, reason: str, *, session=None) -
 
 
 def edit_reading(
-    reading_id: int, new_value: float, staff_id: int, *, session=None,
+    reading_id: int, new_value: float, staff_id: int, *, session: Session | None = None,
 ) -> MeterReading | None:
-    session = session or db.session
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     reading = session.query(MeterReading).get(reading_id)
     if not reading:
         from fastapi import HTTPException

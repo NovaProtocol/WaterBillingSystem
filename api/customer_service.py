@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import func, or_
+from sqlalchemy.orm import Session
 
-from apps import db
 from models import Billing, Customer
 
 
@@ -31,13 +31,17 @@ def _is_name_query(s: str) -> bool:
     return bool(s) and all(c.isalpha() or c in " .-'" for c in s)
 
 
-def get_customer_by_number(customer_number: int, *, session=None) -> Customer | None:
-    session = session or db.session
+def get_customer_by_number(
+    customer_number: int, *, session: Session | None = None,
+) -> Customer | None:
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     return session.query(Customer).filter_by(customer_number=customer_number).first()
 
 
-def create_customer(data: dict, *, session=None) -> tuple[Customer | None, str | None]:
-    session = session or db.session
+def create_customer(data: dict, *, session: Session | None = None) -> tuple[Customer | None, str | None]:
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     customer_number = data.get("customer_number")
     name = data.get("name", "").strip()
     address = data.get("address", "").strip()
@@ -69,8 +73,11 @@ def create_customer(data: dict, *, session=None) -> tuple[Customer | None, str |
     return customer, None
 
 
-def update_customer(customer: Customer, data: dict, *, session=None) -> None:
-    session = session or db.session
+def update_customer(
+    customer: Customer, data: dict, *, session: Session | None = None,
+) -> None:
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     customer.name = data.get("name", customer.name) or None
     customer.address = data.get("address", customer.address) or None
     customer.contact_number = (
@@ -87,8 +94,9 @@ def update_customer(customer: Customer, data: dict, *, session=None) -> None:
     session.commit()
 
 
-def toggle_active(customer: Customer, *, session=None) -> None:
-    session = session or db.session
+def toggle_active(customer: Customer, *, session: Session | None = None) -> None:
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     customer.is_active = not customer.is_active
     if not customer.is_active:
         customer.deleted_at = datetime.now(tz=timezone.utc).replace(tzinfo=None)
@@ -106,8 +114,11 @@ def _total_carryover(customer_number: int, session) -> float:
     )
 
 
-def compute_customer_due(customer: Customer, *, session=None) -> float:
-    session = session or db.session
+def compute_customer_due(
+    customer: Customer, *, session: Session | None = None,
+) -> float:
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     unpaid_bills = (
         session.query(Billing)
         .filter_by(customer_number=customer.customer_number, is_paid=False)
@@ -126,8 +137,9 @@ def compute_customer_due(customer: Customer, *, session=None) -> float:
     return max(0, round(total_due - balance, 2))
 
 
-def recalc_total_due(customer_number: int, *, session=None) -> float:
-    session = session or db.session
+def recalc_total_due(customer_number: int, *, session: Session | None = None) -> float:
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     customer = session.query(Customer).filter_by(customer_number=customer_number).first()
     if not customer:
         return 0.0
@@ -137,8 +149,11 @@ def recalc_total_due(customer_number: int, *, session=None) -> float:
     return total
 
 
-def compute_batch_due(customers: list[Customer], *, session=None) -> dict[int, float]:
-    session = session or db.session
+def compute_batch_due(
+    customers: list[Customer], *, session: Session | None = None,
+) -> dict[int, float]:
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     if not customers:
         return {}
     cnums = [c.customer_number for c in customers]
@@ -191,11 +206,11 @@ def list_customers(
     q: str | None = None,
     sort_by: str = "name",
     sort_dir: str = "asc",
-    *,
-    session=None,
+    *, session: Session | None = None,
 ) -> tuple[list[Customer], int]:
     """Returns (items, total)."""
-    session = session or db.session
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     per_page = min(max(per_page, 10), 200)
     query = session.query(Customer)
 

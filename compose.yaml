@@ -82,7 +82,6 @@ services:
       SECRET_KEY: ${SECRET_KEY:?}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
       API_BASE_URL: ${API_BASE_URL:?}
-      CACHE_TYPE: ${CACHE_TYPE:?}
 
   developer-portal:
     build:
@@ -159,7 +158,6 @@ services:
       NFC_PWD_SECRET: ${NFC_PWD_SECRET:?}
       XENDIT_API_KEY: ${XENDIT_API_KEY:?}
       XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN:?}
-      CACHE_TYPE: ${CACHE_TYPE:?}
       GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:?}
     depends_on:
       mysql-db:
