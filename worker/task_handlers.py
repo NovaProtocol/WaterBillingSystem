@@ -105,6 +105,31 @@ async def _recalc_total_due(s, customer_number: int) -> None:
         customer.total_due = max(0, round(total - balance, 2))
 
 
+def _recalc_total_due_sync(ss, customer_number: int) -> None:
+    total = 0.0
+    for bill in ss.query(Billing).filter_by(
+        customer_number=customer_number, is_paid=False,
+    ).all():
+        bill_due = (
+            float(bill.billed_amount or 0)
+            + float(bill.penalty or 0)
+            - float(bill.paid_amount or 0)
+        )
+        total += max(0, bill_due)
+    balance = float(
+        ss.query(func.sum(Billing.carryover_offset))
+        .filter_by(customer_number=customer_number)
+        .scalar() or 0
+    )
+    customer = (
+        ss.query(Customer)
+        .filter_by(customer_number=customer_number)
+        .first()
+    )
+    if customer:
+        customer.total_due = max(0, round(total - balance, 2))
+
+
 # ── Seed data ──────────────────────────────────────────────────────────
 
 FIRST_NAMES = [
@@ -1021,7 +1046,7 @@ async def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[floa
                 ).scalar_one_or_none()
                 if not txn or txn.status != "PENDING":
                     return ("errored", f"txn #{txn_id}")
-                label = f"{txn.xendit_pr_id[:16]}... ({txn.customer_number}, PHP {txn.amount})"
+                label = f"{(txn.xendit_pr_id or '')[:16]}... ({txn.customer_number}, PHP {txn.amount})"
                 try:
                     session_id = txn.xendit_pr_id if txn.xendit_pr_id and txn.xendit_pr_id.startswith("ps-") else None
 
@@ -1036,7 +1061,14 @@ async def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[floa
                             payment_id = response.get("payment_id", "")
                             if payment_id:
                                 txn.xendit_payment_id = payment_id
-                            if await _process_xendit_payment(s, txn):
+                            await s.commit()
+                            ss = sync_session()
+                            try:
+                                ok = await asyncio.to_thread(
+                                    _process_xendit_payment_sync, ss, txn_id)
+                            finally:
+                                ss.close()
+                            if ok:
                                 print(f"    → Payment processed successfully", flush=True)
                                 return ("succeeded", label)
                             print(f"    → Payment processing failed", flush=True)
@@ -1058,7 +1090,14 @@ async def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[floa
                             payment_id = response.get("id", "")
                             if payment_id:
                                 txn.xendit_payment_id = str(payment_id)
-                            if await _process_xendit_payment(s, txn):
+                            await s.commit()
+                            ss = sync_session()
+                            try:
+                                ok = await asyncio.to_thread(
+                                    _process_xendit_payment_sync, ss, txn_id)
+                            finally:
+                                ss.close()
+                            if ok:
                                 print(f"    → Payment processed successfully", flush=True)
                                 return ("succeeded", label)
                             print(f"    → Payment processing failed", flush=True)
@@ -1071,15 +1110,19 @@ async def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[floa
                             return ("failed", label)
                         elif status == "REVERSED":
                             print(f"    → Xendit status: REVERSED — reversing payment...", flush=True)
-                            await _reverse_xendit_payment(s, txn)
+                            ss = sync_session()
+                            try:
+                                await asyncio.to_thread(
+                                    _reverse_xendit_payment_sync, ss, txn_id)
+                            finally:
+                                ss.close()
                             print(f"    → Payment reversed", flush=True)
                             return ("reversed", label)
                         else:
                             print(f"    → Unknown Xendit status: {status} — skipping", flush=True)
                             return ("skipped", label)
                 except Exception as e:
-                    await s.rollback()
-                    logger.exception(f"Xendit reconciliation error for txn {txn.id}: {e}")
+                    logger.exception(f"Xendit reconciliation error for txn {txn_id}: {e}")
                     print(f"    → ERROR: {e}", flush=True)
                     return ("errored", label)
 
@@ -1118,85 +1161,76 @@ async def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[floa
     report(100, summary)
 
 
-async def _process_xendit_payment(s, txn: XenditTransaction) -> bool:
-    if txn.status != "PENDING":
+def _process_xendit_payment_sync(ss, txn_id: int) -> bool:
+    txn = ss.query(XenditTransaction).filter_by(id=txn_id).first()
+    if not txn or txn.status != "PENDING":
         return False
+    txn_key = txn.id
 
     customer = (
-        await s.execute(
-            select(Customer).where(Customer.customer_number == txn.customer_number))
-    ).scalar_one_or_none()
+        ss.query(Customer)
+        .filter_by(customer_number=txn.customer_number)
+        .first()
+    )
     if not customer:
         txn.status = "FAILED"
         txn.error_message = "Customer not found"
-        await s.commit()
+        ss.commit()
         return False
 
-    staff = (
-        await s.execute(select(Staff).where(Staff.username == "xendit"))
-    ).scalar_one_or_none()
+    staff = ss.query(Staff).filter_by(username="xendit").first()
     if not staff:
         txn.status = "FAILED"
         txn.error_message = "Xendit system user not found"
-        await s.commit()
+        ss.commit()
         return False
 
     try:
         amount = float(txn.base_amount or txn.amount)
-        ss = sync_session()
-        try:
-            result, error, status = await asyncio.to_thread(
-                submit_payment, txn.customer_number, amount, staff.id, session=ss)
-        except Exception:
-            ss.rollback()
-            raise
+        result, error, status = submit_payment(
+            txn.customer_number, amount, staff.id, session=ss)
         if error:
             ss.rollback()
-            txn.status = "FAILED"
-            txn.error_message = error
-            await s.commit()
+            txn = ss.query(XenditTransaction).filter_by(id=txn_key).first()
+            if txn:
+                txn.status = "FAILED"
+                txn.error_message = error
+                ss.commit()
             return False
 
-        ss.commit()
         txn.status = "PAID"
         txn.receipt_number = result.get("receipt_number")
         txn.billing_receipt = result.get("receipt_number")
-        await s.commit()
+        ss.commit()
         return True
     except Exception as e:
-        logger.exception(f"Xendit payment processing failed for txn {txn.id}: {e}")
-        await s.rollback()
-        txn = (await s.execute(
-            select(XenditTransaction).where(XenditTransaction.id == txn.id))
-        ).scalar_one_or_none()
+        ss.rollback()
+        logger.exception(f"Xendit payment processing failed for txn {txn_key}: {e}")
+        txn = ss.query(XenditTransaction).filter_by(id=txn_key).first()
         if txn:
             txn.status = "FAILED"
             txn.error_message = str(e)
-            try:
-                await s.commit()
-            except Exception as e2:
-                logger.error(f"Error: {e2}")
-                await s.rollback()
+            ss.commit()
         return False
 
 
-async def _reverse_xendit_payment(s, txn: XenditTransaction) -> bool:
-    if txn.status != "PAID":
+def _reverse_xendit_payment_sync(ss, txn_id: int) -> bool:
+    txn = ss.query(XenditTransaction).filter_by(id=txn_id).first()
+    if not txn or txn.status != "PAID":
         return False
 
     billing_receipt = txn.billing_receipt
     if not billing_receipt:
         txn.status = "REVERSED"
         txn.error_message = "No billing receipt to reverse"
-        await s.commit()
+        ss.commit()
         return True
 
     bills = (
-        (await s.execute(
-            select(Billing)
-            .where(Billing.receipt_number == billing_receipt)
-            .with_for_update()
-        )).scalars().all()
+        ss.query(Billing)
+        .filter_by(receipt_number=billing_receipt)
+        .with_for_update()
+        .all()
     )
     for b in bills:
         b.is_paid = False
@@ -1207,14 +1241,13 @@ async def _reverse_xendit_payment(s, txn: XenditTransaction) -> bool:
         b.date_paid = None
         b.carryover_offset = 0
 
-    ss = sync_session()
-    await asyncio.to_thread(recalc_cumulative_balance, txn.customer_number, session=ss)
-    ss.commit()
-    await _recalc_total_due(s, txn.customer_number)
+    customer_number = txn.customer_number
+    recalc_cumulative_balance(customer_number, session=ss)
+    _recalc_total_due_sync(ss, customer_number)
 
     txn.status = "REVERSED"
     txn.reversed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    await s.commit()
+    ss.commit()
     return True
 
 
