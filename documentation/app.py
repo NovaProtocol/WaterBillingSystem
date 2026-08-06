@@ -42,7 +42,7 @@ async def serve_docs(path: str):
     candidates = [parts, os.path.join(parts, "index.html"), parts + ".html"]
     for c in candidates:
         full = os.path.normpath(os.path.join(str(SITE_DIR), c))
-        if full.startswith(str(SITE_DIR)) and os.path.isfile(full):
+        if (full == str(SITE_DIR) or full.startswith(str(SITE_DIR) + os.sep)) and os.path.isfile(full):
             return FileResponse(full)
     return JSONResponse({"error": "Not found"}, status_code=404)
 
