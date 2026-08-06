@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 logger = logging.getLogger('worker')
 
@@ -8,13 +9,15 @@ import os
 import random
 import secrets
 import shutil as _shutil
-import subprocess as _sp
 import time as _time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from sqlalchemy import delete, func, select, text
+
 from apps import db
+from db_async import session_factory, sync_session
 from models import (
     ApiKey,
     Billing,
@@ -41,36 +44,45 @@ TABLE_NAMES = [
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
-def _clear_all_tables() -> None:
+async def _clear_all_tables(s) -> None:
     try:
-        db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 0"))
+        await s.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
         for table_name in reversed(TABLE_NAMES):
-            db.session.execute(db.text(f"TRUNCATE TABLE {table_name}"))
-        delete_non_prereq_staff()
-        db.session.commit()
+            await s.execute(text(f"TRUNCATE TABLE {table_name}"))
+        await s.commit()
     except Exception as e:
         logger.error(f"Error: {e}")
-        db.session.rollback()
+        await s.rollback()
         raise
     finally:
-        db.session.execute(db.text("SET FOREIGN_KEY_CHECKS = 1"))
+        await s.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
 
 
-def _recalc_cumulative_balance(customer_number: int) -> None:
+async def _recalc_cumulative_balance(s, customer_number: int) -> None:
     total = (
-        db.session.query(db.func.sum(Billing.carryover_offset))
-        .filter_by(customer_number=customer_number)
-        .scalar()
-        or 0
+        (await s.execute(
+            select(func.sum(Billing.carryover_offset)).where(
+                Billing.customer_number == customer_number))
+        ).scalar() or 0
     )
-    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    customer = (
+        await s.execute(
+            select(Customer).where(Customer.customer_number == customer_number))
+    ).scalar_one_or_none()
     if customer:
         customer.cumulative_balance = round(float(total), 2)
 
 
-def _recalc_total_due(customer_number: int) -> None:
+async def _recalc_total_due(s, customer_number: int) -> None:
     total = 0.0
-    for bill in Billing.query.filter_by(customer_number=customer_number, is_paid=False).all():
+    for bill in (
+        (await s.execute(
+            select(Billing).where(
+                Billing.customer_number == customer_number,
+                Billing.is_paid.is_(False),
+            ))
+        ).scalars().all()
+    ):
         bill_due = (
             float(bill.billed_amount or 0)
             + float(bill.penalty or 0)
@@ -78,11 +90,15 @@ def _recalc_total_due(customer_number: int) -> None:
         )
         total += max(0, bill_due)
     balance = float(
-        db.session.query(db.func.sum(Billing.carryover_offset))
-        .filter_by(customer_number=customer_number)
-        .scalar() or 0
+        (await s.execute(
+            select(func.sum(Billing.carryover_offset)).where(
+                Billing.customer_number == customer_number))
+        ).scalar() or 0
     )
-    customer = Customer.query.filter_by(customer_number=customer_number).first()
+    customer = (
+        await s.execute(
+            select(Customer).where(Customer.customer_number == customer_number))
+    ).scalar_one_or_none()
     if customer:
         customer.total_due = max(0, round(total - balance, 2))
 
@@ -471,7 +487,7 @@ def _seed_data(
 
 # ── Handler functions ──────────────────────────────────────────────────
 
-def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+async def handle_backup(params, report):
     t0 = _time.time()
     print("  > Checking for mysqldump...", flush=True)
     if not _shutil.which("mysqldump"):
@@ -487,46 +503,50 @@ def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) 
     db_pass = os.environ["DB_PASS"]
     db_name = os.environ["DB_NAME"]
 
-    print(f"  > Counting customers...", flush=True)
-    customer_count = db.session.query(db.func.count(Customer.id)).scalar() or 0
-    print(f"  > Database: {db_name} on {db_host}:{db_port} — {customer_count} customers", flush=True)
+    async with session_factory()() as s:
+        print(f"  > Counting customers...", flush=True)
+        customer_count = (await s.execute(select(func.count(Customer.id)))).scalar() or 0
+        print(f"  > Database: {db_name} on {db_host}:{db_port} — {customer_count} customers", flush=True)
 
-    filename = f"backup_{datetime.now(timezone.utc).replace(tzinfo=None):%Y%m%d_%H%M%S}.sql"
-    path = BACKUP_DIR / filename
-    print(f"  > Output file: {path}", flush=True)
+        filename = f"backup_{datetime.now(timezone.utc).replace(tzinfo=None):%Y%m%d_%H%M%S}.sql"
+        path = BACKUP_DIR / filename
+        print(f"  > Output file: {path}", flush=True)
 
-    cmd = [
-        "mysqldump",
-        "-h", db_host,
-        "-P", db_port,
-        "-u", db_user,
-        f"-p{db_pass}",
-        "--ssl=0",
-        "--single-transaction",
-        "--routines", "--triggers", "--events",
-        "--ignore-table={}.background_tasks".format(db_name),
-        db_name,
-    ]
-    report(10, f"Dumping database ({customer_count} customers)...")
-    print(f"  > Spawning mysqldump...", flush=True)
-    dump_t0 = _time.time()
-    with open(path, "w") as f:
-        result = _sp.run(cmd, stdout=f, stderr=_sp.PIPE, text=True)
-    dump_dur = _time.time() - dump_t0
-    if result.returncode != 0:
-        err = result.stderr.strip() or f"exit code {result.returncode}"
-        print(f"  > FAILED: {err}", flush=True)
-        raise RuntimeError(f"Backup failed: {err}")
-    file_size = path.stat().st_size
-    file_size_str = f"{file_size / 1024 / 1024:.1f} MB" if file_size > 1024 * 1024 else f"{file_size / 1024:.1f} KB"
-    total_dur = _time.time() - t0
-    print(f"  > mysqldump completed in {dump_dur:.1f}s", flush=True)
-    print(f"  > File size: {file_size_str}", flush=True)
-    print(f"  > Total time: {total_dur:.1f}s", flush=True)
-    report(100, f"Backup saved: {filename} ({file_size_str}, {customer_count} customers, {total_dur:.1f}s)")
+        cmd = [
+            "mysqldump",
+            "-h", db_host,
+            "-P", db_port,
+            "-u", db_user,
+            f"-p{db_pass}",
+            "--ssl=0",
+            "--single-transaction",
+            "--routines", "--triggers", "--events",
+            "--ignore-table={}.background_tasks".format(db_name),
+            db_name,
+        ]
+        report(10, f"Dumping database ({customer_count} customers)...")
+        print(f"  > Spawning mysqldump...", flush=True)
+        dump_t0 = _time.time()
+        with open(path, "w") as f:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd, stdout=f, stderr=asyncio.subprocess.PIPE, text=True
+            )
+            _, stderr = await proc.communicate()
+        dump_dur = _time.time() - dump_t0
+        if proc.returncode != 0:
+            err = (stderr or "").strip() or f"exit code {proc.returncode}"
+            print(f"  > FAILED: {err}", flush=True)
+            raise RuntimeError(f"Backup failed: {err}")
+        file_size = path.stat().st_size
+        file_size_str = f"{file_size / 1024 / 1024:.1f} MB" if file_size > 1024 * 1024 else f"{file_size / 1024:.1f} KB"
+        total_dur = _time.time() - t0
+        print(f"  > mysqldump completed in {dump_dur:.1f}s", flush=True)
+        print(f"  > File size: {file_size_str}", flush=True)
+        print(f"  > Total time: {total_dur:.1f}s", flush=True)
+        report(100, f"Backup saved: {filename} ({file_size_str}, {customer_count} customers, {total_dur:.1f}s)")
 
 
-def handle_restore(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+async def handle_restore(params, report):
     t0 = _time.time()
     print("  > Checking for mysql client...", flush=True)
     if not _shutil.which("mysql"):
@@ -564,51 +584,55 @@ def handle_restore(params: dict[str, Any], report: Callable[[float, str], None])
     print(f"  > Feeding SQL dump into mysql...", flush=True)
     restore_t0 = _time.time()
     with open(path) as f:
-        result = _sp.run(cmd, stdin=f, stdout=_sp.PIPE, stderr=_sp.PIPE, text=True)
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdin=f, stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE, text=True
+        )
+        _, stderr = await proc.communicate()
     restore_dur = _time.time() - restore_t0
-    if result.returncode != 0:
-        err = result.stderr.strip() or f"exit code {result.returncode}"
+    if proc.returncode != 0:
+        err = (stderr or "").strip() or f"exit code {proc.returncode}"
         print(f"  > FAILED: {err}", flush=True)
         raise RuntimeError(f"Restore failed: {err}")
     print(f"  > Restore completed in {restore_dur:.1f}s", flush=True)
     print(f"  > Ensuring prerequisite staff accounts...", flush=True)
 
-    try:
-        ensure_prereq_staff()
-        db.session.commit()
-        customer_count = db.session.query(db.func.count(Customer.id)).scalar() or 0
-        print(f"  > Customers after restore: {customer_count}", flush=True)
-    except Exception as e:
-        logger.error(f"Error: {e}")
-        db.session.rollback()
-        print(f"  > Could not count customers (DB was replaced by restore)", flush=True)
+    async with session_factory()() as s:
+        try:
+            await asyncio.to_thread(ensure_prereq_staff, sync_session())
+            await s.commit()
+            customer_count = (await s.execute(select(func.count(Customer.id)))).scalar() or 0
+            print(f"  > Customers after restore: {customer_count}", flush=True)
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            await s.rollback()
+            print(f"  > Could not count customers (DB was replaced by restore)", flush=True)
 
     total_dur = _time.time() - t0
     print(f"  > Total time: {total_dur:.1f}s", flush=True)
     print(f"  > Restore complete: {filename} ({file_size_str}, {total_dur:.1f}s)", flush=True)
 
 
-def handle_clear(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+async def handle_clear(params, report) -> None:
     t0 = _time.time()
     print("  > Counting rows before clear...", flush=True)
-    counts_before = {}
-    for t in TABLE_NAMES:
-        try:
-            counts_before[t] = db.session.execute(db.text(f"SELECT COUNT(*) FROM {t}")).scalar()
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            counts_before[t] = 0
-    print(f"  > Tables to truncate: {', '.join(TABLE_NAMES)} ({sum(counts_before.values())} total rows)", flush=True)
-
-    report(0, "Clearing tables...")
-    _clear_all_tables()
-    print(f"  > All {len(TABLE_NAMES)} tables truncated", flush=True)
-
-    report(50, "Recreating system users...")
-    ensure_prereq_staff()
-    db.session.commit()
-    print(f"  > System users recreated (superuser, xendit)", flush=True)
-
+    async with session_factory()() as s:
+        counts_before = {}
+        for t in TABLE_NAMES:
+            try:
+                counts_before[t] = (
+                    await s.execute(text(f"SELECT COUNT(*) FROM {t}"))).scalar()
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                counts_before[t] = 0
+        print(f"  > Tables to truncate: {', '.join(TABLE_NAMES)} ({sum(counts_before.values())} total rows)", flush=True)
+        report(0, "Clearing tables...")
+        await _clear_all_tables(s)
+        print(f"  > All {len(TABLE_NAMES)} tables truncated", flush=True)
+        report(50, "Recreating system users...")
+        await s.commit()
+    await asyncio.to_thread(ensure_prereq_staff, sync_session())
+    await asyncio.to_thread(delete_non_prereq_staff, sync_session())
     total_dur = _time.time() - t0
     print(f"  > Total time: {total_dur:.1f}s", flush=True)
     report(100, f"Cleared {len(TABLE_NAMES)} tables ({sum(counts_before.values())} rows removed)")
