@@ -1,8 +1,10 @@
-import os, sys
-from flask import Flask, send_file, abort, request
-from shared.logger import attach_sqlite_logging
+import os
+import sys
+from pathlib import Path
 
-SITE_DIR = os.path.join(os.path.dirname(__file__), 'site')
+from fastapi import FastAPI
+from fastapi.responses import FileResponse, JSONResponse
+
 
 def require_env(*names):
     for name in names:
@@ -10,53 +12,35 @@ def require_env(*names):
             print(f"FATAL: Environment variable {name} is required but not set.")
             sys.exit(1)
 
-def create_app():
-    require_env('SECRET_KEY', 'DEPLOYMENT_TYPE')
 
-    app = Flask(__name__)
-    app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+require_env('SECRET_KEY', 'DEPLOYMENT_TYPE')
 
-    @app.route('/health')
-    def health():
-        return {'status': 'ok'}
+SITE_DIR = Path(__file__).resolve().parent / "site"
 
-    @app.route('/', defaults={'path': 'index.html'})
-    @app.route('/<path:path>')
-    def serve_docs(path):
-        if not path:
-            path = 'index.html'
+app = FastAPI(title="Cotta Water Billing Docs")
 
-        parts = path.rstrip('/')
-        candidates = [parts, os.path.join(parts, 'index.html'), parts + '.html']
 
-        for c in candidates:
-            full = os.path.normpath(os.path.join(SITE_DIR, c))
-            if full.startswith(SITE_DIR) and os.path.isfile(full):
-                return send_file(full)
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
-        abort(404)
 
-    attach_sqlite_logging('documentation')
+@app.get("/")
+async def index():
+    return FileResponse(SITE_DIR / "index.html")
 
-    import logging
-    http_logger = logging.getLogger('http')
 
-    @app.after_request
-    def log_request(response):
-        import datetime
-        now = datetime.datetime.now(datetime.timezone.utc).strftime('%d/%b/%Y:%H:%M:%S %z')
-        referrer = request.headers.get('Referer', '-')
-        ua = request.headers.get('User-Agent', '-')
-        msg = f'{request.remote_addr} - - [{now}] "{request.method} {request.path} {request.environ.get("SERVER_PROTOCOL", "HTTP/1.1")}" {response.status_code} {response.content_length or "-"} "{referrer}" "{ua}"'
-        http_logger.info(msg, extra={
-            'http': {
-                'method': request.method,
-                'path': request.path,
-                'status_code': response.status_code,
-                'remote_addr': request.remote_addr,
-                'container': request.headers.get('X-Container-Name', '-'),
-            }
-        })
-        return response
-
-    return app
+@app.get("/{path:path}")
+async def serve_docs(path: str):
+    if not path:
+        return FileResponse(SITE_DIR / "index.html")
+    parts = path.rstrip("/")
+    candidates = [
+        SITE_DIR / parts,
+        SITE_DIR / parts / "index.html",
+        SITE_DIR / (parts + ".html"),
+    ]
+    for c in candidates:
+        if c.is_file():
+            return FileResponse(c)
+    return JSONResponse({"error": "Not found"}, status_code=404)
