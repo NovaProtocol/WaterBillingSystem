@@ -165,7 +165,7 @@ background-worker:
 
 | Network | Driver | Visibility | Services |
 |---------|--------|------------|----------|
-| `net-public` | bridge | External | caddy-gateway, landing-page, customer-portal, webhook-container, api |
+| `net-public` | bridge | External | caddy-gateway, landing-page, customer-portal, webhook-container |
 | `net-private` | bridge | External | caddy-gateway, staff-portal, developer-portal, phpmyadmin, documentation |
 | `net-api` | internal | Internal only | api, customer-portal, staff-portal, developer-portal, webhook-container |
 | `net-data` | internal | Internal only | api, background-worker, mysql-db, phpmyadmin |
@@ -173,8 +173,8 @@ background-worker:
 | `cloudflared-tunnel` | external (`cloudflared-tunnel_default`) | Cloudflare | caddy-gateway |
 
 - **`net-api`** (internal): Portal containers communicate with the API container. No external access.
-- **`net-data`** (internal): API and worker access MySQL. No external access.
-- **`net-public`** (bridge): Public-facing services (landing page, customer portal, webhook receiver, API for Xendit DNS resolution).
+- **`net-data`** (internal): The API's home group — API and worker access MySQL. No external access.
+- **`net-public`** (bridge): Public-facing services (landing page, customer portal, webhook receiver).
 - **`net-private`** (bridge): Admin-facing services (staff portal, developer portal, phpMyAdmin, docs).
 - **`net-gk`** (external): Caddy's `forward_auth` route to the GateKeeper SSO service. Only the gateway is attached.
 - **`cloudflared-tunnel`** (external): Connects Caddy to Cloudflare tunnel for public internet access.

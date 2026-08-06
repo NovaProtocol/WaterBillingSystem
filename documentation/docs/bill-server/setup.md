@@ -97,11 +97,11 @@ api:
 
 | Network | Type | Purpose |
 |---------|------|---------|
-| `net-public` | bridge | External-facing (Xendit DNS resolution) |
+| `net-public` | bridge | External-facing |
 | `net-api` | internal | API-to-portal communication |
 | `net-data` | internal | API-to-database communication |
 
-The API container is on three networks: `net-public` (for Xendit DNS resolution), `net-api` (for portal service consumption), and `net-data` (for MySQL access).
+The API container lives on the data layer: `net-data` for MySQL and `net-api` for portal service consumption. It is never exposed at the edge.
 
 ## App Startup (`api/app.py`)
 
