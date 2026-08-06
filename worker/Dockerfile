@@ -7,4 +7,5 @@ RUN python3 -m compileall -q /app /app/shared 2>/dev/null || true
 COPY worker/ /app/
 ENV PYTHONPATH=/app/shared
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
-CMD ["python3", "background_worker.py"]
+EXPOSE 8006
+CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8006", "--workers", "1", "app:app"]
