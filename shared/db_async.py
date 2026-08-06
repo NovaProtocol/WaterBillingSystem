@@ -102,6 +102,16 @@ def sync_engine():
     return _sync_engine
 
 
+def session_factory() -> async_sessionmaker:
+    """The async sessionmaker (created lazily). Used for self-contained
+    sessions in background work (e.g. BackgroundTask.enqueue) and for
+    per-chunk sessions in concurrent worker handlers."""
+    global _sessionmaker
+    if _sessionmaker is None:
+        init_engine()
+    return _sessionmaker
+
+
 async def init_db() -> None:
     """Create all tables (FastAPI startup). Migrations arrive with phase 2."""
     if _engine is None:

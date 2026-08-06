@@ -3,7 +3,6 @@ from __future__ import annotations
 import datetime as dt
 import enum
 
-from flask_login import UserMixin
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -19,16 +18,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import backref, relationship
 
-from apps import login_manager
 from db_async import Base
 
 
-@login_manager.user_loader
-def staff_loader(id: int | str) -> Staff | None:
-    return Staff.query.filter_by(id=id).first()
-
-
-class Staff(Base, UserMixin):
+class Staff(Base):
 
     __tablename__ = "staff"
 
@@ -356,43 +349,59 @@ class BackgroundTask(Base):
     )
 
     @classmethod
-    def enqueue(
+    async def enqueue(
         cls,
         task_type: str,
         params: dict | None = None,
         title: str | None = None,
         scheduled_at: dt.datetime | None = None,
     ) -> BackgroundTask:
-        from apps import db
+        from db_async import session_factory
 
-        task = cls(
-            task_type=task_type,
-            params=params or {},
-            title=title or task_type,
-            status="queued",
-            scheduled_at=scheduled_at,
-        )
-        db.session.add(task)
-        db.session.commit()
-        return task
+        async with session_factory()() as s:
+            task = cls(
+                task_type=task_type,
+                params=params or {},
+                title=title or task_type,
+                status="queued",
+                scheduled_at=scheduled_at,
+            )
+            s.add(task)
+            await s.commit()
+            return task
 
     @classmethod
-    def enqueue_unique(
+    async def enqueue_unique(
         cls,
         task_type: str,
         params: dict | None = None,
         title: str | None = None,
         scheduled_at: dt.datetime | None = None,
     ) -> BackgroundTask | None:
-        from apps import db
+        from sqlalchemy import select
+        from db_async import session_factory
 
-        existing = cls.query.filter(
-            cls.task_type == task_type,
-            cls.status.in_(["queued", "running"]),
-        ).first()
-        if existing:
-            return None
-        return cls.enqueue(task_type=task_type, params=params, title=title, scheduled_at=scheduled_at)
+        async with session_factory()() as s:
+            existing = (
+                await s.execute(
+                    select(cls).where(
+                        cls.task_type == task_type,
+                        cls.status.in_(["queued", "running"]),
+                    )
+                )
+            ).scalar_one_or_none()
+            if existing:
+                return None
+            task = cls(
+                task_type=task_type,
+                params=params or {},
+                title=title or task_type,
+                status="queued",
+                scheduled_at=scheduled_at,
+            )
+            s.add(task)
+            await s.commit()
+            return task
 
     def __repr__(self) -> str:
         return f"<BackgroundTask {self.id} {self.task_type} {self.status}>"
