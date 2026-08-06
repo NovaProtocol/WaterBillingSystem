@@ -1,6 +1,6 @@
 # Sync Architecture
 
-The MeterReadingApp uses an **offline-first** sync architecture. Data is collected locally in SQLite and synchronized with BillServer in the background.
+**Offline-first**: data collected locally in SQLite, synchronized with BillServer in the background.
 
 ## Overview
 
@@ -47,7 +47,7 @@ sequenceDiagram
 
 ## Sync Engine: `useSync()`
 
-The sync engine is implemented as a custom React hook in `src/services/syncService.ts`.
+Custom React hook in `src/services/syncService.ts`.
 
 ### State Machine
 
@@ -90,35 +90,24 @@ const {
 
 ### Sync Flow (detailed)
 
-1. **Fetch permissions** — GET `GET /api/key/info`. Validates API key, caches staff permissions (`can_enroll_customer`, `can_read_meters`, etc.) in local config.
-
-2. **Fetch NFC config** — GET `GET /api/nfc/config`. Retrieves `nfc_pwd_secret` (for offline password computation) and `nfc_generation` (cache invalidation counter). Clears local NFC cache if generation has changed.
-
-3. **Upload NFC enrollments** — Fetch unsynced NFC enrollments from local `nfc_enrollments` table. POST to `POST /api/nfc/sync`. On success, mark enrollments as synced.
-
-4. **Upload readings** — Fetch all unsynced readings from local DB (`synced=0 AND rejected=0`). POST to `POST /api/readings/sync`. On success, mark readings as synced (with server ID) or rejected (if duplicate).
-
-5. **Check for changes** — GET `GET /api/customers/changed?since=<lastSyncTime>`. Returns list of changed customer numbers and the server's current timestamp.
-
-6. **Download** — Pipeline fetch batches of up to 500 customer numbers using `GET /api/readings/bulk`. For each batch:
-   - Fetch next batch in background while processing current one (pipelining)
-   - Process NFC cache: upsert `nfc_cache` entries from `nfc_uid` fields (compute PWD via `computeTagPwd(nfc_pwd_secret, uid)`)
-   - Call `replaceCustomerData()` per customer with individual commits
-   - Drop old readings for this customer and insert fresh data
-
-7. **Update timestamp** — Save `server_time` as `lastSyncTime` for next sync.
-
-8. **Cleanup** — Delete synced NFC enrollment records from `nfc_enrollments`.
+1. **Fetch permissions** — `GET /api/key/info`. Validates API key, caches staff permissions (`can_enroll_customer`, `can_read_meters`, etc.) in local config.
+2. **Fetch NFC config** — `GET /api/nfc/config`. Retrieves `nfc_pwd_secret` (offline password computation) and `nfc_generation` (cache invalidation counter). Clears local NFC cache if generation changed.
+3. **Upload NFC enrollments** — unsynced enrollments from local `nfc_enrollments` → `POST /api/nfc/sync`. Mark synced on success.
+4. **Upload readings** — unsynced readings (`synced=0 AND rejected=0`) → `POST /api/readings/sync`. Mark synced (with server ID) or rejected (if duplicate).
+5. **Check for changes** — `GET /api/customers/changed?since=<lastSyncTime>`. Returns changed customer numbers + server timestamp.
+6. **Download** — pipelined batches of up to 500 customer numbers via `GET /api/readings/bulk`. Per batch: fetch next batch in background while processing current one; upsert `nfc_cache` from `nfc_uid` fields (PWD via `computeTagPwd(nfc_pwd_secret, uid)`); call `replaceCustomerData()` per customer with individual commits; drop old readings and insert fresh data.
+7. **Update timestamp** — save `server_time` as `lastSyncTime`.
+8. **Cleanup** — delete synced NFC enrollment records.
 
 ### Concurrency
 
-- Uses `syncingRef` to prevent concurrent syncs
-- Uses `AbortController` to cancel the previous sync when a new one is triggered
-- All DB operations are serialized through `withDb()` (sequential promise queue)
+- `syncingRef` prevents concurrent syncs
+- `AbortController` cancels the previous sync when a new one is triggered
+- All DB operations serialized through `withDb()` (sequential promise queue)
 
 ### First Sync Behavior
 
-`lastSyncTime` defaults to `0` (Unix epoch). This means the first sync triggers a full download of all active customers and their reading history.
+`lastSyncTime` defaults to `0` (Unix epoch). First sync triggers a full download of all active customers and their reading history.
 
 ## Database Schema
 
@@ -156,7 +145,7 @@ nfc_enrollments (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT,
 
 ## Duplicate Month Protection
 
-Before saving a reading (either locally or syncing to server), the app checks for an existing reading by the same customer in the current calendar month. The server also enforces this check independently, ensuring consistency even if the local check is bypassed.
+Before saving a reading (locally or syncing to server), the app checks for an existing reading by the same customer in the current calendar month. The server also enforces this check independently.
 
 ## Request Flow
 
@@ -174,7 +163,7 @@ graph TD
 
 ## Type Conversions
 
-The sync service handles the mismatch between API types (`customer_number` as `number`) and SQLite storage (`customer_number` as `string`):
+Sync service handles the mismatch between API types (`customer_number` as `number`) and SQLite storage (`customer_number` as `string`):
 
 | Direction | Conversion |
 |---|---|

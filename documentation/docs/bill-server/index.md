@@ -2,7 +2,7 @@
 
 **Stack**: Python FastAPI (ASGI) + SQLAlchemy 2.0 (async, aiomysql) + MySQL 8.4 + granian (1 worker)
 
-The API container is one of several Docker services that made up the original monolithic BillServer. Business logic is extracted into service modules; routes handle HTTP concerns (auth, request parsing, response formatting). The container runs on internal port 8008 and is not directly exposed to the Caddy gateway.
+Part of the original monolithic BillServer. Business logic is extracted into service modules; routes handle HTTP concerns (auth, request parsing, response formatting). Runs on internal port 8008, not directly exposed to the Caddy gateway.
 
 ## Routers
 
@@ -11,7 +11,7 @@ The API container is one of several Docker services that made up the original mo
 | `blueprint` (`api/blueprint.py`) | `/api/*` | 49 endpoints — customer, staff, config, system, debug |
 | `webhook_router` (`routes/webhooks.py`) | `/api/webhook/*` | 1 endpoint — Xendit callback |
 
-Plus an app-level `GET /health` (no prefix) for liveness.
+Plus an app-level `GET /health` (no prefix).
 
 ## Route Modules
 
@@ -59,7 +59,7 @@ Keys are tied to `Staff` accounts with granular boolean permissions (7 flags). F
 
 ### Internal API Key
 
-Service-to-service authentication. Sent via `X-Internal-API-Key` header. Bypasses all permission checks when valid. Requires `X-Staff-ID` header for staff identification.
+Service-to-service authentication via `X-Internal-API-Key` header. Bypasses all permission checks when valid. Requires `X-Staff-ID` header for staff identification.
 
 ### Staff Session Login
 
@@ -67,13 +67,13 @@ Service-to-service authentication. Sent via `X-Internal-API-Key` header. Bypasse
 
 ## Key Design Decisions
 
-- **Service Layer**: Business logic is extracted into service modules separated from route handlers. Services call each other only as needed (e.g., `payment_service` → `billing_service`).
-- **Async Runtime**: routes are async and use an async SQLAlchemy session (`shared/db_async.py`, aiomysql); sync shared services run in threads with a sync session.
+- **Service Layer**: business logic in service modules, separated from route handlers. Services call each other only as needed (e.g., `payment_service` → `billing_service`).
+- **Async Runtime**: async routes with an async SQLAlchemy session (`shared/db_async.py`, aiomysql); sync shared services run in threads with a sync session.
 - **Permission System**: 7 granular boolean permissions on the `Staff` model control API access.
 - **Pricing Engine**: 5 progressive water pricing tiers with automatic late-penalty computation. Centralized in `shared/pricing.py`.
-- **Duplicate Detection**: Monthly reading duplicate check via SQL `YEAR/MONTH` extraction. Duplicates logged to `ManagementLog` and rejected.
-- **Task Queue**: Long-running operations (backup, restore, seed, clear, monthly mutations) run via `BackgroundTask` DB queue, processed by the separate worker container.
-- **Schema Self-Healing**: startup preflight auto-creates missing tables/indexes and applies safe (widen-only) drift; it crashes with suggested `ALTER` commands on risky drift. No migration CLI.
+- **Duplicate Detection**: monthly reading duplicate check via SQL `YEAR/MONTH` extraction. Duplicates logged to `ManagementLog` and rejected.
+- **Task Queue**: long-running operations (backup, restore, seed, clear, monthly mutations) run via `BackgroundTask` DB queue, processed by the separate worker container.
+- **Schema Self-Healing**: startup preflight auto-creates missing tables/indexes and applies safe (widen-only) drift; crashes with suggested `ALTER` commands on risky drift. No migration CLI.
 
 ## Directory Structure
 

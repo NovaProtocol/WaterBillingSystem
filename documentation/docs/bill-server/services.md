@@ -6,7 +6,7 @@ Business logic is split between API-local services (`api/`) and shared services 
 
 ### reading_service.py (`api/reading_service.py`)
 
-Manages reading sync, upload, CRUD, and automatic billing creation. Sync functions take a `session` keyword for unit testing.
+Reading sync, upload, CRUD, auto billing creation. Sync functions take a `session` keyword for unit testing.
 
 **`_existing_this_month(customer_number, timestamp_dt, exclude_id=None)`** → `MeterReading | None`
 Checks if a reading exists for the same customer/year/month.
@@ -24,7 +24,7 @@ Processes a batch from mobile app sync. Each reading validated for customer exis
 Returns `[{index, reading_id, customer_number, billing?}]` on success.
 
 **`upload_reading(customer_number, reading_value, timestamp, token_id, staff_id, staff_name)`** → `(reading, error, status)`
-Single reading upload. Same validation as sync. Auto-creates billing via `_create_billing_for_reading()`.
+Same validation as sync. Auto-creates billing via `_create_billing_for_reading()`.
 
 **`drop_reading(reading_id, staff_id, reason)`** → `MeterReading`
 Hard-deletes a reading and its billing record. Validates: must be current month, bill must be unpaid.
@@ -55,6 +55,7 @@ Sum of unpaid bills + penalties minus carryover credit.
 Batch due computation using single query for all customers.
 
 **`get_customer_by_number(customer_number)`** → `Customer | None`
+
 **`recalc_total_due(customer_number)`** → `float` — recomputes and persists the `total_due` column (called on customer profile access and payment changes).
 
 ### fee_service.py (`api/fee_service.py`)
@@ -78,10 +79,10 @@ Checks if an unpaid bill is past its due date (7 days after reading). If overdue
 
 ### payment_service.py (`shared/services/payment_service.py`)
 
-Payment processing with waterfall model. All functions take a `session` keyword and are sync (called from routes/worker via threads).
+Waterfall payment processing. All functions take a `session` keyword and are sync (called from routes/worker via threads).
 
 **`submit_payment(customer_number, amount, cashier_id, *, session)`** → `(result, error, status)`
-Applies payment to oldest unpaid bills first. Excess cash creates carryover credit on the most recently paid bill. Insufficient payment leaves remainder as unpaid.
+Applies payment to oldest unpaid bills first. Excess cash creates carryover credit on the most recently paid bill. Insufficient payment leaves remainder unpaid.
 
 **`drop_payment(payment_id, staff_id, reason)`** → `dict`
 Undoes a receipt group (all bills sharing the same receipt number). Reverts `is_paid`, clears `paid_amount`, `receipt_number`, `cashier_id`, `payment_timestamp`, `date_paid`, `carryover_offset`.
@@ -96,12 +97,12 @@ Converts period type + date strings to datetime bounds. Supports: daily, weekly,
 Aggregates payments within date range, optionally grouped by interval. Returns matrix format when `group_days > 1`.
 
 **`compute_nav_dates(period, start, end, today)`** → `dict`
-Returns `prev_date`, `next_date`, `display`, `is_today` for tally navigation.
+Returns `prev_date`, `next_date`, `display`, `is_today`.
 
 ### audit_service.py (`shared/services/audit_service.py`)
 
 **`log_action(staff_id, action_type, target_type, target_id, details, customer_number=None)`** → `ManagementLog`
-Creates an audit log entry. Called automatically by reading_service and payment_service on destructive operations.
+Creates an audit log entry. Called automatically on destructive operations by reading_service and payment_service.
 
 ### staff_seeder.py (`shared/services/staff_seeder.py`)
 

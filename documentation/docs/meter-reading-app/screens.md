@@ -2,7 +2,7 @@
 
 ## Navigation
 
-The app uses a `NativeStackNavigator` with the following routes:
+`NativeStackNavigator` routes:
 
 ```typescript
 type RootStackParamList = {
@@ -16,11 +16,11 @@ type RootStackParamList = {
 };
 ```
 
-The initial route is determined dynamically:
-- If `serverUrl` and `apiKey` are configured → `'Home'`
+Initial route is dynamic:
+- `serverUrl` and `apiKey` configured → `'Home'`
 - Otherwise → `'Unauthenticated'`
 
-All screens have `headerShown: false` — custom headers are used throughout.
+All screens have `headerShown: false` — custom headers throughout.
 
 ```mermaid
 graph TD
@@ -45,30 +45,27 @@ graph TD
 
 ### HomeScreen
 
-The main dashboard showing customer counts, filters, and navigation actions.
+Main dashboard: customer counts, filters, navigation actions.
 
 **Components used**: `CustomerCountCard`, `CustomerFilterBar`, `UnreadListModal`, `FilterPickerModal`
 
-Features:
 - Total customer count (filtered or all)
 - Unread this month count badge
 - Phase / Block / Street filter chips
-- "Map View" button → navigates to `Map`
-- "Start Reading" button → navigates to `Reading`
-- Settings gear icon → navigates to `Settings`
-- **Hidden "Enroll" button** (green chip) — only visible when API key has `can_enroll_customer` permission
+- "Map View" → `Map`; "Start Reading" → `Reading`; gear icon → `Settings`
+- **Hidden "Enroll" button** (green chip) — visible only when API key has `can_enroll_customer`
 - Pull-to-refresh refreshes counts and dropdowns
 
 ### NfcEnrollScreen
 
-NFC tag enrollment screen. Only accessible to staff with `can_enroll_customer` permission.
+NFC tag enrollment. Only accessible to staff with `can_enroll_customer`.
 
 **Phases**:
-1. **`search`** — Type customer number (auto-suggest from local DB, limit 15 results). Also has a "Disenroll Tag" button.
-2. **`verify`** — Shows selected customer details (name, number, address, phase/block)
-3. **`programming`** — Holds phone near NFC tag, programs it with the account number
-4. **`done`** — Success confirmation with option to enroll another or return home
-5. **`error`** — Error display with retry option
+1. **`search`** — Type customer number (auto-suggest from local DB, limit 15 results). "Disenroll Tag" button.
+2. **`verify`** — Selected customer details (name, number, address, phase/block)
+3. **`programming`** — Holds phone near NFC tag, programs the account number
+4. **`done`** — Success confirmation, option to enroll another or return home
+5. **`error`** — Error display with retry
 6. **`disenrolling`** — Erases a programmed tag, restores factory defaults
 7. **`disenroll_done`** — Success confirmation after disenrollment
 
@@ -86,57 +83,53 @@ NFC tag enrollment screen. Only accessible to staff with `can_enroll_customer` p
 11. Verify CFG1 by reading back page 132
 12. Final verification: re-authenticate with new PWD, read back customer data
 13. Save to `nfc_cache` + `nfc_enrollments` locally
-14. Attempt immediate server sync via `POST /api/nfc/sync` (will retry in background if offline)
+14. Attempt immediate server sync via `POST /api/nfc/sync` (retries in background if offline)
 
 ### ReadingScreen
 
-The core meter reading workflow. Accepts a customer number from NFC scan or manual entry.
+Core meter reading workflow. Accepts a customer number from NFC scan or manual entry.
 
 **Components used**: `NfcScanner`, `CustomerInfoCard`, `ReadingHistoryPill`, `ReadingInput`, `BillEstimateCard`, `SubmitSummary`
 
 Workflow states:
 1. **`waiting`** — Waiting for NFC tag or manual number entry
-2. **`found`** — Customer found, showing info card, reading history, and input
+2. **`found`** — Customer found: info card, reading history, input
 3. **`summary`** — Confirmation with `SubmitSummary` (checkmark, value, consumption, bill estimate, "Print Receipt" button, "Back to Scan")
 4. **`error`** — Error message with retry
 
-Key behavior:
-- NFC listener is active in `waiting` state — uses **PWD_AUTH** to authenticate and read protected tags
-- If a reading already exists for this customer in the current month, input is disabled with "Already Read — Submit Blocked"
+- NFC listener active in `waiting` state — uses **PWD_AUTH** to authenticate and read protected tags
+- Reading exists for this customer in current month → input disabled, "Already Read — Submit Blocked"
 - Bill estimate recalculates as the user types
-- After successful submit, shows a confirmation and offers "Back to Scan"
+- After submit: confirmation + "Back to Scan"
 
 ### CustomerDetailScreen
 
-Displays full customer information with readings and map coordinates.
+Full customer information with readings and map coordinates.
 
 **Route params**: `{ customerNumber: string }`
 
-Displays:
-- Customer name, number, address
+- Name, number, address
 - Phase / Block / Street
 - Contact info
-- Recent readings (up to 6, showing value and date)
-- FlatList of all customers with coordinates (selected customer highlighted)
+- Recent readings (up to 6, value and date)
+- FlatList of all customers with coordinates (selected highlighted)
 
 ### MapScreen
 
-Leaflet.js map rendered inside a WebView. Shows customer markers with popups.
+Leaflet.js map in a WebView. Customer markers with popups.
 
 **Components used**: None standalone (renders HTML via WebView)
 
-Map features:
 - Customer pins at (x_coordinate, y_coordinate)
-- Popups showing: name, customer number, address, last reading
+- Popups: name, customer number, address, last reading
 - Powered by Leaflet 1.9.4 with OpenStreetMap tiles
 
 ### SettingsScreen
 
-Configuration screen for app setup.
+App configuration.
 
 **Components used**: `QrScanner`
 
-Settings:
 | Setting | Description |
 |---|---|
 | **Server IP** | BillServer IP address |
@@ -151,45 +144,45 @@ Settings:
 ## Components
 
 ### NfcScanner
-Invisible component that runs a continuous scan loop using `NfcTech.NfcA`. On tag discovery:
-1. Reads UID hex from pages 0-1 of the tag (always public)
+Invisible component running a continuous scan loop using `NfcTech.NfcA`. On tag discovery:
+1. Reads UID hex from pages 0-1 (always public)
 2. Checks if tag is MifareUltralight via `isMifareUltralight()`
 3. Looks up UID in local `nfc_cache` table
 4. Computes password via `computeTagPwd(nfcPwdSecret, uid)`
-5. Sends **PWD_AUTH**: tries computed password → cached password (if different) → factory FFFFFFFF → factory 00000000
-6. Reads memory pages 7–18 via `NfcManager.transceive()`, parses raw ASCII to extract customer number
+5. Sends **PWD_AUTH**: computed password → cached password (if different) → factory FFFFFFFF → factory 00000000
+6. Reads memory pages 7–18 via `NfcManager.transceive()`, parses raw ASCII for customer number
 7. Verifies customer number matches `nfc_cache` entry (tampering detection)
 8. Calls `onTag(customerNumber)` or `onError(message)`
 
 ### QrScanner
-Camera view using `expo-camera` `CameraView`. Scans QR codes containing API keys. Requests camera permission on first use.
+Camera view (`expo-camera` `CameraView`) scanning QR codes containing API keys. Requests camera permission on first use.
 
 ### CustomerInfoCard
-Displays customer name, number, and address in a styled card.
+Customer name, number, address in a styled card.
 
 ### ReadingHistoryPill
-Shows a "Last Reading" card (value, date, reader) and a "View History" pill button. Tapping opens a modal with a scrollable list of readings (value, date, reader, pending badge for unsynced).
+"Last Reading" card (value, date, reader) + "View History" pill. Opens a modal with a scrollable list of readings (value, date, reader, pending badge for unsynced).
 
 ### ReadingInput
-Numeric `TextInput` with decimal keypad. Accepts meter reading values in cubic meters (m³).
+Numeric `TextInput` with decimal keypad. Accepts meter readings in cubic meters (m³).
 
 ### BillEstimateCard
-Toggle-able card showing the estimated bill for the entered reading. Breaks down costs by pricing tier with subtotals and total.
+Toggle-able card showing the estimated bill for the entered reading, broken down by pricing tier with subtotals and total.
 
 ### SubmitSummary
-Post-submit confirmation card showing: checkmark, customer name, reading value, consumption since last reading, estimated bill amount, "Print Receipt" (disabled), and "Back to Scan" button.
+Post-submit confirmation card: checkmark, customer name, reading value, consumption since last reading, estimated bill amount, "Print Receipt" (disabled), "Back to Scan".
 
 ### CustomerCountCard
 Large centered count display with "Unread This Month" button.
 
 ### CustomerFilterBar
-Three filter chips (Phase / Block / Street) and a "Clear" button. Each chip opens a bottom-sheet picker.
+Three filter chips (Phase / Block / Street) + "Clear". Each chip opens a bottom-sheet picker.
 
 ### FilterPickerModal
-Bottom-sheet modal with a FlatList of filter options. Dynamically populated from distinct values in the local customer database.
+Bottom-sheet modal with a FlatList of filter options, populated from distinct values in the local customer database.
 
 ### UnreadListModal
-Bottom-sheet modal listing customers with no reading in the current month. Pressing a row navigates to `CustomerDetailScreen`.
+Bottom-sheet modal listing customers with no reading in the current month. Row press → `CustomerDetailScreen`.
 
 ### ErrorBoundary
 React class-based error boundary. Displays "Something went wrong" with error details and a "Restart" button.

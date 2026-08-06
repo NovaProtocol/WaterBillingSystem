@@ -2,13 +2,11 @@
 
 ## Overview
 
-The entire WaterBillingSystem runs as Docker containers defined in a single `compose.yaml` at the project root. The infrastructure includes the database, API, portals, background worker, and supporting services. **11 services on 6 networks.**
+All services run as containers in a single `compose.yaml` at the project root. **11 services on 6 networks.**
 
-Every variable in `compose.yaml` is interpolated with `${VAR:?}` — a missing or blank value makes `docker compose up` fail immediately, so a misconfigured `.env` can never half-start the stack.
+Every variable in `compose.yaml` is interpolated with `${VAR:?}` — a missing or blank value makes `docker compose up` fail immediately.
 
 ## MySQL 8.4
-
-The database service provides persistent storage for all application data.
 
 | Property | Value |
 |----------|-------|
@@ -63,8 +61,7 @@ Access via Caddy gateway at `https://<private-domain>/phpmyadmin/`.
 
 ## Documentation
 
-Serves the pre-built MkDocs static site (`documentation/site/`, built in the
-Dockerfile via `mkdocs build`) as a **FastAPI app run by granian**.
+Serves the pre-built MkDocs static site (`documentation/site/`, built in the Dockerfile via `mkdocs build`) as a **FastAPI app run by granian**.
 
 | Property | Value |
 |----------|-------|
@@ -102,11 +99,7 @@ documentation:
 
 ## Background Worker
 
-A **FastAPI app run by granian `--workers 1`** (exactly one async claim loop)
-that polls the `background_tasks` database table and executes queued tasks
-one at a time. Internal concurrency inside a job is bounded by
-`WORKER_JOB_CONCURRENCY` (default 8). Exposes a `/health` endpoint
-(`idle`/`working`, current task, progress).
+A **FastAPI app run by granian `--workers 1`** (exactly one async claim loop) that polls the `background_tasks` database table and executes queued tasks one at a time. Internal concurrency inside a job is bounded by `WORKER_JOB_CONCURRENCY` (default 8). Exposes a `/health` endpoint (`idle`/`working`, current task, progress).
 
 | Property | Value |
 |----------|-------|
@@ -172,12 +165,12 @@ background-worker:
 | `net-gk` | external (`gatekeeper_default`) | Gatekeeper forward-auth | caddy-gateway |
 | `cloudflared-tunnel` | external (`cloudflared-tunnel_default`) | Cloudflare | caddy-gateway |
 
-- **`net-api`** (internal): Portal containers communicate with the API container. No external access.
-- **`net-data`** (internal): The API's home group — API and worker access MySQL. No external access.
-- **`net-public`** (bridge): Public-facing services (landing page, customer portal, webhook receiver).
-- **`net-private`** (bridge): Admin-facing services (staff portal, developer portal, phpMyAdmin, docs).
+- **`net-api`** (internal): portal→API communication. No external access.
+- **`net-data`** (internal): API's home group — API and worker access MySQL. No external access.
+- **`net-public`** (bridge): public-facing (landing page, customer portal, webhook receiver).
+- **`net-private`** (bridge): admin-facing (staff portal, developer portal, phpMyAdmin, docs).
 - **`net-gk`** (external): Caddy's `forward_auth` route to the GateKeeper SSO service. Only the gateway is attached.
-- **`cloudflared-tunnel`** (external): Connects Caddy to Cloudflare tunnel for public internet access.
+- **`cloudflared-tunnel`** (external): connects Caddy to the Cloudflare tunnel for public internet access.
 
 ## External Networks
 

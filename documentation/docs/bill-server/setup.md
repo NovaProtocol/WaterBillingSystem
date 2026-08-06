@@ -2,7 +2,7 @@
 
 ## Docker
 
-The API container uses a `python:3.14-slim` base image and runs **granian** (ASGI, 1 worker). There is no Gunicorn and no Flask.
+`python:3.14-slim` base image, runs **granian** (ASGI, 1 worker). There is no Gunicorn and no Flask.
 
 ### Dockerfile
 
@@ -21,15 +21,15 @@ CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8008", "-
 ```
 
 Key points:
-- Based on `python:3.14-slim`
+- `python:3.14-slim` base
 - `shared/` module copied separately and added to `PYTHONPATH`
-- granian ASGI with 1 worker
+- granian ASGI, 1 worker
 - Bytecode compilation for faster startup
 - Internal port 8008
 
 ### Environment Variables
 
-All variables come from `.env` (`.env.example` is the source of truth). Every one is **required** — `compose.yaml` uses `${VAR:?}` so missing values refuse to start, and the app's `require_env()` / `shared/config.py` crash the container on boot if anything is unset.
+All from `.env` (`.env.example` is the source of truth). Every one is **required** — `compose.yaml` uses `${VAR:?}` so missing values refuse to start; the app's `require_env()` / `shared/config.py` crash the container on boot if anything is unset.
 
 | Variable | Description |
 |----------|-------------|
@@ -101,7 +101,7 @@ api:
 | `net-api` | internal | API-to-portal communication |
 | `net-data` | internal | API-to-database communication |
 
-The API container lives on the data layer: `net-data` for MySQL and `net-api` for portal service consumption. It is never exposed at the edge.
+`net-data` for MySQL, `net-api` for portal service consumption. Never exposed at the edge.
 
 ## App Startup (`api/app.py`)
 
@@ -110,7 +110,7 @@ The API container lives on the data layer: `net-data` for MySQL and `net-api` fo
 1. **`require_env()`** at import time — missing `SECRET_KEY`, `NFC_PWD_SECRET`, `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN`, `DEPLOYMENT_TYPE` (plus `DB_*` unless `SQLALCHEMY_DATABASE_URI` is set) prints `FATAL` and exits.
 2. **`init_engine()`** — builds the async engine (aiomysql) + sync session factory.
 3. **`init_db()`** — `create_all()`: missing tables are auto-created.
-4. **`run_preflight()`** (`api/preflight.py`) — schema vs models audit; safe findings are applied via `apply()`. Risky findings (missing columns, incompatible types, time-named non-`DATETIME` columns, index conflicts) print every finding plus suggested `ALTER`/`DROP` commands and **`sys.exit(1)`** — the container crash-loops until fixed.
+4. **`run_preflight()`** (`api/preflight.py`) — schema vs models audit; safe findings applied via `apply()`. Risky findings (missing columns, incompatible types, time-named non-`DATETIME` columns, index conflicts) print every finding plus suggested `ALTER`/`DROP` commands and **`sys.exit(1)`** — the container crash-loops until fixed.
 5. **`seed_payment_methods()`** — 22 payment methods.
 6. **`ensure_prereq_staff()`** — superuser + xendit system user (in a thread, sync session).
 7. **`ensure_guest_user()`** — phpMyAdmin guest MySQL account (in a thread, sync session).

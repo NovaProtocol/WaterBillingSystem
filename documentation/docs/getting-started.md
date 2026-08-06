@@ -19,8 +19,7 @@ cd WaterBillingSystem
 cp .env.example .env
 ```
 
-Edit `.env` with your preferred editor. Key variables (the full list lives in
-`.env.example`, which is the source of truth):
+Key variables (full list in `.env.example`, the source of truth):
 
 | Variable | Default | Description |
 |---|---|---|
@@ -38,9 +37,7 @@ Edit `.env` with your preferred editor. Key variables (the full list lives in
 | `PMA_CONFIG_BASE64`, `PMA_HOST`, `PMA_PORT`, `PMA_ARBITRARY`, `UPLOAD_LIMIT` | — | phpMyAdmin config + guest DB account |
 | `GUEST_DB_PASSWORD` | — | Guest MySQL account password (provisioned by the API at startup) |
 
-> **Every variable is required.** `compose.yaml` uses `${VAR:?}` for every
-> variable — if one is missing or blank, `docker compose up` refuses to start.
-> Containers also read env strictly and crash at boot on missing values.
+> **Every variable is required.** `compose.yaml` uses `${VAR:?}` for every variable — missing or blank = `docker compose up` refuses to start. Containers read env strictly and crash at boot on missing values.
 
 ---
 
@@ -50,7 +47,7 @@ Edit `.env` with your preferred editor. Key variables (the full list lives in
 docker compose up -d
 ```
 
-This builds and starts all 11 containers. First-time build takes several minutes.
+Starts all 11 containers. First-time build takes several minutes.
 
 ---
 
@@ -89,15 +86,13 @@ On first database seed, a superuser account is created:
 
 ## 4. Seed Test Data (Optional)
 
-Access the **Developer Portal** (`http://localhost:7021/developer/`) and use the Database Tools panel to seed test data (choose customer count and months of history). Seeding enqueues a `BackgroundTask` that the worker container processes.
+Developer Portal (`http://localhost:7021/developer/`) → Database Tools panel: choose customer count and months of history. Seeding enqueues a `BackgroundTask` that the worker container processes.
 
 ---
 
 ## 5. Development Workflow
 
-The `documentation/launch.sh` script runs the docs site standalone (creates a
-venv on first run, builds the MkDocs site, starts a local dev server on port
-8005). Other services run via Docker:
+`documentation/launch.sh` runs the docs site standalone (venv on first run, builds MkDocs site, dev server on port 8005). Other services run via Docker:
 
 ```bash
 # Run the documentation site standalone
@@ -132,10 +127,7 @@ docker compose exec api python -m pytest tests/ -v
 docker compose down
 ```
 
-> There is no migration CLI. Schema management is automatic: the API's
-> startup preflight (`api/preflight.py`) creates missing tables/indexes,
-> applies safe (widen-only) column drift, and crashes with suggested `ALTER`
-> commands on anything risky.
+> No migration CLI. Schema management is automatic: the API's startup preflight (`api/preflight.py`) creates missing tables/indexes, applies safe (widen-only) column drift, and crashes with suggested `ALTER` commands on anything risky.
 
 ---
 
