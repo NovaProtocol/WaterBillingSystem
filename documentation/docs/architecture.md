@@ -19,11 +19,8 @@ graph TB
         PMA["phpMyAdmin<br/>:80"]
     end
 
-    subgraph "Internal API"
-        API["API Container<br/>FastAPI/granian :8008"]
-    end
-
     subgraph "Data Layer"
+        API["API Container<br/>FastAPI/granian :8008"]
         DB[("MySQL 8.4<br/>:3306")]
         WORKER["Background Worker<br/>FastAPI/granian :8006<br/>(async claim loop)"]
     end
