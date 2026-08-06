@@ -207,7 +207,7 @@ processed one at a time by the worker container.
 
 ### Webhook
 
-**POST /api/webhook/xendit-payment** — Xendit payment callback. Auth: `X-Callback-Token` header matching `XENDIT_WEBHOOK_TOKEN` (or `X-Internal-API-Key`). Separate router (not the `/api` blueprint's dependency chain).
+**POST /api/webhook/xendit-payment** — Xendit payment callback. Auth: `X-Callback-Token` header whose value matches `XENDIT_WEBHOOK_TOKEN` or `INTERNAL_API_KEY`. Separate router (not the `/api` blueprint's dependency chain).
 - Accepts `PAID`, `COMPLETED`, and `SUCCEEDED` status values.
 - Uses `tx.base_amount` (not `tx.amount`) when submitting payment to avoid overpayment carryover.
 - Detailed logging of callback data and transaction lookup results.
