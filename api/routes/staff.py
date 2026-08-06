@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import secrets
 from datetime import datetime, timezone
 
@@ -9,7 +8,6 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from sqlalchemy import desc, select
 from sqlalchemy.orm import joinedload, selectinload
-from werkzeug.security import check_password_hash, generate_password_hash
 
 from blueprint import blueprint
 from db_async import session, sync_session
@@ -21,7 +19,7 @@ from services.payment_service import (
 )
 from utils import get_staff_id, require_staff, resolve_api_key
 
-logger = logging.getLogger('api')
+from shared.passwords import hash_password, verify_password
 
 
 def _staff_to_dict(staff: Staff) -> dict:
@@ -57,21 +55,8 @@ async def staff_login(request: Request):
     staff = result.scalar_one_or_none()
     if not staff or not staff.is_active:
         return JSONResponse({"error": "Invalid credentials"}, status_code=401)
-    pw_str = staff.password.decode("utf-8", errors="replace")
-    if "$" in pw_str:
-        if not check_password_hash(pw_str, password):
-            return JSONResponse({"error": "Invalid credentials"}, status_code=401)
-    else:
-        import binascii, hashlib
-        try:
-            stored = pw_str
-            salt = stored[:64]
-            pwdhash = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), salt.encode("ascii"), 100000)
-            if binascii.hexlify(pwdhash).decode("ascii") != stored[64:]:
-                return JSONResponse({"error": "Invalid credentials"}, status_code=401)
-        except (ValueError, UnicodeDecodeError, IndexError):
-            logger.exception("Staff login password verification failed:")
-            return JSONResponse({"error": "Invalid credentials"}, status_code=401)
+    if not verify_password(staff.password, password):
+        return JSONResponse({"error": "Invalid credentials"}, status_code=401)
     return _staff_to_dict(staff)
 
 
@@ -144,7 +129,7 @@ async def staff_new(request: Request, auth: tuple = Depends(require_staff("can_e
     staff = Staff(
         username=username,
         name=str(data.get("name", "") or "").strip() or username,
-        password=generate_password_hash(password).encode("utf-8"),
+        password=hash_password(password),
         email=str(data.get("email", "") or "").strip() or None,
         contact_number=str(data.get("contact_number", "") or "").strip() or None,
         can_read_meters=bool(data.get("can_read_meters", False)),
@@ -183,7 +168,7 @@ async def staff_edit(staff_id: int, request: Request, auth: tuple = Depends(requ
     staff.name = str(data.get("name", "") or "").strip() or username
     password = data.get("password", "")
     if password:
-        staff.password = generate_password_hash(str(password)).encode("utf-8")
+        staff.password = hash_password(str(password))
     staff.email = str(data.get("email", "") or "").strip() or None
     staff.contact_number = str(data.get("contact_number", "") or "").strip() or None
     staff.can_read_meters = bool(data.get("can_read_meters", False))
