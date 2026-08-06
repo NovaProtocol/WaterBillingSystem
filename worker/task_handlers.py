@@ -193,12 +193,13 @@ def _generate_consumption(count: int, rng: random.Random) -> list[float]:
     return values
 
 
-def _seed_data(
+async def _seed_data(
     n_customers: int, n_months: int,
     cashiers: int, readers: int,
     read_current: bool, pay_last: str,
     randomize_months: bool, allow_deactivation: bool,
     _report: Callable[[float, str], None] | None = None,
+    s=None,
 ) -> None:
     import binascii
     import hashlib
@@ -207,8 +208,7 @@ def _seed_data(
 
     _report_fn(2, "Ensuring prerequisite staff...")
     print("  > Ensuring prerequisite staff (superuser, xendit)...", flush=True)
-    ensure_prereq_staff()
-    db.session.flush()
+    await asyncio.to_thread(ensure_prereq_staff, sync_session())
     print("  > Prerequisite staff ready", flush=True)
 
     rng = random.Random(42)
@@ -242,8 +242,8 @@ def _seed_data(
             date_created=now,
             last_modified=now,
         )
-        db.session.add(staff)
-        db.session.flush()
+        s.add(staff)
+        await s.flush()
         cashier_staff_ids.append(staff.id)
     print(f"  > Cashier accounts created: {cashiers}", flush=True)
 
@@ -260,8 +260,8 @@ def _seed_data(
             date_created=now,
             last_modified=now,
         )
-        db.session.add(staff)
-        db.session.flush()
+        s.add(staff)
+        await s.flush()
         reader_staff_ids.append(staff.id)
     print(f"  > Reader accounts created: {readers}", flush=True)
 
@@ -272,15 +272,17 @@ def _seed_data(
     for sid in reader_staff_ids:
         raw = "CRDC-" + secrets.token_hex(16).upper()
         ak = ApiKey(key=raw, label=f"reader token {sid}", staff_id=sid, is_active=True)
-        db.session.add(ak)
-        db.session.flush()
+        s.add(ak)
+        await s.flush()
         reader_token_ids.append(ak.id)
-    su_staff = Staff.query.filter_by(username="superuser").first()
+    su_staff = (
+        await s.execute(select(Staff).where(Staff.username == "superuser"))
+    ).scalar_one_or_none()
     if su_staff:
         raw = "CRDC-" + secrets.token_hex(16).upper()
         ak = ApiKey(key=raw, label="superuser token", staff_id=su_staff.id, is_active=True)
-        db.session.add(ak)
-        db.session.flush()
+        s.add(ak)
+        await s.flush()
         reader_token_ids.append(ak.id)
     if not reader_token_ids:
         raise RuntimeError("No reader tokens available (no readers and no superuser found)")
@@ -329,8 +331,8 @@ def _seed_data(
             date_created=subscription_date,
             date_modified=now,
         )
-        db.session.add(cust)
-        db.session.flush()
+        s.add(cust)
+        await s.flush()
 
         n_readings = actual_months if read_current else max(1, actual_months - 1)
         n_transitions = max(0, n_readings - 1)
@@ -367,8 +369,8 @@ def _seed_data(
                 date_created=now,
                 date_modified=now,
             )
-            db.session.add(mr)
-            db.session.flush()
+            s.add(mr)
+            await s.flush()
             reading_ids.append(mr.id)
 
         cum_balance = 0.0
@@ -459,7 +461,7 @@ def _seed_data(
                     date_modified=now,
                 )
                 last_unpaid_total = round(water_bill + penalty, 2)
-            db.session.add(bill)
+            s.add(bill)
 
         cust.cumulative_balance = round(cum_balance, 2)
         if not should_pay_last and last_unpaid_total > 0:
@@ -468,7 +470,7 @@ def _seed_data(
             cust.total_due = 0.0
 
         if (ci + 1) % 10 == 0:
-            db.session.commit()
+            await s.commit()
             pct = 4 + round(93 * (ci + 1) / n_customers, 1)
             _report_fn(pct, f"Seeding customer {ci + 1}/{n_customers}...")
             now_ts = _time.time()
@@ -481,7 +483,7 @@ def _seed_data(
                 next_pct = int(pct) + 1
                 last_print = now_ts
 
-    db.session.commit()
+    await s.commit()
     _report_fn(97, "Finalizing...")
 
 
@@ -640,7 +642,7 @@ async def handle_clear(params, report) -> None:
     report(100, f"Cleared {len(TABLE_NAMES)} tables ({sum(counts_before.values())} rows removed)")
 
 
-def handle_seed(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+async def handle_seed(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     t0 = _time.time()
     n_customers = int(params.get("customers", 0))
     n_months = int(params.get("months", 24))
@@ -654,17 +656,18 @@ def handle_seed(params: dict[str, Any], report: Callable[[float, str], None]) ->
     print(f"  > cashiers={cashiers}, readers={readers}, read_current={read_current}, pay_last={pay_last}, randomize_months={randomize_months}", flush=True)
     print(f"  > Total rows to create: ~{n_customers * (n_months + 1)}", flush=True)
 
-    report(0, "Clearing existing data...")
-    _clear_all_tables()
-    print(f"  > Existing data cleared", flush=True)
+    async with session_factory()() as s:
+        report(0, "Clearing existing data...")
+        await _clear_all_tables(s)
+        print(f"  > Existing data cleared", flush=True)
 
-    report(2, f"Seeding {n_customers} customers × {n_months} months...")
-    _seed_data(n_customers, n_months, cashiers, readers, read_current, pay_last, randomize_months, allow_deactivation, report)
-    db.session.commit()
+        report(2, f"Seeding {n_customers} customers × {n_months} months...")
+        await _seed_data(n_customers, n_months, cashiers, readers, read_current, pay_last, randomize_months, allow_deactivation, report, s)
 
-    actual_customers = db.session.query(db.func.count(Customer.id)).scalar() or 0
-    actual_readings = db.session.query(db.func.count(MeterReading.id)).scalar() or 0
-    actual_bills = db.session.query(db.func.count(Billing.id)).scalar() or 0
+        actual_customers = (await s.execute(select(func.count(Customer.id)))).scalar() or 0
+        actual_readings = (await s.execute(select(func.count(MeterReading.id)))).scalar() or 0
+        actual_bills = (await s.execute(select(func.count(Billing.id)))).scalar() or 0
+
     total_dur = _time.time() - t0
     print(f"  > Created {actual_customers} customers, {actual_readings} readings, {actual_bills} bills", flush=True)
     print(f"  > Total time: {total_dur:.1f}s", flush=True)
