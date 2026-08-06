@@ -8,4 +8,4 @@ COPY worker/ /app/
 ENV PYTHONPATH=/app/shared
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 EXPOSE 8006
-CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8006", "--workers", "1", "app:app"]
+CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8006", "--workers", "1", "background_worker:app"]
