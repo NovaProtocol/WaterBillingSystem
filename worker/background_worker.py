@@ -19,7 +19,7 @@ from typing import Any
 from fastapi import FastAPI
 from sqlalchemy import select
 
-from db_async import init_db, init_engine, session, session_factory
+from db_async import init_db, init_engine, session_factory
 from shared.logger import attach_sqlite_logging
 
 logger = logging.getLogger("background_worker")
@@ -163,8 +163,10 @@ async def _execute_task(task: Any) -> None:
     task_title = task.title or task.task_type
     logger.info("[background_worker] Starting: %s", task_title)
 
+    success = False
     try:
         await handler(task.params or {}, _report)
+        success = True
         logger.info("[background_worker] Completed: %s", task_title)
     except Exception as e:
         logger.error("[background_worker] Error: %s: %s", task_title, e)
@@ -177,8 +179,11 @@ async def _execute_task(task: Any) -> None:
         if row is None:
             logger.warning("[background_worker] Task #%s row unavailable (restore?)", task_id)
             return
-        row.status = "completed"
-        row.progress = 100.0
+        if success:
+            row.status = "completed"
+            row.progress = 100.0
+        else:
+            row.status = "failed"
         row.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
         await s.commit()
 
@@ -186,16 +191,21 @@ async def _execute_task(task: Any) -> None:
 async def claim_loop() -> None:
     logger.info("[background_worker] Worker ready. Polling for tasks...")
     while True:
-        task = await _claim_task()
-        if task is None:
-            await asyncio.sleep(POLL_INTERVAL)
-            continue
-        persist_task = asyncio.create_task(_progress_persister())
         try:
-            await _execute_task(task)
-        finally:
-            persist_task.cancel()
-            await asyncio.gather(persist_task, return_exceptions=True)
+            task = await _claim_task()
+            if task is None:
+                await asyncio.sleep(POLL_INTERVAL)
+                continue
+            persist_task = asyncio.create_task(_progress_persister())
+            try:
+                await _execute_task(task)
+            finally:
+                _state.dirty = False
+                persist_task.cancel()
+                await asyncio.gather(persist_task, return_exceptions=True)
+        except Exception:
+            logger.exception("[background_worker] claim loop error — continuing")
+            await asyncio.sleep(POLL_INTERVAL)
 
 
 async def _progress_persister() -> None:

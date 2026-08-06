@@ -235,7 +235,11 @@ async def _seed_data(
 
     _report_fn(2, "Ensuring prerequisite staff...")
     print("  > Ensuring prerequisite staff (superuser, xendit)...", flush=True)
-    await asyncio.to_thread(ensure_prereq_staff, sync_session())
+    ss = sync_session()
+    try:
+        await asyncio.to_thread(ensure_prereq_staff, ss)
+    finally:
+        ss.close()
     print("  > Prerequisite staff ready", flush=True)
 
     rng = random.Random(42)
@@ -628,7 +632,11 @@ async def handle_restore(params, report):
 
     async with session_factory()() as s:
         try:
-            await asyncio.to_thread(ensure_prereq_staff, sync_session())
+            ss = sync_session()
+            try:
+                await asyncio.to_thread(ensure_prereq_staff, ss)
+            finally:
+                ss.close()
             await s.commit()
             customer_count = (await s.execute(select(func.count(Customer.id)))).scalar() or 0
             print(f"  > Customers after restore: {customer_count}", flush=True)
@@ -660,10 +668,13 @@ async def handle_clear(params, report) -> None:
         print(f"  > All {len(TABLE_NAMES)} tables truncated", flush=True)
         report(50, "Recreating system users...")
         await s.commit()
-    await asyncio.to_thread(ensure_prereq_staff, sync_session())
     ss = sync_session()
-    await asyncio.to_thread(delete_non_prereq_staff, ss)
-    ss.commit()
+    try:
+        await asyncio.to_thread(ensure_prereq_staff, ss)
+        await asyncio.to_thread(delete_non_prereq_staff, ss)
+        ss.commit()
+    finally:
+        ss.close()
     total_dur = _time.time() - t0
     print(f"  > Total time: {total_dur:.1f}s", flush=True)
     report(100, f"Cleared {len(TABLE_NAMES)} tables ({sum(counts_before.values())} rows removed)")
