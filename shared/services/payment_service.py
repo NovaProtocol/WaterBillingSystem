@@ -6,8 +6,8 @@ from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
-from apps import db
 from models import Billing, Customer, Staff
 from services.audit_service import log_action
 
@@ -44,9 +44,11 @@ def _recalc_total_due(customer_number: int, session) -> None:
 
 
 def recalc_cumulative_balance(
-    customer_number: int, *, customer: Customer | None = None, session=None
+    customer_number: int, *, customer: Customer | None = None,
+    session: Session | None = None,
 ) -> None:
-    session = session or db.session
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     if customer is None:
         customer = (
             session.query(Customer)
@@ -69,10 +71,10 @@ def submit_payment(
     customer_number: int,
     amount: float,
     cashier_id: int,
-    *,
-    session=None,
+    *, session: Session | None = None,
 ) -> tuple[dict | None, str | None, int]:
-    session = session or db.session
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     if customer_number is None or amount <= 0:
         return None, "Customer number and valid amount required", 400
 
@@ -166,8 +168,11 @@ def submit_payment(
     )
 
 
-def drop_payment(payment_id: int, staff_id: int, reason: str, *, session=None) -> dict | None:
-    session = session or db.session
+def drop_payment(
+    payment_id: int, staff_id: int, reason: str, *, session: Session | None = None,
+) -> dict | None:
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     billing = session.query(Billing).with_for_update().get(payment_id)
     if not billing:
         return {"error": "Billing record not found", "message": "Billing record not found"}
@@ -285,9 +290,10 @@ def compute_intervals(
 
 def compute_cashier_tally(
     start: datetime, end: datetime, staff_id: int | None, group_days: int,
-    *, session=None,
+    *, session: Session | None = None,
 ) -> tuple[list, bool]:
-    session = session or db.session
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     intervals = compute_intervals(start, end, group_days)
 
     tally_data = []

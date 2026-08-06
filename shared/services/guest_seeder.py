@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import os
 
-from apps import db
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 
-def ensure_guest_user(session=None) -> None:
+def ensure_guest_user(session: Session | None = None) -> None:
     """Provision the view-only 'guest' MySQL account used by phpMyAdmin's
     instant-login server entry. Idempotent; skipped when GUEST_DB_PASSWORD
     is not set."""
-    session = session or db.session
+    if session is None:
+        raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     password = os.environ["GUEST_DB_PASSWORD"].strip()
     if not password:
         return
@@ -18,15 +20,15 @@ def ensure_guest_user(session=None) -> None:
     if not db_name or not db_name.replace("_", "").isalnum():
         db_name = ""
 
-    session.execute(db.text(
+    session.execute(text(
         "CREATE USER IF NOT EXISTS 'guest'@'%' IDENTIFIED BY :pw"
     ), {"pw": password})
-    session.execute(db.text(
+    session.execute(text(
         "ALTER USER 'guest'@'%' IDENTIFIED BY :pw"
     ), {"pw": password})
     if db_name:
-        session.execute(db.text(
+        session.execute(text(
             f"GRANT SELECT ON `{db_name}`.* TO 'guest'@'%'"
         ))
-    session.execute(db.text("FLUSH PRIVILEGES"))
+    session.execute(text("FLUSH PRIVILEGES"))
     session.commit()

@@ -121,12 +121,6 @@ class ProductionConfig(Config):
         "max_overflow": 2,
     }
 
-    # Cache: filesystem-backed so rate limits are shared across Gunicorn workers
-    CACHE_TYPE: ClassVar[str] = "FileSystemCache"
-    CACHE_DIR: ClassVar[str] = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", ".cache"
-    )
-
 
 class DebugConfig(Config):
     DEBUG: ClassVar[bool] = True
