@@ -4,6 +4,7 @@ import asyncio
 import logging
 logger = logging.getLogger('worker')
 
+import httpx
 import math
 import os
 import random
@@ -12,11 +13,10 @@ import shutil as _shutil
 import time as _time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Awaitable, Callable
 
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import func, select, text
 
-from apps import db
 from db_async import session_factory, sync_session
 from models import (
     ApiKey,
@@ -963,9 +963,8 @@ async def handle_remove_payment_this_month(params: dict[str, Any], report: Calla
     report(100, f"Done. {undone} bills reverted ({len(seen)} customers).")
 
 
-def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
-    from models import BackgroundTask
-    import base64, json, urllib.request, urllib.error
+async def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+    import base64
     t0 = _time.time()
 
     report(0, "Starting Xendit reconciliation...")
@@ -976,112 +975,142 @@ def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str
         report(100, "Reconciliation skipped: Xendit not configured")
         return
 
-    def _get_session(session_id: str) -> dict:
+    async def _xendit_get(client: httpx.AsyncClient, path: str) -> dict:
         auth = base64.b64encode(f"{key}:".encode()).decode()
-        req = urllib.request.Request(
-            f"https://api.xendit.co/sessions/{session_id}",
+        resp = await client.get(
+            f"https://api.xendit.co/{path}",
             headers={"Authorization": f"Basic {auth}"},
-            method="GET",
         )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode())
+        resp.raise_for_status()
+        return resp.json()
+
+    async def _get_session(client: httpx.AsyncClient, session_id: str) -> dict:
+        return await _xendit_get(client, f"sessions/{session_id}")
 
     print(f"  > Connected to Xendit API", flush=True)
 
     threshold = datetime.now(timezone.utc).replace(tzinfo=None).timestamp() - 300
     print(f"  > Querying pending transactions older than 5 minutes...", flush=True)
-    pending = (
-        XenditTransaction.query
-        .filter_by(status="PENDING")
-        .all()
-    )
-    pending = [t for t in pending if t.date_created and t.date_created.timestamp() < threshold]
+    async with session_factory()() as s:
+        rows = (
+            await s.execute(
+                select(XenditTransaction.id, XenditTransaction.date_created)
+                .where(XenditTransaction.status == "PENDING")
+            )
+        ).all()
+    pending_ids = [tid for tid, dc in rows if dc and dc.timestamp() < threshold]
 
-    if not pending:
+    if not pending_ids:
         print(f"  > No pending transactions to reconcile — queueing next run in 5m", flush=True)
         report(100, "No pending transactions to reconcile")
-        _enqueue_next_reconcile()
+        await _enqueue_next_reconcile()
         return
 
-    total = len(pending)
+    total = len(pending_ids)
     print(f"  > Found {total} pending transactions to reconcile", flush=True)
     report(5, f"Found {total} pending transactions")
+
+    async def _reconcile_one(sem: asyncio.Semaphore, client: httpx.AsyncClient,
+                             txn_id: int) -> tuple[str, str]:
+        # returns (result, label); result in succeeded/failed/reversed/skipped/errored
+        async with sem:
+            async with session_factory()() as s:
+                txn = (
+                    await s.execute(
+                        select(XenditTransaction).where(XenditTransaction.id == txn_id))
+                ).scalar_one_or_none()
+                if not txn or txn.status != "PENDING":
+                    return ("errored", f"txn #{txn_id}")
+                label = f"{txn.xendit_pr_id[:16]}... ({txn.customer_number}, PHP {txn.amount})"
+                try:
+                    session_id = txn.xendit_pr_id if txn.xendit_pr_id and txn.xendit_pr_id.startswith("ps-") else None
+
+                    if session_id:
+                        response = await _get_session(client, session_id)
+                        status = response.get("status", "")
+                        print(f"    → Session status: {status}", flush=True)
+                        if status == "COMPLETED":
+                            pr_id = response.get("payment_request_id", "")
+                            if pr_id:
+                                txn.xendit_pr_id = pr_id
+                            payment_id = response.get("payment_id", "")
+                            if payment_id:
+                                txn.xendit_payment_id = payment_id
+                            if await _process_xendit_payment(s, txn):
+                                print(f"    → Payment processed successfully", flush=True)
+                                return ("succeeded", label)
+                            print(f"    → Payment processing failed", flush=True)
+                            return ("errored", label)
+                        elif status in ("EXPIRED", "CANCELED"):
+                            print(f"    → Session {status.lower()} — marking as failed", flush=True)
+                            txn.status = "FAILED"
+                            txn.error_message = f"Session {status.lower()} (reconciled)"
+                            await s.commit()
+                            return ("failed", label)
+                        else:
+                            print(f"    → Unknown Session status: {status} — skipping", flush=True)
+                            return ("skipped", label)
+                    else:
+                        response = await _xendit_get(client, f"payment_requests/{txn.xendit_pr_id}")
+                        status = response.get("status", "")
+                        if status in ("SUCCEEDED", "PAID", "SETTLED"):
+                            print(f"    → Xendit status: {status} — processing payment...", flush=True)
+                            payment_id = response.get("id", "")
+                            if payment_id:
+                                txn.xendit_payment_id = str(payment_id)
+                            if await _process_xendit_payment(s, txn):
+                                print(f"    → Payment processed successfully", flush=True)
+                                return ("succeeded", label)
+                            print(f"    → Payment processing failed", flush=True)
+                            return ("errored", label)
+                        elif status in ("FAILED", "EXPIRED"):
+                            print(f"    → Xendit status: {status} — marking as failed", flush=True)
+                            txn.status = "FAILED"
+                            txn.error_message = f"Payment failed (reconciled: {status})"
+                            await s.commit()
+                            return ("failed", label)
+                        elif status == "REVERSED":
+                            print(f"    → Xendit status: REVERSED — reversing payment...", flush=True)
+                            await _reverse_xendit_payment(s, txn)
+                            print(f"    → Payment reversed", flush=True)
+                            return ("reversed", label)
+                        else:
+                            print(f"    → Unknown Xendit status: {status} — skipping", flush=True)
+                            return ("skipped", label)
+                except Exception as e:
+                    await s.rollback()
+                    logger.exception(f"Xendit reconciliation error for txn {txn.id}: {e}")
+                    print(f"    → ERROR: {e}", flush=True)
+                    return ("errored", label)
 
     succeeded = 0
     failed = 0
     expired = 0
     reversed_txns = 0
     errored = 0
-
-    for i, txn in enumerate(pending):
-        report(5 + round(85 * (i + 1) / total, 1), f"Reconciling {i+1}/{total}: {txn.xendit_pr_id[:16]}... ({txn.customer_number}, PHP {txn.amount})")
-        print(f"  > [{i+1}/{total}] {txn.xendit_pr_id[:20]}... ({txn.customer_number}, PHP {txn.amount})", flush=True)
-        try:
-            session_id = txn.xendit_pr_id if txn.xendit_pr_id and txn.xendit_pr_id.startswith("ps-") else None
-
-            if session_id:
-                response = _get_session(session_id)
-                status = response.get("status", "")
-                print(f"    → Session status: {status}", flush=True)
-                if status == "COMPLETED":
-                    pr_id = response.get("payment_request_id", "")
-                    if pr_id:
-                        txn.xendit_pr_id = pr_id
-                    payment_id = response.get("payment_id", "")
-                    if payment_id:
-                        txn.xendit_payment_id = payment_id
-                    if _process_xendit_payment(txn):
-                        succeeded += 1
-                        print(f"    → Payment processed successfully", flush=True)
-                    else:
-                        errored += 1
-                        print(f"    → Payment processing failed", flush=True)
-                elif status in ("EXPIRED", "CANCELED"):
-                    print(f"    → Session {status.lower()} — marking as failed", flush=True)
-                    txn.status = "FAILED"
-                    txn.error_message = f"Session {status.lower()} (reconciled)"
-                    db.session.commit()
+    done = 0
+    sem = asyncio.Semaphore(WORKER_JOB_CONCURRENCY)
+    async with httpx.AsyncClient(timeout=30) as client:
+        for batch_start in range(0, total, 64):
+            batch = pending_ids[batch_start:batch_start + 64]
+            results = await asyncio.gather(
+                *(_reconcile_one(sem, client, tid) for tid in batch)
+            )
+            for res, label in results:
+                done += 1
+                if res == "succeeded":
+                    succeeded += 1
+                elif res == "failed":
                     failed += 1
-                else:
-                    print(f"    → Unknown Session status: {status} — skipping", flush=True)
-            else:
-                import xendit
-                from xendit.apis import PaymentRequestApi
-                xendit.set_api_key(key)
-                client = xendit.ApiClient()
-                api_instance = PaymentRequestApi(client)
-                response = api_instance.get_payment_request_by_id(txn.xendit_pr_id)
-                status = getattr(response, "status", None)
-                if status and str(status) in ("SUCCEEDED", "PAID", "SETTLED"):
-                    print(f"    → Xendit status: {status} — processing payment...", flush=True)
-                    payment_id = getattr(response, "id", "")
-                    if payment_id:
-                        txn.xendit_payment_id = str(payment_id)
-                    if _process_xendit_payment(txn):
-                        succeeded += 1
-                        print(f"    → Payment processed successfully", flush=True)
-                    else:
-                        errored += 1
-                        print(f"    → Payment processing failed", flush=True)
-                elif status and str(status) in ("FAILED", "EXPIRED"):
-                    print(f"    → Xendit status: {status} — marking as failed", flush=True)
-                    txn.status = "FAILED"
-                    txn.error_message = f"Payment failed (reconciled: {status})"
-                    db.session.commit()
-                    failed += 1
-                elif status and str(status) == "REVERSED":
-                    print(f"    → Xendit status: REVERSED — reversing payment...", flush=True)
-                    _reverse_xendit_payment(txn)
+                elif res == "reversed":
                     reversed_txns += 1
-                    print(f"    → Payment reversed", flush=True)
-                else:
-                    print(f"    → Unknown Xendit status: {status} — skipping", flush=True)
-        except Exception as e:
-            errored += 1
-            logger.exception(f"Xendit reconciliation error for txn {txn.id}: {e}")
-            print(f"    → ERROR: {e}", flush=True)
+                elif res == "errored":
+                    errored += 1
+                report(5 + round(85 * done / max(total, 1), 1),
+                       f"Reconciling {done}/{total}: {label}")
+                print(f"  > [{done}/{total}] {label}", flush=True)
 
-    _enqueue_next_reconcile()
+    await _enqueue_next_reconcile()
     total_dur = _time.time() - t0
     summary = f"Reconciled {total} txn ({succeeded} ok, {failed} failed, {reversed_txns} reversed, {errored} errors) in {total_dur:.1f}s"
     print(f"  > {summary}", flush=True)
@@ -1089,53 +1118,69 @@ def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str
     report(100, summary)
 
 
-def _process_xendit_payment(txn: XenditTransaction) -> bool:
+async def _process_xendit_payment(s, txn: XenditTransaction) -> bool:
     if txn.status != "PENDING":
         return False
 
-    customer = Customer.query.filter_by(customer_number=txn.customer_number).first()
+    customer = (
+        await s.execute(
+            select(Customer).where(Customer.customer_number == txn.customer_number))
+    ).scalar_one_or_none()
     if not customer:
         txn.status = "FAILED"
         txn.error_message = "Customer not found"
-        db.session.commit()
+        await s.commit()
         return False
 
-    staff = Staff.query.filter_by(username="xendit").first()
+    staff = (
+        await s.execute(select(Staff).where(Staff.username == "xendit"))
+    ).scalar_one_or_none()
     if not staff:
         txn.status = "FAILED"
         txn.error_message = "Xendit system user not found"
-        db.session.commit()
+        await s.commit()
         return False
 
     try:
         amount = float(txn.base_amount or txn.amount)
-        result, error, status = submit_payment(txn.customer_number, amount, staff.id)
+        ss = sync_session()
+        try:
+            result, error, status = await asyncio.to_thread(
+                submit_payment, txn.customer_number, amount, staff.id, session=ss)
+        except Exception:
+            ss.rollback()
+            raise
         if error:
+            ss.rollback()
             txn.status = "FAILED"
             txn.error_message = error
-            db.session.commit()
+            await s.commit()
             return False
 
+        ss.commit()
         txn.status = "PAID"
         txn.receipt_number = result.get("receipt_number")
         txn.billing_receipt = result.get("receipt_number")
-        db.session.commit()
+        await s.commit()
         return True
     except Exception as e:
         logger.exception(f"Xendit payment processing failed for txn {txn.id}: {e}")
-        db.session.rollback()
-        txn = db.session.merge(txn)
-        txn.status = "FAILED"
-        txn.error_message = str(e)
-        try:
-            db.session.commit()
-        except Exception as e2:
-            logger.error(f"Error: {e2}")
-            db.session.rollback()
+        await s.rollback()
+        txn = (await s.execute(
+            select(XenditTransaction).where(XenditTransaction.id == txn.id))
+        ).scalar_one_or_none()
+        if txn:
+            txn.status = "FAILED"
+            txn.error_message = str(e)
+            try:
+                await s.commit()
+            except Exception as e2:
+                logger.error(f"Error: {e2}")
+                await s.rollback()
         return False
 
 
-def _reverse_xendit_payment(txn: XenditTransaction) -> bool:
+async def _reverse_xendit_payment(s, txn: XenditTransaction) -> bool:
     if txn.status != "PAID":
         return False
 
@@ -1143,10 +1188,16 @@ def _reverse_xendit_payment(txn: XenditTransaction) -> bool:
     if not billing_receipt:
         txn.status = "REVERSED"
         txn.error_message = "No billing receipt to reverse"
-        db.session.commit()
+        await s.commit()
         return True
 
-    bills = Billing.query.filter_by(receipt_number=billing_receipt).with_for_update().all()
+    bills = (
+        (await s.execute(
+            select(Billing)
+            .where(Billing.receipt_number == billing_receipt)
+            .with_for_update()
+        )).scalars().all()
+    )
     for b in bills:
         b.is_paid = False
         b.paid_amount = 0
@@ -1156,25 +1207,27 @@ def _reverse_xendit_payment(txn: XenditTransaction) -> bool:
         b.date_paid = None
         b.carryover_offset = 0
 
-    recalc_cumulative_balance(txn.customer_number)
-    _recalc_total_due(txn.customer_number)
+    ss = sync_session()
+    await asyncio.to_thread(recalc_cumulative_balance, txn.customer_number, session=ss)
+    ss.commit()
+    await _recalc_total_due(s, txn.customer_number)
 
     txn.status = "REVERSED"
     txn.reversed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    db.session.commit()
+    await s.commit()
     return True
 
 
-def _enqueue_next_reconcile() -> None:
+async def _enqueue_next_reconcile() -> None:
     from models import BackgroundTask
-    BackgroundTask.enqueue_unique(
+    await BackgroundTask.enqueue_unique(
         task_type="xendit_reconcile",
         title="Xendit Reconciliation",
         scheduled_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
     )
 
 
-HANDLERS: dict[str, Callable[[dict[str, Any], Callable[[float, str], None]], None]] = {
+HANDLERS: dict[str, Callable[[dict[str, Any], Callable[[float, str], None]], Awaitable[None]]] = {
     "backup": handle_backup,
     "restore": handle_restore,
     "clear": handle_clear,

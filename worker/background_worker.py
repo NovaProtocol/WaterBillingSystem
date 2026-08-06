@@ -12,16 +12,14 @@ import asyncio
 import logging
 import os
 import sys
-import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import FastAPI
-from sqlalchemy import select, text
-from sqlalchemy.orm.exc import ObjectDeletedError
+from sqlalchemy import select
 
-from db_async import init_db, init_engine, session, session_factory, sync_session
+from db_async import init_db, init_engine, session, session_factory
 from shared.logger import attach_sqlite_logging
 
 logger = logging.getLogger("background_worker")
@@ -139,19 +137,6 @@ async def _claim_task() -> Any | None:
         return task
 
 
-# ── Temporary compatibility shim ─────────────────────────────────────────
-# Handlers in task_handlers.py are still sync and use `apps.db.session`
-# (Flask-SQLAlchemy). Run them in a thread with a Flask app context until
-# Task 3 rewrites them to async. Then this block is deleted.
-from flask import Flask  # noqa: E402  (removed in Task 3)
-from apps import db  # noqa: E402  (removed in Task 3)
-
-_flask_shim_app = Flask(__name__)
-_flask_shim_app.config.from_object("config.DebugConfig" if os.environ.get("DEPLOYMENT_TYPE") == "DEBUG" else "config.ProductionConfig")
-db.init_app(_flask_shim_app)
-# ─────────────────────────────────────────────────────────────────────────
-
-
 async def _execute_task(task: Any) -> None:
     from task_handlers import HANDLERS
 
@@ -178,9 +163,11 @@ async def _execute_task(task: Any) -> None:
     task_title = task.title or task.task_type
     logger.info("[background_worker] Starting: %s", task_title)
 
-    # TEMP shim: run the sync handler under a Flask app context in a thread.
-    loop = asyncio.get_running_loop()
-    await loop.run_in_executor(None, lambda: _run_handler_shim(handler, task.params or {}))
+    try:
+        await handler(task.params or {}, _report)
+        logger.info("[background_worker] Completed: %s", task_title)
+    except Exception as e:
+        logger.error("[background_worker] Error: %s: %s", task_title, e)
 
     # Persist final state (handler may have deleted the row, e.g. restore).
     async with session_factory()() as s:
@@ -194,16 +181,6 @@ async def _execute_task(task: Any) -> None:
         row.progress = 100.0
         row.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
         await s.commit()
-    logger.info("[background_worker] Completed: %s", task_title)
-
-
-def _run_handler_shim(handler, params: dict) -> None:
-    """TEMP: wraps the sync handler in a Flask app context. Deleted in Task 3."""
-    with _flask_shim_app.app_context():
-        try:
-            handler(params, _report)
-        except Exception as e:
-            logger.error("[background_worker] Error: %s", e)
 
 
 async def claim_loop() -> None:
