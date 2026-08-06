@@ -1,34 +1,40 @@
 # System Architecture
 
+The system was originally built as a Flask monolith; it has since been
+migrated to **FastAPI + granian**. Every Python service — API, all portals,
+the webhook proxy, the documentation site, and the background worker — is a
+FastAPI app run by granian (ASGI, 1 worker each). Flask, Gunicorn, and
+migration CLIs are gone.
+
 ## High-Level Container Diagram
 
 ```mermaid
 graph TB
     subgraph "Public Zone :7020"
-        LAND["Landing Page<br/>Flask :8001"]
-        CP["Customer Portal<br/>Flask :8002"]
-        WH["Webhook<br/>Flask :8009"]
+        LAND["Landing Page<br/>FastAPI/granian :8001"]
+        CP["Customer Portal<br/>FastAPI/granian :8002"]
+        WH["Webhook<br/>FastAPI/granian :8009"]
     end
 
     subgraph "Private Zone :7021"
-        SP["Staff Portal<br/>Flask :8003"]
-        DP["Developer Portal<br/>Flask :8004"]
-        DOC["Documentation<br/>MkDocs :8005"]
+        SP["Staff Portal<br/>FastAPI/granian :8003"]
+        DP["Developer Portal<br/>FastAPI/granian :8004"]
+        DOC["Documentation<br/>FastAPI/granian :8005"]
         PMA["phpMyAdmin<br/>:80"]
     end
 
     subgraph "Internal API"
-        API["API Container<br/>Flask :8008"]
+        API["API Container<br/>FastAPI/granian :8008"]
     end
 
     subgraph "Data Layer"
         DB[("MySQL 8.4<br/>:3306")]
-        WORKER["Background Worker"]
+        WORKER["Background Worker<br/>FastAPI/granian :8006<br/>(async claim loop)"]
     end
 
     subgraph "Infrastructure"
         CAD["Caddy Gateway<br/>:7020 :7021"]
-        GK["Gatekeeper<br/>:7000"]
+        GK["Gatekeeper<br/>:7000 (external)"]
     end
 
     subgraph "External"
@@ -63,6 +69,9 @@ graph TB
 
 ## Network Topology
 
+Six networks: two bridge (`net-public`, `net-private`), two internal
+(`net-api`, `net-data`), two external (`net-gk` GateKeeper, `cloudflared-tunnel`).
+
 ```mermaid
 graph TB
     subgraph "net-public (bridge)"
@@ -89,10 +98,12 @@ graph TB
 
     subgraph "net-data (internal)"
         DB[(mysql-db :3306)]
-        WORKER[background-worker]
+        WORKER[background-worker :8006]
+        API
+        PMA
     end
 
-    subgraph "net-gk (external)"
+    subgraph "net-gk (external: gatekeeper_default)"
         GK[gatekeeper :7000]
     end
 
@@ -113,8 +124,26 @@ graph TB
     API --> net-data
     WORKER --> net-data
     PMA --> net-data
-
 ```
+
+---
+
+## Runtime & Data Access
+
+- **Async SQLAlchemy**: the API, portals, webhook, and worker use
+  `shared/db_async.py` — an async engine (`mysql+pymysql` from `DB_ENGINE` is
+  swapped to `aiomysql`) with an `AsyncSession` per request via contextvar.
+  Legacy sync shared services (payment, audit, seeding) run via
+  `asyncio.to_thread` / `run_in_threadpool` with a separate sync session.
+- **Strict env validation**: `shared/config.py` validates required env vars
+  at import time and `sys.exit(1)`s with a `FATAL` list when anything is
+  missing. `compose.yaml` uses `${VAR:?}` everywhere, so `docker compose up`
+  also refuses to start on missing vars. `REVERSE_PROXY_PREFIX` is the only
+  variable allowed to be blank.
+- **Password hashing**: pure stdlib (`shared/passwords.py`) — new hashes use a
+  custom pbkdf2-hmac-sha512 scheme (100k iterations, 64-hex salt); legacy
+  werkzeug `sha256$` / `pbkdf2:` / scrypt formats are still verifiable. No
+  werkzeug dependency.
 
 ---
 
@@ -219,21 +248,53 @@ Progressive tier calculation: consumption is applied to each tier bracket sequen
 ## API Authentication Methods
 
 | Method | Header / Parameter | Used By |
-|---|---|---|---|
-| **Bearer Token** | `Authorization: Bearer CRDC-<32hex>` | MeterReadingApp sync, mobile API calls |
-| **Query Parameter** | `?api_key=CRDC-<32hex>` | Browser fallback for API key auth |
-| **Internal API Key** | `X-Internal-API-Key` header | Container-to-container API calls |
-| **Flask-Login Session** | Cookie-based | Staff portal pages |
-| **Billing Cookie** | Signed cookie (receipt + name) | Customer billing portal `/billing/*` |
-| **GateKeeper forward-auth** | `gatekeeper_token` cookie or `?access_code=` checked by the Caddy gate | All web surfaces (landing, portals, documentation, phpMyAdmin) |
+|---|---|---|
+| **API Key (Bearer)** | `Authorization: Bearer CRDC-<32hex>` | MeterReadingApp sync, mobile API calls |
+| **API Key (query)** | `?api_key=CRDC-<32hex>` | Browser fallback for API key auth |
+| **Internal API Key** | `X-Internal-API-Key` header (bypasses permission checks; `X-Staff-ID` for acting staff) | Container-to-container API calls |
+| **Signed Session Cookie** | itsdangerous-signed cookie (1-hour expiry) | Staff portal session, customer billing portal |
+| **Webhook Token** | `X-Callback-Token` matching `XENDIT_WEBHOOK_TOKEN` (or internal key) | Xendit webhook callback |
+| **GateKeeper forward-auth** | External SSO gate checked by Caddy (private network `net-gk`) | All web surfaces (landing, portals, documentation, phpMyAdmin) |
+
+---
+
+## Startup Preflight & Self-Healing
+
+On every boot, the API container (`api/preflight.py`) compares the live
+schema against the SQLAlchemy models before serving traffic:
+
+- **Auto-fixes** (safe — cannot invalidate existing data): missing tables
+  (`create_all`), missing indexes (a 14-entry audit manifest plus
+  model-derived indexes), widening column drift (`ALTER MODIFY` preserving
+  the `DEFAULT`), loosening `NOT NULL` → `NULL`, and dropping redundant
+  (non-unique left-prefix) indexes.
+- **Fatal** (crash-loop with `sys.exit(1)` and printed findings + suggested
+  `ALTER`/`DROP` commands): missing columns, incompatible type changes,
+  time-named columns that aren't `DATETIME`, and index name/definition
+  conflicts.
+- Logs `preflight: OK` and only then runs the seeders (payment methods,
+  prerequisite staff, phpMyAdmin guest DB account).
 
 ---
 
 ## Background Worker
 
-The background worker polls the database for pending tasks (using the `BackgroundTask` model):
+The background worker is a **FastAPI app run by granian `--workers 1`** —
+exactly one process, one async claim loop. It polls the `background_tasks`
+table (the `BackgroundTask` model) and processes **one job at a time**:
 
-- **Database backup** — scheduled MySQL dumps stored in the `db_backups` volume
-- **Database restore** — restore from a previous backup
-- **Database seed** — populate test data
-- **Xendit payment reconciliation** — verify Xendit payment status and sync
+- **Claim**: `SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1` for the oldest
+  queued task (`scheduled_at <= now`); stale tasks stuck `running` for more
+  than 5 minutes are marked `failed`.
+- **In-job concurrency**: month-batch handlers and Xendit reconciliation
+  bound their internal fan-out with an `asyncio.Semaphore(
+  WORKER_JOB_CONCURRENCY)` (default **8**).
+- **Subprocesses**: `mysqldump` / `mysql` run via `asyncio.create_subprocess_exec`.
+- **Xendit**: checked over `httpx` (async); sync shared services are called
+  via `asyncio.to_thread` with a sync session.
+- **Health**: `GET /health` on port 8006 reports `idle`/`working`, the
+  current task type, and progress.
+
+Task types: `backup`, `restore`, `clear`, `seed`, `read-this-month`,
+`unread-this-month`, `pay-this-month`, `remove-payment-this-month`, and
+`xendit_reconcile` (auto-enqueued every 5 minutes via `enqueue_unique`).

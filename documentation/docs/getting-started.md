@@ -19,19 +19,28 @@ cd WaterBillingSystem
 cp .env.example .env
 ```
 
-Edit `.env` with your preferred editor. Key variables:
+Edit `.env` with your preferred editor. Key variables (the full list lives in
+`.env.example`, which is the source of truth):
 
 | Variable | Default | Description |
 |---|---|---|
 | `DEPLOYMENT_TYPE` | `PRODUCTION` | `DEBUG` or `PRODUCTION` |
-| `SECRET_KEY` | — | Flask session signing. Generate: `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `NFC_PWD_SECRET` | — | NFC tag password derivation |
-| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASS` | — | MySQL connection |
-| `INTERNAL_API_KEY` | — | API-to-API auth between containers |
+| `DEBUG` | `false` | `true` bypasses receipt verification in the customer portal |
+| `SECRET_KEY` | — | Session/cookie signing. Generate: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `INTERNAL_API_KEY` | — | API-to-API auth between containers (`X-Internal-API-Key`) |
 | `API_BASE_URL` | `http://api:8008` | Internal API endpoint |
-| `XENDIT_API_KEY` | — | Xendit payment gateway API key |
-| `XENDIT_WEBHOOK_TOKEN` | — | Xendit webhook verification token |
-| `CACHE_TYPE` | `FileSystemCache` | Cache backend for portal services |
+| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASS` | — | MySQL connection |
+| `NFC_PWD_SECRET` | — | NFC tag password derivation |
+| `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN` | — | Xendit payment gateway API key + webhook token |
+| `SESSION_COOKIE_SECURE` | `true` | Secure cookie flag (use `false` on plain http dev) |
+| `REVERSE_PROXY_PREFIX` | (blank) | Reverse-proxy path prefix; the only variable allowed to be blank |
+| `SHARED_STATIC_DIR`, `SHARED_TEMPLATES_DIR` | `/app/shared/...` | Shared static/template dirs (container defaults) |
+| `PMA_CONFIG_BASE64`, `PMA_HOST`, `PMA_PORT`, `PMA_ARBITRARY`, `UPLOAD_LIMIT` | — | phpMyAdmin config + guest DB account |
+| `GUEST_DB_PASSWORD` | — | Guest MySQL account password (provisioned by the API at startup) |
+
+> **Every variable is required.** `compose.yaml` uses `${VAR:?}` for every
+> variable — if one is missing or blank, `docker compose up` refuses to start.
+> Containers also read env strictly and crash at boot on missing values.
 
 ---
 
@@ -80,24 +89,21 @@ On first database seed, a superuser account is created:
 
 ## 4. Seed Test Data (Optional)
 
-Access the **Developer Portal** (`http://localhost:7021/developer/`) and use the Database Tools panel to seed test data (choose customer count and months of history).
+Access the **Developer Portal** (`http://localhost:7021/developer/`) and use the Database Tools panel to seed test data (choose customer count and months of history). Seeding enqueues a `BackgroundTask` that the worker container processes.
 
 ---
 
 ## 5. Development Workflow
 
-Each service has a `launch.sh` script for standalone development outside Docker:
+The `documentation/launch.sh` script runs the docs site standalone (creates a
+venv on first run, builds the MkDocs site, starts a local dev server on port
+8005). Other services run via Docker:
 
 ```bash
-# Example: run the API container standalone
-cd api
+# Run the documentation site standalone
+cd documentation
 ./launch.sh
 ```
-
-`launch.sh` typically:
-1. Creates a Python venv (first run)
-2. Installs dependencies
-3. Starts a Gunicorn dev server with hot-reload
 
 The shared library lives at `shared/` and is mounted via `PYTHONPATH=/app/shared`.
 
@@ -113,8 +119,11 @@ docker compose logs -f api
 # Rebuild a single service after code changes
 docker compose up -d --build api
 
-# Run database migrations
-docker compose exec api python manage.py migrate
+# Check API health (direct from another container)
+docker exec waterbillingsystem_api curl http://localhost:8008/health
+
+# Validate the compose file (fails on missing env vars)
+docker compose config > /dev/null
 
 # Run tests
 docker compose exec api python -m pytest tests/ -v
@@ -122,6 +131,11 @@ docker compose exec api python -m pytest tests/ -v
 # Stop everything
 docker compose down
 ```
+
+> There is no migration CLI. Schema management is automatic: the API's
+> startup preflight (`api/preflight.py`) creates missing tables/indexes,
+> applies safe (widen-only) column drift, and crashes with suggested `ALTER`
+> commands on anything risky.
 
 ---
 

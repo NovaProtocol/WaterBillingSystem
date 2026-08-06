@@ -2,7 +2,9 @@
 
 ## Overview
 
-The entire WaterBillingSystem runs as Docker containers defined in a single `compose.yaml` at the project root. The infrastructure includes the database, API, portals, background worker, and supporting services.
+The entire WaterBillingSystem runs as Docker containers defined in a single `compose.yaml` at the project root. The infrastructure includes the database, API, portals, background worker, and supporting services. **11 services on 6 networks.**
+
+Every variable in `compose.yaml` is interpolated with `${VAR:?}` — a missing or blank value makes `docker compose up` fail immediately, so a misconfigured `.env` can never half-start the stack.
 
 ## MySQL 8.4
 
@@ -51,6 +53,8 @@ Database administration UI. Internal network only.
 | Container name | `waterbillingsystem_phpmyadmin` |
 | Internal port | `80` |
 | Connection target | `PMA_HOST=mysql-db`, `PMA_PORT=3306` |
+| Config | `PMA_CONFIG_BASE64` (base64 of `config.inc.php`; when set it replaces the generated config entirely) |
+| Guest account | `GUEST_DB_PASSWORD` — the guest MySQL user (instant login, `only_db` = `DB_NAME`) is provisioned automatically by the API at startup (`shared/services/guest_seeder.py`) |
 | Upload limit | `UPLOAD_LIMIT` from `.env` |
 
 Networks: `net-private` (accessible via gateway port 7021), `net-data` (DB access).
@@ -59,20 +63,20 @@ Access via Caddy gateway at `https://<private-domain>/phpmyadmin/`.
 
 ## Documentation
 
-Serves the pre-built MkDocs static site via Flask + gunicorn.
+Serves the pre-built MkDocs static site (`documentation/site/`, built in the
+Dockerfile via `mkdocs build`) as a **FastAPI app run by granian**.
 
 | Property | Value |
 |----------|-------|
 | Dockerfile | `documentation/Dockerfile` |
 | Container name | `waterbillingsystem_documentation` |
 | Internal port | `8005` |
-| Base image | `python3146t` |
-| Command | `gunicorn --bind 0.0.0.0:8005 --worker-class gthread --workers 1 --threads 4 --access-logfile - app:create_app()` |
-| Serving | Flask (not `mkdocs serve`) — pre-built HTML in `site/` directory |
+| Command | `granian --interface asgi --host 0.0.0.0 --port 8005 --workers 1 app:app` |
+| Serving | FastAPI (not `mkdocs serve`) — pre-built HTML in `site/` directory |
 
 Networks: `net-private` (Caddy gateway access). Auth is handled by the Caddy forward-auth gate, not the app. Unknown paths render the themed `/404` page (public, served by the landing page).
 
-Requires `SECRET_KEY`, `DEPLOYMENT_TYPE` env vars.
+Requires `SECRET_KEY`, `DEPLOYMENT_TYPE`, `SESSION_COOKIE_SECURE`, `SHARED_STATIC_DIR`, `SHARED_TEMPLATES_DIR` env vars (plus `REVERSE_PROXY_PREFIX`, which may be blank).
 
 Caddy uses `handle_path /documentation/*` to strip the `/documentation` prefix before proxying.
 
@@ -88,27 +92,36 @@ documentation:
   networks:
     - net-private
   environment:
-    DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-    SECRET_KEY: ${SECRET_KEY}
+    DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+    SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+    REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+    SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+    SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+    SECRET_KEY: ${SECRET_KEY:?}
 ```
 
 ## Background Worker
 
-A standalone Python container that polls the `background_tasks` database table and executes queued tasks sequentially.
+A **FastAPI app run by granian `--workers 1`** (exactly one async claim loop)
+that polls the `background_tasks` database table and executes queued tasks
+one at a time. Internal concurrency inside a job is bounded by
+`WORKER_JOB_CONCURRENCY` (default 8). Exposes a `/health` endpoint
+(`idle`/`working`, current task, progress).
 
 | Property | Value |
 |----------|-------|
 | Dockerfile | `worker/Dockerfile` |
 | Container name | `waterbillingsystem_worker` |
-| Command | `python3 background_worker.py` |
-| Base image | `python3146t` |
+| Command | `granian --interface asgi --host 0.0.0.0 --port 8006 --workers 1 app:app` |
+| Internal port | `8006` (EXPOSE only) |
+| Base image | `python:3.14-slim` (+ `default-mysql-client` for mysqldump/mysql) |
 
 Networks: `net-data` (DB access only — no API or public network).
 
-Volumes: `db_backups:/app/db_backups` (shared with API container for backup files).
+Volumes: `db_backups:/app/db_backups` (shared with API container for backup files), `app_logs:/var/log/app`.
 
 **Task types handled:**
-- `backup` — `mysqldump` of all tables to `.sql` file
+- `backup` — `mysqldump` of all tables to `.sql` file (via `asyncio.create_subprocess_exec`)
 - `restore` — `mysql` restore from `.sql` file
 - `seed` — generate test customers/readings/bills
 - `clear` — truncate all tables, preserve system users
@@ -116,7 +129,7 @@ Volumes: `db_backups:/app/db_backups` (shared with API container for backup file
 - `unread-this-month` — remove unpaid current month readings
 - `pay-this-month` — mark all unpaid current month bills as paid
 - `remove-payment-this-month` — revert paid current month bills
-- `xendit-reconciliation` — auto-enqueued every 5 minutes, checks PENDING Xendit transactions against Xendit API
+- `xendit_reconcile` — auto-enqueued every 5 minutes (`enqueue_unique`), checks PENDING Xendit transactions against the Xendit API over `httpx`
 
 ```yaml
 background-worker:
@@ -129,15 +142,20 @@ background-worker:
     - net-data
   volumes:
     - db_backups:/app/db_backups
+    - app_logs:/var/log/app
   environment:
-    DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-    DB_ENGINE: ${DB_ENGINE}
-    DB_HOST: ${DB_HOST}
-    DB_PORT: ${DB_PORT}
-    DB_NAME: ${DB_NAME}
-    DB_USERNAME: ${DB_USERNAME}
-    DB_PASS: ${DB_PASS}
-    XENDIT_API_KEY: ${XENDIT_API_KEY}
+    DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+    SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+    REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+    SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+    SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+    DB_ENGINE: ${DB_ENGINE:?}
+    DB_HOST: ${DB_HOST:?}
+    DB_PORT: ${DB_PORT:?}
+    DB_NAME: ${DB_NAME:?}
+    DB_USERNAME: ${DB_USERNAME:?}
+    DB_PASS: ${DB_PASS:?}
+    XENDIT_API_KEY: ${XENDIT_API_KEY:?}
   depends_on:
     mysql-db:
       condition: service_healthy
@@ -151,13 +169,14 @@ background-worker:
 | `net-private` | bridge | External | caddy-gateway, staff-portal, developer-portal, phpmyadmin, documentation |
 | `net-api` | internal | Internal only | api, customer-portal, staff-portal, developer-portal, webhook-container |
 | `net-data` | internal | Internal only | api, background-worker, mysql-db, phpmyadmin |
-| `net-gk` | external | Gatekeeper forward-auth | caddy-gateway |
-| `cloudflared-tunnel` | external | Cloudflare | caddy-gateway |
+| `net-gk` | external (`gatekeeper_default`) | Gatekeeper forward-auth | caddy-gateway |
+| `cloudflared-tunnel` | external (`cloudflared-tunnel_default`) | Cloudflare | caddy-gateway |
 
 - **`net-api`** (internal): Portal containers communicate with the API container. No external access.
 - **`net-data`** (internal): API and worker access MySQL. No external access.
 - **`net-public`** (bridge): Public-facing services (landing page, customer portal, webhook receiver, API for Xendit DNS resolution).
-- **`net-private`** (bridge): Admin-facing services (staff portal, phpMyAdmin, docs).
+- **`net-private`** (bridge): Admin-facing services (staff portal, developer portal, phpMyAdmin, docs).
+- **`net-gk`** (external): Caddy's `forward_auth` route to the GateKeeper SSO service. Only the gateway is attached.
 - **`cloudflared-tunnel`** (external): Connects Caddy to Cloudflare tunnel for public internet access.
 
 ## External Networks

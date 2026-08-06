@@ -204,7 +204,7 @@ erDiagram
 | `date_created` | DateTime | default utcnow |
 | `last_modified` | DateTime | default utcnow, onupdate utcnow |
 
-Inherits `UserMixin` from Flask-Login. Relationships: `api_keys`, `billings`, `management_logs`, `nfc_tags`.
+Plain SQLAlchemy `Base` model (no mixins). Relationships: `api_keys`, `billings`, `management_logs`, `nfc_tags`.
 
 ### Customer (`customers`)
 

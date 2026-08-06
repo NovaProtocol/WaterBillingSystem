@@ -2,22 +2,22 @@
 
 ## Compose Architecture
 
-The system runs as 11+ Docker services defined in `compose.yaml` at the project root.
+The system runs as 11 Docker services on 6 networks, defined in `compose.yaml` at the project root. All Python services are FastAPI apps run by granian. Missing environment variables fail fast: `compose.yaml` uses `${VAR:?}` everywhere, so `docker compose config`/`up` refuses to start when `.env` is incomplete.
 
 ### Services
 
 | Service | Container | Host Port | Internal Port | Network | Purpose |
 |---------|-----------|-----------|---------------|---------|---------|
-| `caddy-gateway` | waterbillingsystem_gateway | 7020, 7021 | 7020, 7021 | net-public, net-private, cloudflared-tunnel | Reverse proxy + routing |
-| `landing-page` | waterbillingsystem_landing | — | 8001 | net-public, net-gk | Public marketing page |
-| `customer-portal` | waterbillingsystem_customerportal | — | 8002 | net-public, net-api, net-gk | Customer bill lookup |
-| `staff-portal` | waterbillingsystem_staffportal | — | 8003 | net-private, net-api, net-gk | Staff dashboard |
-| `developer-portal` | waterbillingsystem_devportal | — | 8004 | net-private, net-api, net-gk | API documentation |
+| `caddy-gateway` | waterbillingsystem_gateway | 7020, 7021 | 7020, 7021 | net-public, net-private, net-gk, cloudflared-tunnel | Reverse proxy + routing |
+| `landing-page` | waterbillingsystem_landing | — | 8001 | net-public | Public marketing page |
+| `customer-portal` | waterbillingsystem_customerportal | — | 8002 | net-public, net-api | Customer bill lookup |
+| `staff-portal` | waterbillingsystem_staffportal | — | 8003 | net-private, net-api | Staff dashboard |
+| `developer-portal` | waterbillingsystem_devportal | — | 8004 | net-private, net-api | Debug panel / API docs |
 | `webhook-container` | waterbillingsystem_webhook | — | 8009 | net-public, net-api | Xendit callback proxy |
 | `api` | waterbillingsystem_api | — | 8008 | net-api, net-data, net-public | REST API |
-| `background-worker` | waterbillingsystem_worker | — | — | net-data | Task processor |
+| `background-worker` | waterbillingsystem_worker | — | 8006 (EXPOSE, internal) | net-data | Task processor |
 | `phpmyadmin` | waterbillingsystem_phpmyadmin | — | 80 | net-private, net-data | DB admin UI |
-| `documentation` | waterbillingsystem_documentation | — | 8005 | net-private, net-gk | MkDocs site |
+| `documentation` | waterbillingsystem_documentation | — | 8005 | net-private | MkDocs site |
 | `mysql-db` | waterbillingsystem_db | — | 3306 | net-data | MySQL 8.4 |
 
 ### Caddy Gateway Routing
@@ -76,7 +76,7 @@ graph TB
     subgraph "net-data"
         DB[mysql-db:3306]
         API
-        WORKER[background-worker]
+        WORKER[background-worker:8006]
         PMA
     end
 
@@ -94,25 +94,29 @@ graph TB
 
 ### Environment Variables Per Service
 
+All values come from `.env` (see `.env.example`). Every variable is required — a missing one fails `docker compose` immediately and/or crashes the container at boot.
+
 | Service | Required Env Vars |
 |---------|------------------|
 | `caddy-gateway` | `DEPLOYMENT_TYPE` |
-| `landing-page` | `SECRET_KEY`, `DEPLOYMENT_TYPE` |
-| `customer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE`, `DEBUG` |
-| `staff-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `CACHE_TYPE`, `DEPLOYMENT_TYPE` |
-| `developer-portal` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE` |
-| `webhook-container` | `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEPLOYMENT_TYPE` |
-| `api` | `DB_*`, `SECRET_KEY`, `INTERNAL_API_KEY`, `NFC_PWD_SECRET`, `XENDIT_*`, `CACHE_TYPE`, `PYTHON_GIL`, `DEPLOYMENT_TYPE` |
-| `background-worker` | `DB_*`, `XENDIT_API_KEY`, `DEPLOYMENT_TYPE` |
-| `phpmyadmin` | `PMA_HOST`, `PMA_PORT` |
-| `documentation` | `SECRET_KEY`, `DEPLOYMENT_TYPE` |
+| `landing-page` | `DEBUG`, `DEPLOYMENT_TYPE`, `SESSION_COOKIE_SECURE`, `SHARED_STATIC_DIR`, `SHARED_TEMPLATES_DIR`, `SECRET_KEY` (+ `REVERSE_PROXY_PREFIX`, blank allowed) |
+| `customer-portal` | `DEPLOYMENT_TYPE`, `SESSION_COOKIE_SECURE`, `SHARED_STATIC_DIR`, `SHARED_TEMPLATES_DIR`, `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL`, `DEBUG` (+ `REVERSE_PROXY_PREFIX`) |
+| `staff-portal` | `DEBUG`, `DEPLOYMENT_TYPE`, `SESSION_COOKIE_SECURE`, `SHARED_STATIC_DIR`, `SHARED_TEMPLATES_DIR`, `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL` (+ `REVERSE_PROXY_PREFIX`) |
+| `developer-portal` | `DEBUG`, `DEPLOYMENT_TYPE`, `SESSION_COOKIE_SECURE`, `SHARED_STATIC_DIR`, `SHARED_TEMPLATES_DIR`, `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL` (+ `REVERSE_PROXY_PREFIX`) |
+| `webhook-container` | `DEPLOYMENT_TYPE`, `SESSION_COOKIE_SECURE`, `SHARED_STATIC_DIR`, `SHARED_TEMPLATES_DIR`, `SECRET_KEY`, `INTERNAL_API_KEY`, `API_BASE_URL` (+ `REVERSE_PROXY_PREFIX`) |
+| `api` | `DEPLOYMENT_TYPE`, `SESSION_COOKIE_SECURE`, `SHARED_STATIC_DIR`, `SHARED_TEMPLATES_DIR`, `DB_*`, `SECRET_KEY`, `INTERNAL_API_KEY`, `NFC_PWD_SECRET`, `XENDIT_*`, `GUEST_DB_PASSWORD` (+ `REVERSE_PROXY_PREFIX`) |
+| `background-worker` | `DEPLOYMENT_TYPE`, `SESSION_COOKIE_SECURE`, `SHARED_STATIC_DIR`, `SHARED_TEMPLATES_DIR`, `DB_*`, `XENDIT_API_KEY` (+ `REVERSE_PROXY_PREFIX`) |
+| `phpmyadmin` | `PMA_CONFIG_BASE64`, `PMA_HOST`, `PMA_PORT`, `PMA_ARBITRARY`, `GUEST_DB_PASSWORD`, `DB_NAME`, `UPLOAD_LIMIT` |
+| `documentation` | `DEPLOYMENT_TYPE`, `SESSION_COOKIE_SECURE`, `SHARED_STATIC_DIR`, `SHARED_TEMPLATES_DIR`, `SECRET_KEY` (+ `REVERSE_PROXY_PREFIX`) |
 | `mysql-db` | `DB_PASS` (as `MYSQL_ROOT_PASSWORD`), `DB_NAME` (as `MYSQL_DATABASE`) |
+
+> No `CACHE_TYPE` — removed with the legacy WSGI stack.
 
 ## Database
 
 MySQL 8.4 with healthcheck (`mysqladmin ping`, 5s interval). Named volume `mysql_data` for persistence.
 
-The `api` container runs `db.create_all()` and Alembic migrations on startup. The `background-worker` also needs DB access for task polling.
+The `api` container manages the schema on startup — no migration CLI, no Alembic. Boot sequence: `init_db()` (`create_all` for missing tables) → `run_preflight()` (auto-create missing indexes, widen-only column drift auto-fixed, redundant left-prefix indexes dropped; risky drift → `sys.exit(1)` with suggested commands) → seeders (payment methods, prerequisite staff, phpMyAdmin guest account). The `background-worker` only reads/writes tasks through the same DB.
 
 ### Backup/Restore
 
@@ -120,9 +124,9 @@ Backups are `.sql` files stored in the `db_backups` Docker volume mounted at `/a
 - `POST /api/debug/backup` — queue a `mysqldump`-based backup
 - `GET /api/debug/backups` — list available backups
 - `POST /api/debug/restore` — queue a restore from a specific file
-- `GET /api/debug/restore-newest` — restore from newest backup
+- `GET /api/debug/restore-newest` — restore from newest backup (5s cooldown)
 
-All backup/restore operations run via the background task queue.
+All backup/restore operations run via the background task queue (worker container).
 
 ## External Networks
 
@@ -130,6 +134,21 @@ All backup/restore operations run via the background task queue.
 |---------|------|---------|
 | `cloudflared-tunnel` | external (`cloudflared-tunnel_default`) | Cloudflare tunnel for public access |
 | `net-gk` | external (`gatekeeper_default`) | GateKeeper forward-auth service (caddy-gateway only) |
+
+## Deployment Flow
+
+```bash
+# On the server
+cd WaterBillingSystem
+git pull                      # fetch latest code
+cp .env.example .env          # first time only — fill in real values
+docker compose config > /dev/null   # fails loudly on missing env vars
+docker compose up -d --build  # rebuild + restart changed services
+```
+
+- `compose.yaml` uses `${VAR:?}` for every variable — `docker compose up` **refuses to start** if any is missing or blank (`REVERSE_PROXY_PREFIX` is the sole exception; blank is its valid value).
+- The API validates the DB schema on boot (preflight) and crash-loops with suggested `ALTER` commands if the schema drifts in a risky way — check `docker compose logs api` after a deploy.
+- Granian runs 1 worker per service; the worker container's single claim loop guarantees one task at a time (in-job fan-out bounded by `WORKER_JOB_CONCURRENCY`, default 8).
 
 ## Deployment Commands
 

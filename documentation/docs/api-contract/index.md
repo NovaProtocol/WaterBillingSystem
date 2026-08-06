@@ -30,11 +30,11 @@ When an internal API key is provided (matching `INTERNAL_API_KEY` env var), perm
 
 ### Staff Session Login
 
-`POST /api/staff/login` returns staff data. Staff portals use sessions managed by Flask-Login.
+`POST /api/staff/login` returns staff data. Staff portals store it in an itsdangerous-signed session cookie (1-hour expiry).
 
 ## Endpoints Index
 
-> **Note**: Route path variables `{customer_number}` and `{id}` use Flask's `int` converter. All IDs are integers.
+> **Note**: Route path variables `{customer_number}` and `{id}` are typed integer path parameters. All IDs are integers.
 
 ### System
 
@@ -263,7 +263,7 @@ Paginated list of all customers with due amounts and NFC status.
 
 Full billing profile — latest/previous readings, consumption, bill breakdown, pricing tiers, unpaid bills, recent payments, and available payment methods.
 
-**Auth**: API key (`can_read_meters`) **or** Flask-Login session
+**Auth**: API key (`can_read_meters`) **or** signed staff session cookie
 
 **Query params**: `?staff_id=N` (filter by cashier), `?token_id=N` (filter by API key)
 
