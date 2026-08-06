@@ -34,6 +34,8 @@ from services.staff_seeder import (
     ensure_prereq_staff,
     delete_non_prereq_staff,
 )
+WORKER_JOB_CONCURRENCY = int(os.environ.get("WORKER_JOB_CONCURRENCY", "8"))
+
 BACKUP_DIR = Path("/app/db_backups")
 
 TABLE_NAMES = [
@@ -674,214 +676,288 @@ async def handle_seed(params: dict[str, Any], report: Callable[[float, str], Non
     report(100, f"Seeded {actual_customers} customers × {n_months} months ({actual_readings} readings, {actual_bills} bills, {total_dur:.1f}s)")
 
 
-def _get_customers_without_reading_this_month(now: datetime) -> list[int]:
+async def _get_customers_without_reading_this_month(s, now: datetime) -> list[int]:
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    subq = (
-        db.session.query(MeterReading.customer_number)
-        .filter(MeterReading.timestamp >= first_of_month)
-        .subquery()
-    )
+    subq = select(MeterReading.customer_number).where(
+        MeterReading.timestamp >= first_of_month)
     customers = (
-        Customer.query
-        .filter(Customer.is_active.is_(True))
-        .filter(~Customer.customer_number.in_(subq))
-        .all()
-    )
-    return [c.customer_number for c in customers]
+        await s.execute(
+            select(Customer.customer_number)
+            .where(Customer.is_active.is_(True),
+                   ~Customer.customer_number.in_(subq))
+        )
+    ).scalars().all()
+    return list(customers)
 
 
-def handle_read_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+async def _process_one_read(sem: asyncio.Semaphore, rng: random.Random,
+                            cnum: int, now: datetime) -> tuple[int, int]:
+    # returns (created_delta, skipped_delta) for this customer
+    async with sem:
+        async with session_factory()() as s:
+            prev = (
+                await s.execute(
+                    select(MeterReading)
+                    .where(MeterReading.customer_number == cnum)
+                    .order_by(MeterReading.timestamp.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            if not prev:
+                return (0, 1)
+            consumption = max(5.0, round(
+                abs(rng.gauss(20, 10)) * (
+                    1.1 if now.month in (3, 4, 5) else
+                    0.95 if now.month in (6, 7, 8, 9, 10) else 0.90
+                ) * rng.uniform(0.92, 1.08), 1
+            ))
+            new_value = round(float(prev.reading_value) + consumption, 1)
+            reading_dt = now.replace(hour=rng.randint(8, 17), minute=rng.randint(0, 59))
+            mr = MeterReading(
+                customer_number=cnum, reading_value=new_value, token_id=1,
+                timestamp=reading_dt, date_created=now, date_modified=now,
+            )
+            s.add(mr)
+            await s.flush()
+            water_bill, _ = compute_water_bill(consumption)
+            s.add(Billing(
+                customer_number=cnum, reading_id=mr.id,
+                previous_reading_value=float(prev.reading_value),
+                current_reading_value=new_value, consumption=consumption,
+                billed_amount=water_bill, is_paid=False,
+                date_created=now, date_modified=now,
+            ))
+            await s.commit()
+            return (1, 0)
+
+
+async def handle_read_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     t0 = _time.time()
-    print("  > Finding customers without a reading this month...", flush=True)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    customers = _get_customers_without_reading_this_month(now)
+    print("  > Finding customers without a reading this month...", flush=True)
+    async with session_factory()() as s:
+        customers = await _get_customers_without_reading_this_month(s, now)
     total = len(customers)
     print(f"  > Found {total} customers to process", flush=True)
     report(5, f"Found {total} customers to read")
     if not total:
-        print("  > All customers already have a reading this month", flush=True)
         report(100, "All customers already have a reading this month.")
         return
     rng = random.Random(now.year * 12 + now.month)
+    sem = asyncio.Semaphore(WORKER_JOB_CONCURRENCY)
     created = 0
     skipped = 0
     next_log = 10
-    for i, cnum in enumerate(customers):
-        prev = (
-            MeterReading.query
-            .filter_by(customer_number=cnum)
-            .order_by(MeterReading.timestamp.desc())
-            .first()
+    done = 0
+    # bounded batches so report() stays meaningful and memory is bounded
+    for batch_start in range(0, total, 64):
+        batch = customers[batch_start:batch_start + 64]
+        results = await asyncio.gather(
+            *(_process_one_read(sem, rng, cnum, now) for cnum in batch)
         )
-        if not prev:
-            skipped += 1
-            continue
-        consumption = max(5.0, round(
-            abs(rng.gauss(20, 10)) * (
-                1.1 if now.month in (3, 4, 5) else
-                0.95 if now.month in (6, 7, 8, 9, 10) else 0.90
-            ) * rng.uniform(0.92, 1.08), 1
-        ))
-        new_value = round(float(prev.reading_value) + consumption, 1)
-        reading_dt = now.replace(hour=rng.randint(8, 17), minute=rng.randint(0, 59))
-        mr = MeterReading(
-            customer_number=cnum,
-            reading_value=new_value,
-            token_id=1,
-            timestamp=reading_dt,
-            date_created=now,
-            date_modified=now,
-        )
-        db.session.add(mr)
-        db.session.flush()
-        water_bill, _ = compute_water_bill(consumption)
-        bill = Billing(
-            customer_number=cnum,
-            reading_id=mr.id,
-            previous_reading_value=float(prev.reading_value),
-            current_reading_value=new_value,
-            consumption=consumption,
-            billed_amount=water_bill,
-            is_paid=False,
-            date_created=now,
-            date_modified=now,
-        )
-        db.session.add(bill)
-        created += 1
-        if created % 50 == 0:
-            db.session.commit()
-        pct = 5 + round(90 * (i + 1) / total, 1)
-        report(pct, f"Read customer {i + 1}/{total} ({created} created, {skipped} skipped)")
-        if i + 1 >= next_log:
-            print(f"  > {i + 1}/{total} — {created} created, {skipped} skipped", flush=True)
-            next_log += 50
-    db.session.commit()
+        for dc, dsk in results:
+            created += dc
+            skipped += dsk
+            done += 1
+            if done >= next_log:
+                print(f"  > {done}/{total} — {created} created, {skipped} skipped", flush=True)
+                next_log += 50
+            report(5 + round(90 * min(done, total) / max(total, 1), 1),
+                   f"Read {done}/{total} ({created} created, {skipped} skipped)")
     total_dur = _time.time() - t0
     print(f"  > Done: {created} readings created, {skipped} skipped in {total_dur:.1f}s", flush=True)
     report(100, f"Done. {created} readings created, {skipped} skipped ({total_dur:.1f}s).")
 
 
-def handle_unread_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+async def _process_one_unread(sem: asyncio.Semaphore, reading_id: int) -> tuple[int, int]:
+    # returns (removed_delta, skipped_paid_delta) for this reading
+    async with sem:
+        async with session_factory()() as s:
+            bill = (
+                await s.execute(
+                    select(Billing).where(Billing.reading_id == reading_id))
+            ).scalar_one_or_none()
+            if bill and bill.is_paid:
+                return (0, 1)
+            if bill:
+                await s.delete(bill)
+            reading = (
+                await s.execute(
+                    select(MeterReading).where(MeterReading.id == reading_id))
+            ).scalar_one_or_none()
+            if reading:
+                await s.delete(reading)
+            await s.commit()
+            return (1, 0)
+
+
+async def handle_unread_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     t0 = _time.time()
     print("  > Finding this month's readings...", flush=True)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    readings = (
-        MeterReading.query
-        .filter(MeterReading.timestamp >= first_of_month)
-        .all()
-    )
-    total = len(readings)
+    async with session_factory()() as s:
+        reading_ids = (
+            await s.execute(
+                select(MeterReading.id).where(MeterReading.timestamp >= first_of_month)
+            )
+        ).scalars().all()
+    total = len(reading_ids)
     print(f"  > Found {total} readings this month", flush=True)
     report(5, f"Found {total} readings")
+    sem = asyncio.Semaphore(WORKER_JOB_CONCURRENCY)
     removed = 0
     skipped_paid = 0
     next_log = 100
-    for i, r in enumerate(readings):
-        bill = Billing.query.filter_by(reading_id=r.id).first()
-        if bill and bill.is_paid:
-            skipped_paid += 1
-            continue
-        if bill:
-            db.session.delete(bill)
-        db.session.delete(r)
-        removed += 1
-        if removed % 100 == 0:
-            db.session.commit()
-        pct = 5 + round(90 * (i + 1) / max(total, 1), 1)
-        report(pct, f"Unread {i + 1}/{total} ({removed} removed, {skipped_paid} skipped - already paid)")
-        if removed >= next_log:
-            print(f"  > {removed} removed ({i + 1}/{total}), {skipped_paid} skipped (paid)", flush=True)
-            next_log += 100
-    db.session.commit()
+    done = 0
+    for batch_start in range(0, total, 64):
+        batch = reading_ids[batch_start:batch_start + 64]
+        results = await asyncio.gather(
+            *(_process_one_unread(sem, rid) for rid in batch)
+        )
+        for drem, dskip in results:
+            removed += drem
+            skipped_paid += dskip
+            done += 1
+            report(5 + round(90 * done / max(total, 1), 1),
+                   f"Unread {done}/{total} ({removed} removed, {skipped_paid} skipped - already paid)")
+            if removed >= next_log:
+                print(f"  > {removed} removed ({done}/{total}), {skipped_paid} skipped (paid)", flush=True)
+                next_log += 100
     total_dur = _time.time() - t0
     print(f"  > Done: {removed} removed, {skipped_paid} skipped (paid) in {total_dur:.1f}s", flush=True)
     report(100, f"Done. {removed} readings removed, {skipped_paid} skipped (paid).")
 
 
-def handle_pay_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+async def _process_one_pay(sem: asyncio.Semaphore, bill_id: int, su_id: int,
+                           now: datetime) -> tuple[int, int]:
+    # returns (paid_delta, 0) for this bill
+    async with sem:
+        async with session_factory()() as s:
+            bill = (
+                await s.execute(select(Billing).where(Billing.id == bill_id))
+            ).scalar_one_or_none()
+            if not bill:
+                return (0, 0)
+            bill.is_paid = True
+            bill.paid_amount = round(float(bill.billed_amount) + float(bill.penalty), 2)
+            bill.receipt_number = "MONTHLY-" + secrets.token_hex(4).upper()
+            bill.cashier_id = su_id
+            bill.payment_timestamp = now
+            bill.date_paid = now
+            await s.commit()
+            return (1, 0)
+
+
+async def handle_pay_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     t0 = _time.time()
     print("  > Finding unpaid this-month bills...", flush=True)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    unpaid_bills = (
-        Billing.query
-        .outerjoin(MeterReading, Billing.reading_id == MeterReading.id)
-        .filter(MeterReading.timestamp >= first_of_month)
-        .filter(Billing.is_paid.is_(False))
-        .all()
-    )
+    async with session_factory()() as s:
+        unpaid_bills = (
+            (await s.execute(
+                select(Billing)
+                .join(MeterReading, Billing.reading_id == MeterReading.id)
+                .where(MeterReading.timestamp >= first_of_month,
+                       Billing.is_paid.is_(False))
+            )).scalars().all()
+        )
+        su = (
+            await s.execute(select(Staff).where(Staff.username == "superuser"))
+        ).scalar_one_or_none()
     total = len(unpaid_bills)
     total_amount = sum(float(b.billed_amount) + float(b.penalty) for b in unpaid_bills)
     print(f"  > Found {total} unpaid bills, total due: PHP {total_amount:,.2f}", flush=True)
     report(5, f"Found {total} unpaid bills")
-    paid = 0
-    su = Staff.query.filter_by(username="superuser").first()
     su_id = su.id if su else 1
+    sem = asyncio.Semaphore(WORKER_JOB_CONCURRENCY)
+    paid = 0
     next_log = 100
-    for i, bill in enumerate(unpaid_bills):
-        bill.is_paid = True
-        bill.paid_amount = round(float(bill.billed_amount) + float(bill.penalty), 2)
-        bill.receipt_number = "MONTHLY-" + secrets.token_hex(4).upper()
-        bill.cashier_id = su_id
-        bill.payment_timestamp = now
-        bill.date_paid = now
-        paid += 1
-        if paid % 100 == 0:
-            db.session.commit()
-        report(5 + round(90 * (i + 1) / max(total, 1), 1),
-               f"Paid {i + 1}/{total}")
-        if paid >= next_log:
-            print(f"  > Paid {paid}/{total} bills...", flush=True)
-            next_log += 100
-    db.session.commit()
+    done = 0
+    for batch_start in range(0, total, 64):
+        batch = unpaid_bills[batch_start:batch_start + 64]
+        results = await asyncio.gather(
+            *(_process_one_pay(sem, b.id, su_id, now) for b in batch)
+        )
+        for dp, _ in results:
+            paid += dp
+            done += 1
+            report(5 + round(90 * done / max(total, 1), 1),
+                   f"Paid {done}/{total}")
+            if paid >= next_log:
+                print(f"  > Paid {paid}/{total} bills...", flush=True)
+                next_log += 100
     total_dur = _time.time() - t0
     print(f"  > Done: {paid} bills paid (PHP {total_amount:,.2f}) in {total_dur:.1f}s", flush=True)
     report(100, f"Done. {paid} bills paid ({total_dur:.1f}s).")
 
 
-def handle_remove_payment_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
+async def _process_one_unpay(sem: asyncio.Semaphore, bill_id: int) -> tuple[int, int]:
+    # returns (undone_delta, customer_number) for this bill
+    async with sem:
+        async with session_factory()() as s:
+            bill = (
+                await s.execute(select(Billing).where(Billing.id == bill_id))
+            ).scalar_one_or_none()
+            if not bill:
+                return (0, 0)
+            cnum = bill.customer_number
+            bill.is_paid = False
+            bill.paid_amount = 0
+            bill.receipt_number = None
+            bill.cashier_id = None
+            bill.payment_timestamp = None
+            bill.date_paid = None
+            bill.carryover_offset = 0
+            await s.commit()
+            return (1, cnum)
+
+
+async def handle_remove_payment_this_month(params: dict[str, Any], report: Callable[[float, str], None]) -> None:
     t0 = _time.time()
     print("  > Finding paid this-month bills...", flush=True)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    paid_bills = (
-        Billing.query
-        .outerjoin(MeterReading, Billing.reading_id == MeterReading.id)
-        .filter(MeterReading.timestamp >= first_of_month)
-        .filter(Billing.is_paid.is_(True))
-        .all()
-    )
+    async with session_factory()() as s:
+        paid_bills = (
+            (await s.execute(
+                select(Billing)
+                .join(MeterReading, Billing.reading_id == MeterReading.id)
+                .where(MeterReading.timestamp >= first_of_month,
+                       Billing.is_paid.is_(True))
+            )).scalars().all()
+        )
     total = len(paid_bills)
     total_amount = sum(float(b.paid_amount) for b in paid_bills if b.paid_amount)
     print(f"  > Found {total} paid bills (PHP {total_amount:,.2f} total)", flush=True)
     report(5, f"Found {total} paid bills")
+    sem = asyncio.Semaphore(WORKER_JOB_CONCURRENCY)
     undone = 0
-    next_log = 100
-    for i, bill in enumerate(paid_bills):
-        bill.is_paid = False
-        bill.paid_amount = 0
-        bill.receipt_number = None
-        bill.cashier_id = None
-        bill.payment_timestamp = None
-        bill.date_paid = None
-        bill.carryover_offset = 0
-        undone += 1
-        if undone % 100 == 0:
-            db.session.commit()
-        report(5 + round(90 * (i + 1) / max(total, 1), 1),
-               f"Reverted {i + 1}/{total}")
-        if undone >= next_log:
-            print(f"  > Reverted {undone}/{total} bills...", flush=True)
-            next_log += 100
-    db.session.commit()
-    print(f"  > Recalculating cumulative balances...", flush=True)
     seen: set[int] = set()
-    for bill in paid_bills:
-        if bill.customer_number not in seen:
-            seen.add(bill.customer_number)
-            _recalc_cumulative_balance(bill.customer_number)
-            _recalc_total_due(bill.customer_number)
+    next_log = 100
+    done = 0
+    for batch_start in range(0, total, 64):
+        batch = paid_bills[batch_start:batch_start + 64]
+        results = await asyncio.gather(
+            *(_process_one_unpay(sem, b.id) for b in batch)
+        )
+        for dundone, cnum in results:
+            undone += dundone
+            done += 1
+            if dundone and cnum not in seen:
+                seen.add(cnum)
+            report(5 + round(90 * done / max(total, 1), 1),
+                   f"Reverted {done}/{total}")
+            if undone >= next_log:
+                print(f"  > Reverted {undone}/{total} bills...", flush=True)
+                next_log += 100
+    print("  > Recalculating cumulative balances...", flush=True)
+    async with session_factory()() as s:
+        for cnum in seen:
+            await _recalc_cumulative_balance(s, cnum)
+            await _recalc_total_due(s, cnum)
+        await s.commit()
     total_dur = _time.time() - t0
     print(f"  > Done: {undone} bills reverted ({len(seen)} customers affected) in {total_dur:.1f}s", flush=True)
     report(100, f"Done. {undone} bills reverted ({len(seen)} customers).")
