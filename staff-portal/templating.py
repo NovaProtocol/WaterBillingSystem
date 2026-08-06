@@ -6,7 +6,7 @@ from jinja2 import ChoiceLoader, Environment, FileSystemLoader, select_autoescap
 
 from shared.config import shared_templates_dir
 
-DEBUG_ENABLED = os.environ.get('DEBUG', '').lower() in ('true', '1', 'yes')
+DEBUG_ENABLED = os.environ['DEBUG'].lower() in ('true', '1', 'yes')
 
 
 def _reverse_url(name: str, **params) -> str:

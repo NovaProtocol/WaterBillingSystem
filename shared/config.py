@@ -28,7 +28,7 @@ class Config(object):
         DB_ENGINE, DB_USERNAME, DB_PASS, DB_HOST, DB_PORT, DB_NAME
     )
 
-    REVERSE_PROXY_PREFIX: ClassVar[str] = os.environ.get("REVERSE_PROXY_PREFIX", "")
+    REVERSE_PROXY_PREFIX: ClassVar[str] = os.environ["REVERSE_PROXY_PREFIX"]
 
     REQUIRED_ENV_VARS: ClassVar[list[str]] = [
         "SECRET_KEY",
@@ -74,7 +74,7 @@ def shared_static_dir() -> str:
     -> repo layout (shared/static next to this file).
     """
     candidates = [
-        os.environ.get("SHARED_STATIC_DIR", ""),
+        os.environ["SHARED_STATIC_DIR"],
         "/app/shared/static",
         str(Path(__file__).resolve().parent / "static"),
     ]
@@ -91,7 +91,7 @@ def shared_templates_dir() -> str:
     -> repo layout (shared/templates next to this file).
     """
     candidates = [
-        os.environ.get("SHARED_TEMPLATES_DIR", ""),
+        os.environ["SHARED_TEMPLATES_DIR"],
         "/app/shared/templates",
         str(Path(__file__).resolve().parent / "templates"),
     ]
@@ -106,10 +106,10 @@ class ProductionConfig(Config):
 
     # Security
     SESSION_COOKIE_HTTPONLY: ClassVar[bool] = True
-    SESSION_COOKIE_SECURE: ClassVar[bool] = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() in ("true", "1", "yes")
+    SESSION_COOKIE_SECURE: ClassVar[bool] = os.environ["SESSION_COOKIE_SECURE"].lower() in ("true", "1", "yes")
     SESSION_COOKIE_SAMESITE: ClassVar[str] = "Lax"
     REMEMBER_COOKIE_HTTPONLY: ClassVar[bool] = True
-    REMEMBER_COOKIE_SECURE: ClassVar[bool] = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() in ("true", "1", "yes")
+    REMEMBER_COOKIE_SECURE: ClassVar[bool] = os.environ["SESSION_COOKIE_SECURE"].lower() in ("true", "1", "yes")
     REMEMBER_COOKIE_SAMESITE: ClassVar[str] = "Lax"
     REMEMBER_COOKIE_DURATION: ClassVar[int] = 3600
 

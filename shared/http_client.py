@@ -17,14 +17,14 @@ def make_client(
     internal-key auth keeps working unchanged."""
     headers = {
         'User-Agent': 'portal/1.0',
-        'X-Container-Name': container_name or os.environ.get('CONTAINER_NAME', 'portal'),
+        'X-Container-Name': container_name or os.environ['CONTAINER_NAME'],
     }
-    key = internal_key or os.environ.get('INTERNAL_API_KEY', '')
+    key = internal_key or os.environ['INTERNAL_API_KEY']
     if key:
         headers['X-Internal-API-Key'] = key
 
     return httpx.AsyncClient(
-        base_url=base_url or os.environ.get('API_BASE_URL', ''),
+        base_url=base_url or os.environ['API_BASE_URL'],
         headers=headers,
         timeout=15.0,
     )

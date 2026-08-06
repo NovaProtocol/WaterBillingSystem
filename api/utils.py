@@ -60,7 +60,7 @@ def require_staff(*perms: str):
 
     async def _dep(request: Request):
         internal_key = request.headers.get("X-Internal-API-Key", "")
-        if internal_key and internal_key == os.environ.get("INTERNAL_API_KEY", ""):
+        if internal_key and internal_key == os.environ["INTERNAL_API_KEY"]:
             return True, None
 
         api_key = await resolve_api_key(request)

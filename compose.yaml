@@ -15,7 +15,7 @@ services:
       - net-gk
       - cloudflared-tunnel
     environment:
-      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
 
   landing-page:
     build:
@@ -28,8 +28,14 @@ services:
     networks:
       - net-public
     environment:
-      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG:?}
+      CONTAINER_NAME: waterbillingsystem_landing
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+      SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+      SECRET_KEY: ${SECRET_KEY:?}
 
   customer-portal:
     build:
@@ -43,11 +49,16 @@ services:
       - net-public
       - net-api
     environment:
-      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-      SECRET_KEY: ${SECRET_KEY}
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
-      API_BASE_URL: ${API_BASE_URL}
-      DEBUG: ${DEBUG}
+      CONTAINER_NAME: waterbillingsystem_customerportal
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+      SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+      SECRET_KEY: ${SECRET_KEY:?}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
+      API_BASE_URL: ${API_BASE_URL:?}
+      DEBUG: ${DEBUG:?}
 
   staff-portal:
     build:
@@ -61,11 +72,17 @@ services:
       - net-private
       - net-api
     environment:
-      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-      SECRET_KEY: ${SECRET_KEY}
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
-      API_BASE_URL: ${API_BASE_URL}
-      CACHE_TYPE: ${CACHE_TYPE}
+      DEBUG: ${DEBUG:?}
+      CONTAINER_NAME: waterbillingsystem_staffportal
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+      SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+      SECRET_KEY: ${SECRET_KEY:?}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
+      API_BASE_URL: ${API_BASE_URL:?}
+      CACHE_TYPE: ${CACHE_TYPE:?}
 
   developer-portal:
     build:
@@ -79,10 +96,16 @@ services:
       - net-private
       - net-api
     environment:
-      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-      SECRET_KEY: ${SECRET_KEY}
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
-      API_BASE_URL: ${API_BASE_URL}
+      DEBUG: ${DEBUG:?}
+      CONTAINER_NAME: waterbillingsystem_devportal
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+      SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+      SECRET_KEY: ${SECRET_KEY:?}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
+      API_BASE_URL: ${API_BASE_URL:?}
 
   webhook-container:
     build:
@@ -96,10 +119,15 @@ services:
       - net-public
       - net-api
     environment:
-      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-      SECRET_KEY: ${SECRET_KEY}
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
-      API_BASE_URL: ${API_BASE_URL}
+      CONTAINER_NAME: waterbillingsystem_webhook
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+      SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+      SECRET_KEY: ${SECRET_KEY:?}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
+      API_BASE_URL: ${API_BASE_URL:?}
 
   api:
     build:
@@ -115,20 +143,24 @@ services:
       - db_backups:/app/db_backups
       - app_logs:/var/log/app
     environment:
-      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-      DB_ENGINE: ${DB_ENGINE}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASS: ${DB_PASS}
-      SECRET_KEY: ${SECRET_KEY}
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
-      NFC_PWD_SECRET: ${NFC_PWD_SECRET}
-      XENDIT_API_KEY: ${XENDIT_API_KEY}
-      XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
-      CACHE_TYPE: ${CACHE_TYPE}
-      GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:-}
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+      SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+      DB_ENGINE: ${DB_ENGINE:?}
+      DB_HOST: ${DB_HOST:?}
+      DB_PORT: ${DB_PORT:?}
+      DB_NAME: ${DB_NAME:?}
+      DB_USERNAME: ${DB_USERNAME:?}
+      DB_PASS: ${DB_PASS:?}
+      SECRET_KEY: ${SECRET_KEY:?}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
+      NFC_PWD_SECRET: ${NFC_PWD_SECRET:?}
+      XENDIT_API_KEY: ${XENDIT_API_KEY:?}
+      XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN:?}
+      CACHE_TYPE: ${CACHE_TYPE:?}
+      GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:?}
     depends_on:
       mysql-db:
         condition: service_healthy
@@ -147,14 +179,18 @@ services:
       - db_backups:/app/db_backups
       - app_logs:/var/log/app
     environment:
-      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-      DB_ENGINE: ${DB_ENGINE}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASS: ${DB_PASS}
-      XENDIT_API_KEY: ${XENDIT_API_KEY}
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+      SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+      DB_ENGINE: ${DB_ENGINE:?}
+      DB_HOST: ${DB_HOST:?}
+      DB_PORT: ${DB_PORT:?}
+      DB_NAME: ${DB_NAME:?}
+      DB_USERNAME: ${DB_USERNAME:?}
+      DB_PASS: ${DB_PASS:?}
+      XENDIT_API_KEY: ${XENDIT_API_KEY:?}
     depends_on:
       mysql-db:
         condition: service_healthy
@@ -167,13 +203,13 @@ services:
       - net-private
       - net-data
     environment:
-      PMA_CONFIG_BASE64: ${PMA_CONFIG_BASE64:-}
-      PMA_HOST: ${PMA_HOST:-mysql-db}
-      PMA_PORT: ${PMA_PORT:-3306}
-      PMA_ARBITRARY: ${PMA_ARBITRARY:-0}
-      GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:-}
-      DB_NAME: ${DB_NAME:-BillServerDB}
-      UPLOAD_LIMIT: ${UPLOAD_LIMIT}
+      PMA_CONFIG_BASE64: ${PMA_CONFIG_BASE64:?}
+      PMA_HOST: ${PMA_HOST:?}
+      PMA_PORT: ${PMA_PORT:?}
+      PMA_ARBITRARY: ${PMA_ARBITRARY:?}
+      GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:?}
+      DB_NAME: ${DB_NAME:?}
+      UPLOAD_LIMIT: ${UPLOAD_LIMIT:?}
     depends_on:
       mysql-db:
         condition: service_healthy
@@ -189,8 +225,12 @@ services:
     networks:
       - net-private
     environment:
-      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE}
-      SECRET_KEY: ${SECRET_KEY}
+      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+      SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+      SECRET_KEY: ${SECRET_KEY:?}
 
   mysql-db:
     image: mysql:8.4
@@ -199,8 +239,8 @@ services:
     networks:
       - net-data
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASS}
-      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ROOT_PASSWORD: ${DB_PASS:?}
+      MYSQL_DATABASE: ${DB_NAME:?}
     volumes:
       - mysql_data:/var/lib/mysql
     command: --max_connections=200

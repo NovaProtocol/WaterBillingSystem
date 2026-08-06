@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 import api_client
 from shared.auth import MAX_AGE, load_token, make_token
 
-DEBUG = os.environ.get('DEBUG', '').lower() in ('true', '1', 'yes')
+DEBUG = os.environ['DEBUG'].lower() in ('true', '1', 'yes')
 
 logger = logging.getLogger('customer-portal')
 

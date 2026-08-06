@@ -7,6 +7,11 @@ os.environ['XENDIT_WEBHOOK_TOKEN'] = os.environ.get('XENDIT_WEBHOOK_TOKEN', 'tes
 os.environ['INTERNAL_API_KEY'] = os.environ.get('INTERNAL_API_KEY', 'test')
 os.environ['CACHE_TYPE'] = os.environ.get('CACHE_TYPE', 'SimpleCache')
 os.environ['DEPLOYMENT_TYPE'] = os.environ.get('DEPLOYMENT_TYPE', 'DEBUG')
+os.environ['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'true')
+os.environ['REVERSE_PROXY_PREFIX'] = os.environ.get('REVERSE_PROXY_PREFIX', '')
+os.environ['SHARED_STATIC_DIR'] = os.environ.get('SHARED_STATIC_DIR', '')
+os.environ['SHARED_TEMPLATES_DIR'] = os.environ.get('SHARED_TEMPLATES_DIR', '')
+os.environ['GUEST_DB_PASSWORD'] = os.environ.get('GUEST_DB_PASSWORD', '')
 os.environ['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
     'SQLALCHEMY_DATABASE_URI', 'sqlite:////tmp/wbs_api_test.db')
 sys.path.insert(0, os.path.join(BASE, 'api'))

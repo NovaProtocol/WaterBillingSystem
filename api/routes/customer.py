@@ -622,7 +622,7 @@ async def customer_invoice(customer_number: int, request: Request):
 
     channels = [method.channel_code] if method and method.channel_code else []
 
-    api_key_str = os.environ.get("XENDIT_API_KEY", "")
+    api_key_str = os.environ["XENDIT_API_KEY"]
     if not api_key_str:
         return JSONResponse({"error": "Xendit not configured"}, status_code=503)
 

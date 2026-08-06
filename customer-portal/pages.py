@@ -6,7 +6,7 @@ from shared.auth import load_token
 
 from app import templates
 
-DEBUG = os.environ.get('DEBUG', '').lower() in ('true', '1', 'yes')
+DEBUG = os.environ['DEBUG'].lower() in ('true', '1', 'yes')
 
 pages_bp = APIRouter()
 

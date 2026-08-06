@@ -33,7 +33,7 @@ async def config_nfc_secret(request: Request):
     generation = int(gen_row.value) if gen_row else 0
 
     return {
-        "nfc_pwd_secret": os.environ.get("NFC_PWD_SECRET", ""),
+        "nfc_pwd_secret": os.environ["NFC_PWD_SECRET"],
         "nfc_generation": generation,
     }
 

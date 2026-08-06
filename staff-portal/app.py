@@ -28,7 +28,7 @@ app = FastAPI(title="Cotta Staff Portal")
 
 app.mount('/static', StaticFiles(directory=shared_static_dir()), name='static')
 
-DEBUG_ENABLED = os.environ.get('DEBUG', '').lower() in ('true', '1', 'yes')
+DEBUG_ENABLED = os.environ['DEBUG'].lower() in ('true', '1', 'yes')
 
 
 def _reverse_url(name: str, **params) -> str:
