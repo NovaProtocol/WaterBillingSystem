@@ -24,7 +24,7 @@ def require_superuser(request: Request):
     _set_endpoint(request)
     payload = load_token(request.cookies.get(COOKIE_NAME))
     if not payload or payload.get('username') != 'superuser':
-        raise HTTPException(status_code=403, detail='Superuser only')
+        raise HTTPException(status_code=302, headers={'Location': '/staff/login'})
     request.state.dev_payload = payload
 
 
