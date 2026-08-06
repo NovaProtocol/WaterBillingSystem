@@ -632,7 +632,9 @@ async def handle_clear(params, report) -> None:
         report(50, "Recreating system users...")
         await s.commit()
     await asyncio.to_thread(ensure_prereq_staff, sync_session())
-    await asyncio.to_thread(delete_non_prereq_staff, sync_session())
+    ss = sync_session()
+    await asyncio.to_thread(delete_non_prereq_staff, ss)
+    ss.commit()
     total_dur = _time.time() - t0
     print(f"  > Total time: {total_dur:.1f}s", flush=True)
     report(100, f"Cleared {len(TABLE_NAMES)} tables ({sum(counts_before.values())} rows removed)")
