@@ -14,7 +14,7 @@ The system runs as 11 Docker services on 6 networks, defined in `compose.yaml` a
 | `staff-portal` | waterbillingsystem_staffportal | — | 8003 | net-private, net-api | Staff dashboard |
 | `developer-portal` | waterbillingsystem_devportal | — | 8004 | net-private, net-api | Debug panel / API docs |
 | `webhook-container` | waterbillingsystem_webhook | — | 8009 | net-public, net-api | Xendit callback proxy |
-| `api` | waterbillingsystem_api | — | 8008 | net-api, net-data, net-public | REST API |
+| `api` | waterbillingsystem_api | — | 8008 | net-data, net-api | REST API |
 | `background-worker` | waterbillingsystem_worker | — | 8006 (EXPOSE, internal) | net-data | Task processor |
 | `phpmyadmin` | waterbillingsystem_phpmyadmin | — | 80 | net-private, net-data | DB admin UI |
 | `documentation` | waterbillingsystem_documentation | — | 8005 | net-private | MkDocs site |
