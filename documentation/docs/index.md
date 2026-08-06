@@ -1,6 +1,6 @@
 # Cotta Water Billing System
 
-**Cotta Realty**'s water billing platform handles meter reading collection, billing computation, payment processing, and customer management for a residential subdivision. The system is decomposed into 11 Docker services behind a Caddy reverse proxy.
+Water billing platform for **Cotta Realty**: meter reading collection, billing computation, payment processing, customer management. 11 Docker services behind a Caddy reverse proxy.
 
 ## Services Overview
 
@@ -18,15 +18,9 @@
 | **phpMyAdmin** | `phpmyadmin` | 80 | `/phpmyadmin/*` (7021) | private, data |
 | **MySQL 8.4** | `mysql-db` | 3306 | — | data |
 
-Port **7020** is public-facing; port **7021** is private. All routes go
-through the Caddy `forward_auth` gate (GateKeeper, external network) except
-`/webhook/*`, `/health`, and the themed public `/404` page served by the
-landing page.
-
-Every Python service — API, all portals, the webhook proxy, the
-documentation site, and the background worker — is a **FastAPI app run by
-granian** (ASGI, 1 worker each). The legacy WSGI stack has been fully
-replaced.
+- Port **7020** is public-facing; port **7021** is private.
+- All routes go through the Caddy `forward_auth` gate (GateKeeper, external network) except `/webhook/*`, `/health`, and the themed public `/404` page served by the landing page.
+- Every Python service — API, all portals, the webhook proxy, the documentation site, and the background worker — is a **FastAPI app run by granian** (ASGI, 1 worker each). The legacy WSGI stack is fully replaced.
 
 ## Architecture Diagram
 

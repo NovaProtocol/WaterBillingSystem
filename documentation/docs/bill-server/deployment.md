@@ -2,7 +2,7 @@
 
 ## Compose Architecture
 
-The system runs as 11 Docker services on 6 networks, defined in `compose.yaml` at the project root. All Python services are FastAPI apps run by granian. Missing environment variables fail fast: `compose.yaml` uses `${VAR:?}` everywhere, so `docker compose config`/`up` refuses to start when `.env` is incomplete.
+11 Docker services on 6 networks, defined in `compose.yaml` at the project root. All Python services are FastAPI apps run by granian. Missing env vars fail fast: `${VAR:?}` everywhere — `docker compose config`/`up` refuses to start when `.env` is incomplete.
 
 ### Services
 
@@ -22,9 +22,7 @@ The system runs as 11 Docker services on 6 networks, defined in `compose.yaml` a
 
 ### Caddy Gateway Routing
 
-Every route passes through the GateKeeper `forward_auth` gate first, except
-`/webhook/*`, `/health`, and `/404` (public by design). The `/404` page is a
-themed page served by `landing-page:8001` for any unknown path.
+Every route passes through the GateKeeper `forward_auth` gate first, except `/webhook/*`, `/health`, and `/404` (public by design). The `/404` page is a themed page served by `landing-page:8001` for any unknown path.
 
 **Public port 7020** (external-facing):
 | Path | Target | Gate |
@@ -115,11 +113,11 @@ All values come from `.env` (see `.env.example`). Every variable is required —
 
 MySQL 8.4 with healthcheck (`mysqladmin ping`, 5s interval). Named volume `mysql_data` for persistence.
 
-The `api` container manages the schema on startup — no migration CLI, no Alembic. Boot sequence: `init_db()` (`create_all` for missing tables) → `run_preflight()` (auto-create missing indexes, widen-only column drift auto-fixed, redundant left-prefix indexes dropped; risky drift → `sys.exit(1)` with suggested commands) → seeders (payment methods, prerequisite staff, phpMyAdmin guest account). The `background-worker` only reads/writes tasks through the same DB.
+The `api` container manages the schema on startup — no migration CLI, no Alembic. Boot sequence: `init_db()` (`create_all` for missing tables) → `run_preflight()` (auto-create missing indexes, widen-only column drift auto-fixed, risky drift → `sys.exit(1)` with suggested commands) → seeders (payment methods, prerequisite staff, phpMyAdmin guest account). The `background-worker` only reads/writes tasks through the same DB.
 
 ### Backup/Restore
 
-Backups are `.sql` files stored in the `db_backups` Docker volume mounted at `/app/db_backups` in the API and worker containers. Accessible via debug panel endpoints:
+Backups are `.sql` files stored in the `db_backups` Docker volume mounted at `/app/db_backups` in the API and worker containers. Debug panel endpoints:
 - `POST /api/debug/backup` — queue a `mysqldump`-based backup
 - `GET /api/debug/backups` — list available backups
 - `POST /api/debug/restore` — queue a restore from a specific file

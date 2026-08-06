@@ -1,10 +1,6 @@
 # System Architecture
 
-The system was originally built as a Flask monolith; it has since been
-migrated to **FastAPI + granian**. Every Python service — API, all portals,
-the webhook proxy, the documentation site, and the background worker — is a
-FastAPI app run by granian (ASGI, 1 worker each). Flask, Gunicorn, and
-migration CLIs are gone.
+**Stack**: FastAPI + granian. Every Python service — API, all portals, the webhook proxy, the documentation site, and the background worker — is a FastAPI app run by granian (ASGI, 1 worker each). There is no Flask and no Gunicorn; migration CLIs are gone.
 
 ## High-Level Container Diagram
 
@@ -69,8 +65,7 @@ graph TB
 
 ## Network Topology
 
-Six networks: two bridge (`net-public`, `net-private`), two internal
-(`net-api`, `net-data`), two external (`net-gk` GateKeeper, `cloudflared-tunnel`).
+Six networks: two bridge (`net-public`, `net-private`), two internal (`net-api`, `net-data`), two external (`net-gk` GateKeeper, `cloudflared-tunnel`).
 
 ```mermaid
 graph TB
@@ -129,20 +124,9 @@ graph TB
 
 ## Runtime & Data Access
 
-- **Async SQLAlchemy**: the API, portals, webhook, and worker use
-  `shared/db_async.py` — an async engine (`mysql+pymysql` from `DB_ENGINE` is
-  swapped to `aiomysql`) with an `AsyncSession` per request via contextvar.
-  Legacy sync shared services (payment, audit, seeding) run via
-  `asyncio.to_thread` / `run_in_threadpool` with a separate sync session.
-- **Strict env validation**: `shared/config.py` validates required env vars
-  at import time and `sys.exit(1)`s with a `FATAL` list when anything is
-  missing. `compose.yaml` uses `${VAR:?}` everywhere, so `docker compose up`
-  also refuses to start on missing vars. `REVERSE_PROXY_PREFIX` is the only
-  variable allowed to be blank.
-- **Password hashing**: pure stdlib (`shared/passwords.py`) — new hashes use a
-  custom pbkdf2-hmac-sha512 scheme (100k iterations, 64-hex salt); legacy
-  werkzeug `sha256$` / `pbkdf2:` / scrypt formats are still verifiable. No
-  werkzeug dependency.
+- **Async SQLAlchemy**: API, portals, webhook, and worker use `shared/db_async.py` — an async engine (`mysql+pymysql` from `DB_ENGINE` is swapped to `aiomysql`) with an `AsyncSession` per request via contextvar. Legacy sync shared services (payment, audit, seeding) run via `asyncio.to_thread` / `run_in_threadpool` with a separate sync session.
+- **Strict env validation**: `shared/config.py` validates required env vars at import time and `sys.exit(1)`s with a `FATAL` list when anything is missing. `compose.yaml` uses `${VAR:?}` everywhere — `docker compose up` also refuses to start on missing vars. `REVERSE_PROXY_PREFIX` is the only variable allowed to be blank.
+- **Password hashing**: pure stdlib (`shared/passwords.py`) — new hashes use a custom pbkdf2-hmac-sha512 scheme (100k iterations, 64-hex salt); legacy werkzeug `sha256$` / `pbkdf2:` / scrypt formats are still verifiable. No werkzeug dependency.
 
 ---
 
@@ -259,41 +243,22 @@ Progressive tier calculation: consumption is applied to each tier bracket sequen
 
 ## Startup Preflight & Self-Healing
 
-On every boot, the API container (`api/preflight.py`) compares the live
-schema against the SQLAlchemy models before serving traffic:
+On every boot, the API container (`api/preflight.py`) compares the live schema against the SQLAlchemy models before serving traffic:
 
-- **Auto-fixes** (safe — cannot invalidate existing data): missing tables
-  (`create_all`), missing indexes (a 14-entry audit manifest plus
-  model-derived indexes), widening column drift (`ALTER MODIFY` preserving
-  the `DEFAULT`), loosening `NOT NULL` → `NULL`, and dropping redundant
-  (non-unique left-prefix) indexes.
-- **Fatal** (crash-loop with `sys.exit(1)` and printed findings + suggested
-  `ALTER`/`DROP` commands): missing columns, incompatible type changes,
-  time-named columns that aren't `DATETIME`, and index name/definition
-  conflicts.
-- Logs `preflight: OK` and only then runs the seeders (payment methods,
-  prerequisite staff, phpMyAdmin guest DB account).
+- **Auto-fixes** (safe — cannot invalidate existing data): missing tables (`create_all`), missing indexes (a 14-entry audit manifest plus model-derived indexes), widening column drift (`ALTER MODIFY` preserving the `DEFAULT`), loosening `NOT NULL` → `NULL`, and dropping redundant (non-unique left-prefix) indexes.
+- **Fatal** (crash-loop with `sys.exit(1)` and printed findings + suggested `ALTER`/`DROP` commands): missing columns, incompatible type changes, time-named columns that aren't `DATETIME`, and index name/definition conflicts.
+- Logs `preflight: OK` and only then runs the seeders (payment methods, prerequisite staff, phpMyAdmin guest DB account).
 
 ---
 
 ## Background Worker
 
-The background worker is a **FastAPI app run by granian `--workers 1`** —
-exactly one process, one async claim loop. It polls the `background_tasks`
-table (the `BackgroundTask` model) and processes **one job at a time**:
+The background worker is a **FastAPI app run by granian `--workers 1`** — exactly one process, one async claim loop. It polls the `background_tasks` table (the `BackgroundTask` model) and processes **one job at a time**:
 
-- **Claim**: `SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1` for the oldest
-  queued task (`scheduled_at <= now`); stale tasks stuck `running` for more
-  than 5 minutes are marked `failed`.
-- **In-job concurrency**: month-batch handlers and Xendit reconciliation
-  bound their internal fan-out with an `asyncio.Semaphore(
-  WORKER_JOB_CONCURRENCY)` (default **8**).
+- **Claim**: `SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1` for the oldest queued task (`scheduled_at <= now`); stale tasks stuck `running` for more than 5 minutes are marked `failed`.
+- **In-job concurrency**: month-batch handlers and Xendit reconciliation bound their internal fan-out with an `asyncio.Semaphore(WORKER_JOB_CONCURRENCY)` (default **8**).
 - **Subprocesses**: `mysqldump` / `mysql` run via `asyncio.create_subprocess_exec`.
-- **Xendit**: checked over `httpx` (async); sync shared services are called
-  via `asyncio.to_thread` with a sync session.
-- **Health**: `GET /health` on port 8006 reports `idle`/`working`, the
-  current task type, and progress.
+- **Xendit**: checked over `httpx` (async); sync shared services are called via `asyncio.to_thread` with a sync session.
+- **Health**: `GET /health` on port 8006 reports `idle`/`working`, the current task type, and progress.
 
-Task types: `backup`, `restore`, `clear`, `seed`, `read-this-month`,
-`unread-this-month`, `pay-this-month`, `remove-payment-this-month`, and
-`xendit_reconcile` (auto-enqueued every 5 minutes via `enqueue_unique`).
+Task types: `backup`, `restore`, `clear`, `seed`, `read-this-month`, `unread-this-month`, `pay-this-month`, `remove-payment-this-month`, and `xendit_reconcile` (auto-enqueued every 5 minutes via `enqueue_unique`).

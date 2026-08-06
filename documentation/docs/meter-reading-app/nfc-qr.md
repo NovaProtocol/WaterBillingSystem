@@ -2,7 +2,7 @@
 
 ## NFC Tag Scanning
 
-NFC tags (NTAG215 clones) are attached to each water meter. Tags are **password-protected** using NTAG215's PWD_AUTH feature. The app scans these tags to automatically identify the customer without manual entry.
+NTAG215 clones attached to each water meter, **password-protected** using NTAG215's PWD_AUTH feature. The app scans tags to identify the customer without manual entry.
 
 ### Security Model
 
@@ -74,7 +74,7 @@ Only staff with `can_enroll_customer` permission see the "Enroll" button. Every 
 
 #### NfcScanner (Reading Mode)
 
-1. Uses a blocking `requestTechnology(NfcTech.NfcA)` loop. On each successful tag discovery
+1. Blocking `requestTechnology(NfcTech.NfcA)` loop, on each successful tag discovery
 2. Reads UID from pages 0-1, extracts 7 bytes (skip BCC0)
 3. Looks up UID in local `nfc_cache` table
 4. Computes PWD via `computeTagPwd(nfcPwdSecret, uid)`
@@ -101,12 +101,12 @@ NTAG215 PWD_AUTH command: `0x1B + 4-byte-password` → sends via `NfcManager.tra
 
 ### Behavior
 
-- **NFC listener** is registered when entering program/disenroll mode
+- **NFC listener** registered when entering program/disenroll mode
 - **Concurrent scan prevention**: `processingRef` flag prevents duplicate processing
-- **Haptic feedback**: Vibrate 100ms on success, 200ms on error
-- **UID verification**: After PWD_AUTH, reads customer number from tag and verifies 1:1 match with `nfc_cache`
-- **Error handling**: Shows error message overlay, ready for next scan
-- **Cleanup**: Unsubscribes from NFC events on component unmount
+- **Haptic feedback**: vibrate 100ms on success, 200ms on error
+- **UID verification**: after PWD_AUTH, reads customer number from tag and verifies 1:1 match with `nfc_cache`
+- **Error handling**: error message overlay, ready for next scan
+- **Cleanup**: unsubscribes from NFC events on component unmount
 
 ### Permissions
 
@@ -135,7 +135,7 @@ Configured in `app.json`:
 
 ## QR Code Scanning
 
-QR codes are used to configure the API key. This is faster and less error-prone than manual entry.
+QR codes configure the API key — faster and less error-prone than manual entry.
 
 ### How It Works
 

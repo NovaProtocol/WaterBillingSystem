@@ -2,11 +2,11 @@
 
 **Container**: `staff-portal` | **Port**: 8003 | **Base URL**: `/staff/*`
 
-The staff portal is a FastAPI web dashboard served by the Caddy gateway at port 7021. It communicates with the API container via internal HTTP requests using the internal API key.
+FastAPI web dashboard served by the Caddy gateway at port 7021. Communicates with the API container via internal HTTP requests using the internal API key.
 
 ## Architecture
 
-The staff portal is a proxy-style FastAPI app:
+Proxy-style FastAPI app:
 - Routes render Jinja2 templates and handle form submissions
 - Business logic is delegated to the API container via `api_client.py`
 - Auth uses a signed session cookie (itsdangerous `URLSafeTimedSerializer`, 1-hour expiry) storing the staff payload returned by `POST /api/staff/login` — no server-side session store

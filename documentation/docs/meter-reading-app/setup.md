@@ -20,7 +20,7 @@ npm install
 npx expo start
 ```
 
-This starts the Metro bundler. You'll see a QR code in the terminal. Scan it with the Expo Go app (Android) or Camera app (iOS) to load the app on your device.
+Starts the Metro bundler. Scan the QR with the Expo Go app (Android) or Camera app (iOS) to load the app.
 
 ### Platform-Specific
 
@@ -37,7 +37,7 @@ npx expo start --web
 
 ## Configuration
 
-The app is configured through its **Settings screen** (gear icon on Home). No external config files are needed.
+Configured through the **Settings screen** (gear icon on Home). No external config files.
 
 ### Server URL
 
@@ -47,7 +47,7 @@ Enter the full URL to your BillServer instance, e.g.:
 http://192.168.1.100:5005
 ```
 
-The app will test the connection by making a HEAD request to the server root.
+The app tests the connection with a HEAD request to the server root.
 
 ### API Key
 
@@ -60,16 +60,16 @@ Enter an API key manually or tap the QR icon to scan one:
 
 ### History Count
 
-Configure how many past readings to display per customer (1–24). Default: 5.
+How many past readings to display per customer (1–24). Default: 5.
 
 ## Initial Sync
 
-After setting the server URL and API key, the app:
+After setting the server URL and API key:
 1. Navigates to the **Home** screen
-2. Automatically starts syncing customer data in the background
-3. Shows a sync indicator pill at the bottom-left corner
+2. Starts syncing customer data automatically
+3. Sync indicator pill at the bottom-left corner
 
-The first sync may take a few seconds depending on the number of customers. Subsequent syncs are incremental (only changed customers are downloaded).
+First sync may take a few seconds depending on customer count. Subsequent syncs are incremental (only changed customers).
 
 ## Type Checking
 

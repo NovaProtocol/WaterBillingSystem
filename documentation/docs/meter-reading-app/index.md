@@ -2,7 +2,7 @@
 
 **Stack**: React Native (Expo) + TypeScript + op-sqlite + react-native-nfc-manager
 
-MeterReadingApp is a mobile application for field meter readers. It enables offline meter reading collection via NFC tag scanning or manual entry, with background sync to BillServer.
+Mobile app for field meter readers. Offline meter reading collection via NFC tag scanning or manual entry, with background sync to BillServer.
 
 ## Key Features
 
