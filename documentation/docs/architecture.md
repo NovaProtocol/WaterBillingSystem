@@ -253,7 +253,7 @@ Progressive tier calculation: consumption is applied to each tier bracket sequen
 | **API Key (query)** | `?api_key=CRDC-<32hex>` | Browser fallback for API key auth |
 | **Internal API Key** | `X-Internal-API-Key` header (bypasses permission checks; `X-Staff-ID` for acting staff) | Container-to-container API calls |
 | **Signed Session Cookie** | itsdangerous-signed cookie (1-hour expiry) | Staff portal session, customer billing portal |
-| **Webhook Token** | `X-Callback-Token` matching `XENDIT_WEBHOOK_TOKEN` (or internal key) | Xendit webhook callback |
+| **Webhook Token** | `X-Callback-Token` value matching `XENDIT_WEBHOOK_TOKEN` or `INTERNAL_API_KEY` | Xendit webhook callback |
 | **GateKeeper forward-auth** | External SSO gate checked by Caddy (private network `net-gk`) | All web surfaces (landing, portals, documentation, phpMyAdmin) |
 
 ---
