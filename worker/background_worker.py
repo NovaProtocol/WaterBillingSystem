@@ -28,8 +28,15 @@ from task_handlers import HANDLERS
 
 
 
+def require_env(*names):
+    for name in names:
+        if not os.environ.get(name):
+            print(f"FATAL: Environment variable {name} is required but not set.")
+            sys.exit(1)
+
+
 def create_worker_app():
-    dep_type = os.environ.get("DEPLOYMENT_TYPE", "PRODUCTION")
+    dep_type = os.environ["DEPLOYMENT_TYPE"]
     app = Flask(__name__)
     app.config.from_object(config_dict[dep_type])
     db.init_app(app)
@@ -42,8 +49,6 @@ logging.basicConfig(
     format="%(message)s",
 )
 logger = logging.getLogger("background_worker")
-
-os.environ.setdefault("DEPLOYMENT_TYPE", "DEBUG")
 
 attach_sqlite_logging('worker')
 
@@ -126,6 +131,8 @@ def _execute_task(task: BackgroundTask) -> None:
 
 
 def main() -> None:
+    require_env('DEPLOYMENT_TYPE', 'DB_ENGINE', 'DB_HOST', 'DB_PORT', 'DB_NAME',
+                'DB_USERNAME', 'DB_PASS', 'XENDIT_API_KEY')
     logger.info("[background_worker] Starting background worker...")
 
     app = create_worker_app()

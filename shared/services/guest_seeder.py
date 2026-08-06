@@ -10,11 +10,11 @@ def ensure_guest_user(session=None) -> None:
     instant-login server entry. Idempotent; skipped when GUEST_DB_PASSWORD
     is not set."""
     session = session or db.session
-    password = os.environ.get("GUEST_DB_PASSWORD", "").strip()
+    password = os.environ["GUEST_DB_PASSWORD"].strip()
     if not password:
         return
 
-    db_name = os.environ.get("DB_NAME", "")
+    db_name = os.environ["DB_NAME"]
     if not db_name or not db_name.replace("_", "").isalnum():
         db_name = ""
 

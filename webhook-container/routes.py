@@ -12,8 +12,8 @@ logger = logging.getLogger('webhook')
 
 router = APIRouter()
 
-API_BASE_URL = os.environ.get('API_BASE_URL', 'http://api:8008')
-INTERNAL_API_KEY = os.environ.get('INTERNAL_API_KEY', '')
+API_BASE_URL = os.environ['API_BASE_URL']
+INTERNAL_API_KEY = os.environ['INTERNAL_API_KEY']
 
 
 @router.post('/webhook/xendit')

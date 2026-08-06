@@ -18,8 +18,8 @@ webhook_router = APIRouter()
 @webhook_router.post('/api/webhook/xendit-payment')
 async def xendit_webhook(request: Request):
     token = request.headers.get('X-Callback-Token')
-    if token != os.environ.get('XENDIT_WEBHOOK_TOKEN'):
-        if token != os.environ.get('INTERNAL_API_KEY'):
+    if token != os.environ['XENDIT_WEBHOOK_TOKEN']:
+        if token != os.environ['INTERNAL_API_KEY']:
             return JSONResponse({'error': 'Invalid token'}, status_code=401)
 
     try:

@@ -481,11 +481,11 @@ def handle_backup(params: dict[str, Any], report: Callable[[float, str], None]) 
     report(0, "Starting mysqldump backup...")
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
-    db_host = os.environ.get("DB_HOST", "localhost")
-    db_port = os.environ.get("DB_PORT", "3306")
-    db_user = os.environ.get("DB_USERNAME", "root")
-    db_pass = os.environ.get("DB_PASS", "")
-    db_name = os.environ.get("DB_NAME", "BillServerDB")
+    db_host = os.environ["DB_HOST"]
+    db_port = os.environ["DB_PORT"]
+    db_user = os.environ["DB_USERNAME"]
+    db_pass = os.environ["DB_PASS"]
+    db_name = os.environ["DB_NAME"]
 
     print(f"  > Counting customers...", flush=True)
     customer_count = db.session.query(db.func.count(Customer.id)).scalar() or 0
@@ -544,11 +544,11 @@ def handle_restore(params: dict[str, Any], report: Callable[[float, str], None])
     file_size_str = f"{file_size / 1024 / 1024:.1f} MB" if file_size > 1024 * 1024 else f"{file_size / 1024:.1f} KB"
     print(f"  > File size: {file_size_str}", flush=True)
 
-    db_host = os.environ.get("DB_HOST", "localhost")
-    db_port = os.environ.get("DB_PORT", "3306")
-    db_user = os.environ.get("DB_USERNAME", "root")
-    db_pass = os.environ.get("DB_PASS", "")
-    db_name = os.environ.get("DB_NAME", "BillServerDB")
+    db_host = os.environ["DB_HOST"]
+    db_port = os.environ["DB_PORT"]
+    db_user = os.environ["DB_USERNAME"]
+    db_pass = os.environ["DB_PASS"]
+    db_name = os.environ["DB_NAME"]
 
     report(5, f"Restoring {filename} ({file_size_str})...")
     print(f"  > Dropping and recreating database {db_name}...", flush=True)
@@ -865,7 +865,7 @@ def handle_xendit_reconcile(params: dict[str, Any], report: Callable[[float, str
 
     report(0, "Starting Xendit reconciliation...")
 
-    key = os.environ.get("XENDIT_API_KEY", "")
+    key = os.environ["XENDIT_API_KEY"]
     if not key or key == "your-xendit-secret-api-key":
         print(f"  > XENDIT_API_KEY not set or is placeholder — skipping", flush=True)
         report(100, "Reconciliation skipped: Xendit not configured")
