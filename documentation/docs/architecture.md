@@ -78,7 +78,6 @@ graph TB
         LAND[landing-page :8001]
         CP[customer-portal :8002]
         WH[webhook-container :8009]
-        API[api :8008]
     end
 
     subgraph "net-private (bridge)"
@@ -99,7 +98,7 @@ graph TB
     subgraph "net-data (internal)"
         DB[(mysql-db :3306)]
         WORKER[background-worker :8006]
-        API
+        API[api :8008]
         PMA
     end
 

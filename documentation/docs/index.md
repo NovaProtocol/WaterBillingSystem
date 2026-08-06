@@ -36,7 +36,6 @@ graph TB
         LAND["Landing Page<br/>FastAPI/granian :8001"]
         CP["Customer Portal<br/>FastAPI/granian :8002"]
         WH["Webhook Container<br/>FastAPI/granian :8009"]
-        API["API Container<br/>FastAPI/granian :8008"]
     end
 
     subgraph "net-private"
@@ -49,6 +48,7 @@ graph TB
     subgraph "net-data internal"
         DB[("MySQL 8.4<br/>:3306")]
         WORKER["Background Worker<br/>FastAPI/granian :8006"]
+        API["API Container<br/>FastAPI/granian :8008"]
     end
 
     subgraph "net-gk (external)"
