@@ -4,7 +4,7 @@ WORKDIR /app
 COPY shared/requirements.txt /app/shared/
 RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ libc6-dev && \
     rm -rf /var/lib/apt/lists/* && \
-    pip3 install --no-cache-dir -r /app/shared/requirements.txt gunicorn
+    pip3 install --no-cache-dir -r /app/shared/requirements.txt
 
 COPY shared/ /app/shared/
 
@@ -22,4 +22,4 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHON_GIL=0
 
 EXPOSE 8005
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8005", "--worker-class", "gthread", "--workers", "1", "--threads", "4", "--access-logfile", "-", "app:create_app()"]
+CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8005", "--workers", "1", "app:app"]
