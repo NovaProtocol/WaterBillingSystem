@@ -1,6 +1,6 @@
 """Startup DB preflight: safe auto-fixes, loud crash on risky schema drift.
 
-Policy (see docs/superpowers/specs/2026-08-06-db-preflight-design.md):
+Policy (see the DB preflight design):
 a fix is SAFE iff applying it cannot invalidate existing data. Missing
 tables/indexes, widening, and NOT NULL -> NULL are safe. Missing columns,
 incompatible types, and time-type violations are FATAL (sys.exit(1))."""
