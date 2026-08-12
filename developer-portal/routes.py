@@ -1,5 +1,5 @@
 import logging
-import random
+import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -51,7 +51,7 @@ async def _confirm_check(request: Request) -> tuple[bool, dict | None]:
 
 
 def _generate_and_store_code(request: Request) -> str:
-    code = str(random.randint(10_000_000, 99_999_999))
+    code = str(secrets.randbelow(90_000_000) + 10_000_000)
     payload = getattr(request.state, 'dev_payload', None) or {}
     payload['debug_confirm'] = code
     return code
