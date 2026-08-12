@@ -3,7 +3,7 @@ site_description: Documentation for Cotta Realty's water billing platform — de
 site_author: Cotta Realty
 repo_url: https://github.com/NovaProtocol/WaterBillingSystem
 repo_name: NovaProtocol/WaterBillingSystem
-edit_uri: edit/main/documentations/docs/
+edit_uri: edit/main/documentation/docs/
 
 theme:
   name: material
