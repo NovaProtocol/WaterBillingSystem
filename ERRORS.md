@@ -6,16 +6,13 @@ Customer-facing errors display a code like `ERR0001` rather than the technical e
 
 | Code | Meaning | Action |
 |------|---------|--------|
-| `ERR1001` | Account number field was left empty | Ask customer to provide their account number |
-| `ERR1002` | Registered name field was left empty | Ask customer to provide the name on their account |
-| `ERR1003` | Last receipt number field was left empty | Ask customer to check their latest billing statement |
 | `ERR0001` | Generic verification failure | Check customer-portal and API logs for details |
 
 ## API Internal Endpoints (CUSxxx)
 
 | Code | Meaning | Action |
 |------|---------|--------|
-| `CUS400` | API request missing required fields (account_number, registered_name) | This is a bug in the calling code — check customer-portal logs |
+| `CUS400` | API request missing required field (account_number) | This is a bug in the calling code — check customer-portal logs |
 | `CUS404` | Customer number not found in database | Verify the customer number is correct. Customer may be inactive or not yet enrolled |
 | `CUS403` | Registered name doesn't match database record | Customer may be using a different name than what's on file. Verify spelling |
 
