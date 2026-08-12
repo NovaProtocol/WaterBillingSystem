@@ -1,49 +1,43 @@
 from __future__ import annotations
 
 import datetime as dt
+import decimal
 import enum
 
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
-    Float,
-    ForeignKey,
-    Integer,
-    LargeBinary,
-    Numeric,
-    String,
-    Text,
-)
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, LargeBinary, Numeric, String, Text
+from sqlalchemy.orm import Mapped, backref, mapped_column, relationship
 
 from db_async import Base
+
+
+def _utcnow() -> dt.datetime:
+    # naive UTC to match existing rows and the codebase's comparisons
+    return dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
 
 
 class Staff(Base):
 
     __tablename__ = "staff"
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String(64), unique=True, nullable=False)
-    name = Column(String(128), nullable=False, default="")
-    password = Column(LargeBinary, nullable=False)
-    email = Column(String(128), nullable=True)
-    contact_number = Column(String(32), nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    password: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    email: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    contact_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
-    can_read_meters = Column(Boolean, default=False)
-    can_accept_payment = Column(Boolean, default=False)
-    can_enroll_customer = Column(Boolean, default=False)
-    can_drop_reading = Column(Boolean, default=False)
-    can_drop_payment = Column(Boolean, default=False)
-    can_enroll_staff = Column(Boolean, default=False)
-    can_manage_billing = Column(Boolean, default=False)
+    can_read_meters: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_accept_payment: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_enroll_customer: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_drop_reading: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_drop_payment: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_enroll_staff: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_manage_billing: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    is_active = Column(Boolean, default=True)
-    date_created = Column(DateTime, default=dt.datetime.utcnow)
-    last_modified = Column(
-        DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    last_modified: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
     )
 
     def __repr__(self) -> str:
@@ -54,27 +48,27 @@ class Customer(Base):
 
     __tablename__ = "customers"
 
-    id = Column(Integer, primary_key=True)
-    customer_number = Column(Integer, unique=True, nullable=False, index=True)
-    name = Column(String(128), nullable=True)
-    address = Column(Text(), nullable=True)
-    contact_number = Column(String(32), nullable=True)
-    email = Column(String(128), nullable=True)
-    x_coordinate = Column(Float, nullable=True)
-    y_coordinate = Column(Float, nullable=True)
-    phase = Column(String(64), nullable=True)
-    block = Column(String(64), nullable=True)
-    street = Column(String(128), nullable=True)
-    cumulative_balance = Column(Numeric(10, 2), default=0.00)
-    total_due = Column(Numeric(10, 2), default=0.00)
-    meter_serial_number = Column(String(64), nullable=True, index=True)
-    max_meter_value = Column(Numeric(10, 2), default=99999.00)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_number: Mapped[int] = mapped_column(Integer, unique=True, nullable=False, index=True)
+    name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    address: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    contact_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    x_coordinate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    y_coordinate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    phase: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    block: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    street: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    cumulative_balance: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), default=0.00)
+    total_due: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), default=0.00)
+    meter_serial_number: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    max_meter_value: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), default=99999.00)
 
-    is_active = Column(Boolean, default=True)
-    deleted_at = Column(DateTime, nullable=True)
-    date_created = Column(DateTime, default=dt.datetime.utcnow)
-    date_modified = Column(
-        DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    deleted_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    date_modified: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
     )
 
     def __repr__(self) -> str:
@@ -85,20 +79,19 @@ class MeterReading(Base):
 
     __tablename__ = "meter_readings"
 
-    id = Column(Integer, primary_key=True)
-    customer_number = Column(
-        Integer,
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_number: Mapped[int] = mapped_column(
         ForeignKey("customers.customer_number"),
         nullable=False,
     )
-    reading_value = Column(Numeric(10, 2), nullable=False)
-    token_id = Column(
-        Integer, ForeignKey("api_keys.id"), nullable=False, index=True
+    reading_value: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    token_id: Mapped[int] = mapped_column(
+        ForeignKey("api_keys.id"), nullable=False, index=True
     )
-    timestamp = Column(DateTime, nullable=False, index=True)
-    date_created = Column(DateTime, default=dt.datetime.utcnow)
-    date_modified = Column(
-        DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    timestamp: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, index=True)
+    date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    date_modified: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
     )
 
     customer = relationship(
@@ -114,36 +107,35 @@ class Billing(Base):
 
     __tablename__ = "billings"
 
-    id = Column(Integer, primary_key=True)
-    customer_number = Column(
-        Integer,
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_number: Mapped[int] = mapped_column(
         ForeignKey("customers.customer_number"),
         nullable=False,
     )
-    reading_id = Column(
-        Integer, ForeignKey("meter_readings.id"), nullable=True
+    reading_id: Mapped[int | None] = mapped_column(
+        ForeignKey("meter_readings.id"), nullable=True
     )
 
-    previous_reading_value = Column(Numeric(10, 2), nullable=True)
-    current_reading_value = Column(Numeric(10, 2), nullable=True)
-    consumption = Column(Numeric(10, 2), nullable=True)
+    previous_reading_value: Mapped[decimal.Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    current_reading_value: Mapped[decimal.Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    consumption: Mapped[decimal.Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
 
-    billed_amount = Column(Numeric(10, 2), nullable=False, default=0)
-    penalty = Column(Numeric(10, 2), nullable=False, default=0)
-    paid_amount = Column(Numeric(10, 2), nullable=False, default=0)
-    carryover_offset = Column(Numeric(10, 2), nullable=False, default=0)
-    is_paid = Column(Boolean, nullable=False, default=False)
+    billed_amount: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    penalty: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    paid_amount: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    carryover_offset: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    is_paid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    receipt_number = Column(String(64), nullable=True)
-    cashier_id = Column(
-        Integer, ForeignKey("staff.id"), nullable=True, index=True
+    receipt_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    cashier_id: Mapped[int | None] = mapped_column(
+        ForeignKey("staff.id"), nullable=True, index=True
     )
-    payment_timestamp = Column(DateTime, nullable=True)
-    date_paid = Column(DateTime, nullable=True)
+    payment_timestamp: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    date_paid: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
-    date_created = Column(DateTime, default=dt.datetime.utcnow)
-    date_modified = Column(
-        DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    date_modified: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
     )
 
     customer = relationship(
@@ -164,14 +156,14 @@ class ApiKey(Base):
 
     __tablename__ = "api_keys"
 
-    id = Column(Integer, primary_key=True)
-    key = Column(String(128), unique=True, nullable=False)
-    label = Column(String(128), nullable=True)
-    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=False)
-    is_active = Column(Boolean, default=True)
-    date_created = Column(DateTime, default=dt.datetime.utcnow)
-    last_modified = Column(
-        DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    label: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    staff_id: Mapped[int] = mapped_column(ForeignKey("staff.id"), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    last_modified: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
     )
 
     staff = relationship("Staff", backref=backref("api_keys", lazy=True))
@@ -184,20 +176,19 @@ class NfcTag(Base):
 
     __tablename__ = "nfc_tags"
 
-    id = Column(Integer, primary_key=True)
-    uid = Column(String(64), unique=True, nullable=False)
-    customer_number = Column(
-        Integer,
+    id: Mapped[int] = mapped_column(primary_key=True)
+    uid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    customer_number: Mapped[int] = mapped_column(
         ForeignKey("customers.customer_number"),
         nullable=False,
         index=True,
     )
-    enrolled_by_id = Column(
-        Integer, ForeignKey("staff.id"), nullable=False
+    enrolled_by_id: Mapped[int] = mapped_column(
+        ForeignKey("staff.id"), nullable=False
     )
-    date_created = Column(DateTime, default=dt.datetime.utcnow)
-    last_modified = Column(
-        DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    last_modified: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
     )
 
     customer = relationship(
@@ -221,22 +212,21 @@ class ManagementLog(Base):
 
     __tablename__ = "management_logs"
 
-    id = Column(Integer, primary_key=True)
-    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=False)
-    action_type = Column(String(64), nullable=False)
-    target_type = Column(String(64), nullable=False)
-    target_id = Column(Integer, nullable=False)
-    customer_number = Column(
-        Integer,
+    id: Mapped[int] = mapped_column(primary_key=True)
+    staff_id: Mapped[int] = mapped_column(ForeignKey("staff.id"), nullable=False)
+    action_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    customer_number: Mapped[int | None] = mapped_column(
         ForeignKey("customers.customer_number"),
         nullable=True,
         index=True,
     )
-    details = Column(Text(), nullable=True)
-    timestamp = Column(DateTime, nullable=False, index=True)
-    date_created = Column(DateTime, default=dt.datetime.utcnow)
-    date_modified = Column(
-        DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    details: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    timestamp: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, index=True)
+    date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    date_modified: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
     )
 
     staff = relationship(
@@ -248,12 +238,12 @@ class Config(Base):
 
     __tablename__ = "app_config"
 
-    id = Column(Integer, primary_key=True)
-    key = Column(String(128), unique=True, nullable=False)
-    value = Column(Text(), nullable=True)
-    date_created = Column(DateTime, default=dt.datetime.utcnow)
-    date_modified = Column(
-        DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    value: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    date_modified: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
     )
 
     def __repr__(self) -> str:
@@ -264,18 +254,18 @@ class PaymentMethod(Base):
 
     __tablename__ = "payment_methods"
 
-    id = Column(Integer, primary_key=True)
-    code = Column(String(64), unique=True, nullable=False, index=True)
-    label = Column(String(128), nullable=False)
-    provider = Column(String(32), nullable=True)
-    channel_code = Column(String(64), nullable=True)
-    fee_percent = Column(Numeric(5, 2), nullable=True)
-    fee_flat = Column(Numeric(10, 2), nullable=True)
-    fee_minimum = Column(Numeric(10, 2), nullable=True)
-    xendit_fee = Column(Numeric(10, 2), nullable=True)
-    is_active = Column(Boolean, nullable=False, default=True)
-    sort_order = Column(Integer, nullable=False, default=0)
-    date_created = Column(DateTime, default=dt.datetime.utcnow)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    label: Mapped[str] = mapped_column(String(128), nullable=False)
+    provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    channel_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fee_percent: Mapped[decimal.Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    fee_flat: Mapped[decimal.Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    fee_minimum: Mapped[decimal.Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    xendit_fee: Mapped[decimal.Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
 
     def fee_for(self, amount: float) -> float:
         fee = 0.0
@@ -295,29 +285,28 @@ class XenditTransaction(Base):
 
     __tablename__ = "xendit_transactions"
 
-    id = Column(Integer, primary_key=True)
-    customer_number = Column(
-        Integer,
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_number: Mapped[int] = mapped_column(
         ForeignKey("customers.customer_number"),
         nullable=False,
         index=True,
     )
-    xendit_pr_id = Column(String(128), unique=True, nullable=False, index=True)
-    external_id = Column(String(256), unique=True, nullable=False)
-    amount = Column(Numeric(10, 2), nullable=False)
-    base_amount = Column(Numeric(10, 2), nullable=True)
-    fee_amount = Column(Numeric(10, 2), nullable=True)
-    fee_rate = Column(Numeric(5, 2), nullable=True)
-    payment_method = Column(String(32), nullable=False)
-    status = Column(String(32), nullable=False, default="PENDING")
-    receipt_number = Column(String(64), nullable=True)
-    billing_receipt = Column(String(64), nullable=True)
-    error_message = Column(Text(), nullable=True)
-    reversed_at = Column(DateTime, nullable=True)
-    xendit_payment_id = Column(String(128), nullable=True)
-    date_created = Column(DateTime, default=dt.datetime.utcnow)
-    date_modified = Column(
-        DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    xendit_pr_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    external_id: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
+    amount: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    base_amount: Mapped[decimal.Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    fee_amount: Mapped[decimal.Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    fee_rate: Mapped[decimal.Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    payment_method: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="PENDING")
+    receipt_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    billing_receipt: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    reversed_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    xendit_payment_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    date_modified: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
     )
 
     customer = relationship(
@@ -332,20 +321,20 @@ class BackgroundTask(Base):
 
     __tablename__ = "background_tasks"
 
-    id = Column(Integer, primary_key=True)
-    task_type = Column(String(64), nullable=False, index=True)
-    params = Column(JSON, nullable=True)
-    status = Column(String(16), nullable=False, default="queued", index=True)
-    progress = Column(Float, nullable=False, default=0.0)
-    messages = Column(JSON, nullable=False, default=lambda: [])
-    result = Column(JSON, nullable=True)
-    title = Column(String(256), nullable=True)
-    scheduled_at = Column(DateTime, nullable=True)
-    started_at = Column(DateTime, nullable=True)
-    finished_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=dt.datetime.utcnow)
-    updated_at = Column(
-        DateTime, nullable=False, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued", index=True)
+    progress: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    messages: Mapped[list] = mapped_column(JSON, nullable=False, default=lambda: [])
+    result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    title: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    scheduled_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, nullable=False, default=_utcnow, onupdate=_utcnow
     )
 
     @classmethod
@@ -379,6 +368,7 @@ class BackgroundTask(Base):
         scheduled_at: dt.datetime | None = None,
     ) -> BackgroundTask | None:
         from sqlalchemy import select
+
         from db_async import session_factory
 
         async with session_factory()() as s:
