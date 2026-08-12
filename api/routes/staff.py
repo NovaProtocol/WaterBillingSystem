@@ -3,7 +3,7 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from sqlalchemy import desc, select
@@ -237,11 +237,22 @@ async def staff_reading_logs(staff_id: int, api_key: ApiKey = Depends(require_st
     }
 
 
+async def _can_manage_keys(staff_id: int, api_key: ApiKey | bool) -> None:
+    """Self-service for the key owner; can_enroll_staff for everyone else."""
+    if api_key is True:  # internal key — master access
+        return
+    if api_key.staff_id == staff_id or api_key.staff.can_enroll_staff:
+        return
+    raise HTTPException(status_code=403, detail={"error": "Permission denied"})
+
+
 @router.get("/staff/{staff_id}/api-keys")
 async def staff_api_keys(staff_id: int, api_key: ApiKey = Depends(require_staff())):
+    await _can_manage_keys(staff_id, api_key)
     result = await session().execute(
         select(ApiKey)
         .options(joinedload(ApiKey.staff))
+        .where(ApiKey.staff_id == staff_id)
         .order_by(desc(ApiKey.date_created))
     )
     keys = result.scalars().all()
@@ -266,7 +277,8 @@ async def staff_api_keys(staff_id: int, api_key: ApiKey = Depends(require_staff(
 
 
 @router.post("/staff/{staff_id}/api-key/generate")
-async def staff_api_key_generate(staff_id: int, request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
+async def staff_api_key_generate(staff_id: int, request: Request, api_key: ApiKey = Depends(require_staff())):
+    await _can_manage_keys(staff_id, api_key)
     data = await request.json()
     if not isinstance(data, dict):
         data = {}
@@ -282,7 +294,8 @@ async def staff_api_key_generate(staff_id: int, request: Request, api_key: ApiKe
 
 
 @router.post("/staff/{staff_id}/api-key/{key_id}/revoke")
-async def staff_api_key_revoke(staff_id: int, key_id: int, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
+async def staff_api_key_revoke(staff_id: int, key_id: int, api_key: ApiKey = Depends(require_staff())):
+    await _can_manage_keys(staff_id, api_key)
     target = await session().get(ApiKey, key_id)
     if not target:
         return JSONResponse({"error": "Key not found"}, status_code=404)
