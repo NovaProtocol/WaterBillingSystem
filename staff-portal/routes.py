@@ -64,7 +64,8 @@ async def login_submit(request: Request):
     username = str(form.get('username', '') or '')
     password = str(form.get('password', '') or '')
 
-    ip = request.client.host if request.client else 'unknown'
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    ip = forwarded.split(',')[0].strip() or (request.client.host if request.client else 'unknown')
     if not login_limiter.allow(ip):
         return templates.TemplateResponse(
             request, 'staff/login.html',
