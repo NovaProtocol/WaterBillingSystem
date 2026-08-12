@@ -25,6 +25,12 @@ services:
       - app_logs:/var/log/app
     networks:
       - net-public
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       DEBUG: ${DEBUG:?}
       CONTAINER_NAME: waterbillingsystem_landing
@@ -46,6 +52,12 @@ services:
     networks:
       - net-public
       - net-api
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       CONTAINER_NAME: waterbillingsystem_customerportal
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
@@ -69,6 +81,12 @@ services:
     networks:
       - net-private
       - net-api
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       DEBUG: ${DEBUG:?}
       CONTAINER_NAME: waterbillingsystem_staffportal
@@ -92,6 +110,12 @@ services:
     networks:
       - net-private
       - net-api
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8004/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       DEBUG: ${DEBUG:?}
       CONTAINER_NAME: waterbillingsystem_devportal
@@ -115,6 +139,12 @@ services:
     networks:
       - net-public
       - net-api
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8009/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       CONTAINER_NAME: waterbillingsystem_webhook
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
@@ -153,11 +183,15 @@ services:
       XENDIT_API_KEY: ${XENDIT_API_KEY:?}
       XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN:?}
       GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:?}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8008/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     depends_on:
       mysql-db:
         condition: service_healthy
-    deploy:
-      replicas: 1
 
   background-worker:
     build:
@@ -180,12 +214,18 @@ services:
       DB_USERNAME: ${DB_USERNAME:?}
       DB_PASS: ${DB_PASS:?}
       XENDIT_API_KEY: ${XENDIT_API_KEY:?}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8006/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     depends_on:
       mysql-db:
         condition: service_healthy
 
   phpmyadmin:
-    image: phpmyadmin:latest
+    image: phpmyadmin:5.2
     container_name: waterbillingsystem_phpmyadmin
     restart: unless-stopped
     networks:
@@ -213,6 +253,12 @@ services:
       - app_logs:/var/log/app
     networks:
       - net-private
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
       SECRET_KEY: ${SECRET_KEY:?}
