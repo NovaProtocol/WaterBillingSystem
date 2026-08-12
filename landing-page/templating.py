@@ -17,7 +17,7 @@ def _reverse_url(name: str, **params) -> str:
             for k, v in params.items():
                 path = path.replace('{' + k + '}', str(v))
             return path
-    return '#'
+    raise RuntimeError(f"url_for: unknown endpoint {name!r} (typo?)")
 
 
 templates_env = Environment(
