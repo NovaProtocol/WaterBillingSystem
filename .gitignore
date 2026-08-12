@@ -4,8 +4,9 @@
 # === exceptions: dotfiles that SHOULD be tracked ===
 !.github/
 !.gitignore
-!.gitmodules
 !.env.example
+!.agents/
+!MeterReadingApp/.prettierrc
 
 # === byte-compiled / optimized / DLL files ===
 __pycache__/
