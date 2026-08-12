@@ -5,7 +5,7 @@ Read this to find the reference file you need.
 | File | Covers |
 |------|--------|
 | [project-overview.md](reference/project-overview.md) | High-level architecture, component relationships, tech stack, directory structure |
-| [authentication.md](reference/authentication.md) | Staff login, API key auth, billing cookie auth, password hashing, permissions, rate limiting (staff portal) — CSRF protection is **planned**, not yet wired |
+| [authentication.md](reference/authentication.md) | Staff login, API key auth, billing cookie auth, password hashing, permissions, rate limiting (staff portal) — CSRF middleware removed 2026-08-12 (unused dead code); SameSite=Lax + httponly cookies cover the practical surface |
 | [database-schema.md](reference/database-schema.md) | All 11 models (Staff, Customer, MeterReading, Billing, XenditTransaction, etc.), relationships, indexes |
 | [billing-pricing.md](reference/billing-pricing.md) | Pricing tiers, water bill calculation, waterfall payment model, penalty, Xendit integration, carryover |
 | [staff-portal.md](reference/staff-portal.md) | All staff routes, permission checks, debug dashboard, customer/reading/payment management |
