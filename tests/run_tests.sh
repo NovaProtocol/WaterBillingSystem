@@ -6,9 +6,11 @@ VENV="$DIR/.venv/bin/python"
 if [ ! -f "$VENV" ]; then
     echo "Creating virtual environment..."
     python3 -m venv "$DIR/.venv"
-    "$VENV" -m pip install -q -r "$DIR/../shared/requirements.txt"
-    "$VENV" -m pip install -q playwright pytest requests
+    "$VENV" -m pip install -q -r "$DIR/../shared/requirements.txt" -r "$DIR/requirements.txt"
+    "$VENV" -m pip install -q playwright requests
     "$VENV" -m playwright install chromium 2>/dev/null || true
+else
+    "$VENV" -m pip install -q -r "$DIR/../shared/requirements.txt" -r "$DIR/requirements.txt"
 fi
 
 STAGE=${1:-all}

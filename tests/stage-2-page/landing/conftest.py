@@ -10,12 +10,10 @@ os.environ['SHARED_TEMPLATES_DIR'] = ''
 sys.path.insert(0, os.path.join(BASE, 'landing-page'))
 import shared.logger as shared_logger
 shared_logger._LOG_DIR = '/tmp/wbs-logs'
-from app import create_app
-app = create_app()
-import werkzeug.serving
-t = threading.Thread(target=werkzeug.serving.run_simple,
-                     args=('127.0.0.1', 9101, app),
-                     kwargs={'use_reloader': False}, daemon=True)
+from app import app
+from uvicorn import Config, Server
+t = threading.Thread(target=Server(Config(
+    app, host='127.0.0.1', port=9101, log_level='warning')).run, daemon=True)
 t.start()
 time.sleep(1)
 
