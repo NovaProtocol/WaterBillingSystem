@@ -31,16 +31,6 @@ app.mount('/static', StaticFiles(directory=shared_static_dir()), name='static')
 DEBUG_ENABLED = os.environ['DEBUG'].lower() in ('true', '1', 'yes')
 
 
-def _reverse_url(name: str, **params) -> str:
-    for route in app.routes:
-        if getattr(route, 'name', None) == name:
-            path = route.path_format
-            for k, v in params.items():
-                path = path.replace('{' + k + '}', str(v))
-            return path
-    return '#'
-
-
 def _datetimeformat(ts):
     if ts:
         try:
