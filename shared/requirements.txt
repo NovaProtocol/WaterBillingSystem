@@ -3,9 +3,6 @@ sqlalchemy==2.0.51
 pymysql==1.1.1
 cryptography>=41.0.0
 
-# env
-python-dotenv==1.2.2
-
 python-dateutil>=2.8.0
 
 # fastapi (phase 2+)
