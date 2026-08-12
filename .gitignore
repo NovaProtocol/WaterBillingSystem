@@ -104,3 +104,6 @@ documentation/site/
 *:Zone.Identifier:*
 Projects.code-workspace
 Projects.code-workspace
+
+# AI scratch — never commit
+.agents/
