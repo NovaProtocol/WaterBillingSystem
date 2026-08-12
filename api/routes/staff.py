@@ -9,7 +9,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import desc, select
 from sqlalchemy.orm import joinedload, selectinload
 
-from blueprint import blueprint
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api")
 from db_async import session, sync_session
 from models import ApiKey, Billing, ManagementLog, Staff
 from services.payment_service import (
@@ -40,7 +42,7 @@ def _staff_to_dict(staff: Staff) -> dict:
     }
 
 
-@blueprint.post("/staff/login")
+@router.post("/staff/login")
 async def staff_login(request: Request):
     data = await request.json()
     if not isinstance(data, dict):
@@ -60,12 +62,9 @@ async def staff_login(request: Request):
     return _staff_to_dict(staff)
 
 
-@blueprint.get("/staff/info")
+@router.get("/staff/info")
 async def staff_info(request: Request):
-    auth = await require_staff()(request)
-    api_key, err = auth
-    if err:
-        return err
+    api_key = await require_staff()(request)
 
     if api_key is True:
         staff_id = await get_staff_id(request)
@@ -90,32 +89,23 @@ async def staff_info(request: Request):
     }
 
 
-@blueprint.get("/staff/all")
-async def staff_all(auth: tuple = Depends(require_staff("can_enroll_staff"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/staff/all")
+async def staff_all(api_key: ApiKey = Depends(require_staff("can_enroll_staff"))):
     result = await session().execute(select(Staff))
     staff_list = result.scalars().all()
     return {"staff": [_staff_to_dict(s) for s in staff_list]}
 
 
-@blueprint.get("/staff/{staff_id}")
-async def staff_get(staff_id: int, auth: tuple = Depends(require_staff("can_enroll_staff"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/staff/{staff_id}")
+async def staff_get(staff_id: int, api_key: ApiKey = Depends(require_staff("can_enroll_staff"))):
     staff = await session().get(Staff, staff_id)
     if not staff:
         return JSONResponse({"error": "Staff not found"}, status_code=404)
     return _staff_to_dict(staff)
 
 
-@blueprint.post("/staff/new")
-async def staff_new(request: Request, auth: tuple = Depends(require_staff("can_enroll_staff"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/staff/new")
+async def staff_new(request: Request, api_key: ApiKey = Depends(require_staff("can_enroll_staff"))):
     data = await request.json()
     if not isinstance(data, dict):
         data = {}
@@ -145,11 +135,8 @@ async def staff_new(request: Request, auth: tuple = Depends(require_staff("can_e
     return JSONResponse({"message": "Staff created", "username": staff.username, "name": staff.name}, status_code=201)
 
 
-@blueprint.post("/staff/{staff_id}/edit")
-async def staff_edit(staff_id: int, request: Request, auth: tuple = Depends(require_staff("can_enroll_staff"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/staff/{staff_id}/edit")
+async def staff_edit(staff_id: int, request: Request, api_key: ApiKey = Depends(require_staff("can_enroll_staff"))):
     data = await request.json()
     if not isinstance(data, dict):
         data = {}
@@ -183,11 +170,8 @@ async def staff_edit(staff_id: int, request: Request, auth: tuple = Depends(requ
     return {"message": "Staff updated", "username": staff.username, "name": staff.name}
 
 
-@blueprint.get("/staff/{staff_id}/cashier-tally")
-async def staff_cashier_tally(staff_id: int, request: Request, auth: tuple = Depends(require_staff("can_accept_payment"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/staff/{staff_id}/cashier-tally")
+async def staff_cashier_tally(staff_id: int, request: Request, api_key: ApiKey = Depends(require_staff("can_accept_payment"))):
     period = request.query_params.get("period", "daily")
     today = datetime.now(tz=timezone.utc).replace(tzinfo=None)
     start_str = request.query_params.get("start_date") or request.query_params.get("date")
@@ -226,11 +210,8 @@ async def staff_cashier_tally(staff_id: int, request: Request, auth: tuple = Dep
     }
 
 
-@blueprint.get("/staff/{staff_id}/reading-logs")
-async def staff_reading_logs(staff_id: int, auth: tuple = Depends(require_staff("can_drop_reading"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/staff/{staff_id}/reading-logs")
+async def staff_reading_logs(staff_id: int, api_key: ApiKey = Depends(require_staff("can_drop_reading"))):
     result = await session().execute(
         select(ManagementLog)
         .options(selectinload(ManagementLog.staff))
@@ -256,11 +237,8 @@ async def staff_reading_logs(staff_id: int, auth: tuple = Depends(require_staff(
     }
 
 
-@blueprint.get("/staff/{staff_id}/api-keys")
-async def staff_api_keys(staff_id: int, auth: tuple = Depends(require_staff())):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/staff/{staff_id}/api-keys")
+async def staff_api_keys(staff_id: int, api_key: ApiKey = Depends(require_staff())):
     result = await session().execute(
         select(ApiKey)
         .options(joinedload(ApiKey.staff))
@@ -287,11 +265,8 @@ async def staff_api_keys(staff_id: int, auth: tuple = Depends(require_staff())):
     }
 
 
-@blueprint.post("/staff/{staff_id}/api-key/generate")
-async def staff_api_key_generate(staff_id: int, request: Request, auth: tuple = Depends(require_staff("can_read_meters"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/staff/{staff_id}/api-key/generate")
+async def staff_api_key_generate(staff_id: int, request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
     data = await request.json()
     if not isinstance(data, dict):
         data = {}
@@ -306,11 +281,8 @@ async def staff_api_key_generate(staff_id: int, request: Request, auth: tuple = 
     return JSONResponse({"key": key, "label": label, "id": new_key.id}, status_code=201)
 
 
-@blueprint.post("/staff/{staff_id}/api-key/{key_id}/revoke")
-async def staff_api_key_revoke(staff_id: int, key_id: int, auth: tuple = Depends(require_staff("can_read_meters"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/staff/{staff_id}/api-key/{key_id}/revoke")
+async def staff_api_key_revoke(staff_id: int, key_id: int, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
     target = await session().get(ApiKey, key_id)
     if not target:
         return JSONResponse({"error": "Key not found"}, status_code=404)
@@ -319,7 +291,7 @@ async def staff_api_key_revoke(staff_id: int, key_id: int, auth: tuple = Depends
     return {"message": "Key revoked"}
 
 
-@blueprint.post("/staff/{staff_id}/api-key/verify")
+@router.post("/staff/{staff_id}/api-key/verify")
 async def staff_api_key_verify(staff_id: int, request: Request):
     api_key = await resolve_api_key(request)
     if not api_key:

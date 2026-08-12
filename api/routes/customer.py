@@ -13,7 +13,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import joinedload, selectinload
 
-from blueprint import blueprint
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api")
 from billing_service import ensure_penalty
 from customer_service import (
     create_customer,
@@ -61,22 +63,16 @@ def _run_sync(fn, *args, **kwargs):
     return run_in_threadpool(_call)
 
 
-@blueprint.get("/customer/count")
-async def customer_count(auth: tuple = Depends(require_staff("can_read_meters"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/customer/count")
+async def customer_count(api_key: ApiKey = Depends(require_staff("can_read_meters"))):
     result = await session().execute(
         select(func.count()).select_from(Customer).where(Customer.is_active.is_(True))
     )
     return {"count": result.scalar() or 0}
 
 
-@blueprint.get("/customer/all")
-async def customer_all(request: Request, auth: tuple = Depends(require_staff("can_read_meters"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/customer/all")
+async def customer_all(request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
     try:
         page = int(request.query_params.get("page", "1"))
     except (ValueError, TypeError):
@@ -137,12 +133,9 @@ async def customer_all(request: Request, auth: tuple = Depends(require_staff("ca
     }
 
 
-@blueprint.get("/customer/{customer_number}")
-async def customer_info(customer_number: int, request: Request, auth: tuple = Depends(require_staff("can_read_meters"))):
+@router.get("/customer/{customer_number}")
+async def customer_info(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
     """Get full billing details for a specific customer."""
-    api_key, err = auth
-    if err:
-        return err
 
     result = await session().execute(
         select(Customer).where(Customer.customer_number == customer_number)
@@ -431,12 +424,9 @@ async def customer_info(customer_number: int, request: Request, auth: tuple = De
     }
 
 
-@blueprint.get("/customer/{customer_number}/details")
-async def customer_details(customer_number: int, request: Request, auth: tuple = Depends(require_staff("can_read_meters"))):
+@router.get("/customer/{customer_number}/details")
+async def customer_details(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
     """Get customer profile with recent reading history."""
-    api_key, err = auth
-    if err:
-        return err
 
     result = await session().execute(
         select(Customer).where(Customer.customer_number == customer_number)
@@ -488,11 +478,8 @@ async def customer_details(customer_number: int, request: Request, auth: tuple =
     }
 
 
-@blueprint.post("/customer/new")
-async def customer_new(request: Request, auth: tuple = Depends(require_staff("can_enroll_customer"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/customer/new")
+async def customer_new(request: Request, api_key: ApiKey = Depends(require_staff("can_enroll_customer"))):
     data = await request.json()
     if not isinstance(data, dict):
         data = {}
@@ -506,11 +493,8 @@ async def customer_new(request: Request, auth: tuple = Depends(require_staff("ca
     }, status_code=201)
 
 
-@blueprint.put("/customer/update/{customer_number}")
-async def customer_update(customer_number: int, request: Request, auth: tuple = Depends(require_staff("can_enroll_customer"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.put("/customer/update/{customer_number}")
+async def customer_update(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_enroll_customer"))):
     result = await session().execute(
         select(Customer).where(Customer.customer_number == customer_number)
     )
@@ -524,11 +508,8 @@ async def customer_update(customer_number: int, request: Request, auth: tuple = 
     return {"message": "Customer updated"}
 
 
-@blueprint.delete("/customer/delete/{customer_number}")
-async def customer_delete(customer_number: int, auth: tuple = Depends(require_staff("can_enroll_customer"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.delete("/customer/delete/{customer_number}")
+async def customer_delete(customer_number: int, api_key: ApiKey = Depends(require_staff("can_enroll_customer"))):
     result = await session().execute(
         select(Customer).where(Customer.customer_number == customer_number)
     )
@@ -542,7 +523,7 @@ async def customer_delete(customer_number: int, auth: tuple = Depends(require_st
     }
 
 
-@blueprint.post("/customer/login")
+@router.post("/customer/login")
 async def customer_login(request: Request):
     data = await request.json()
     if not isinstance(data, dict):
@@ -582,7 +563,7 @@ async def customer_login(request: Request):
     }
 
 
-@blueprint.post("/customer/{customer_number}/invoice")
+@router.post("/customer/{customer_number}/invoice")
 async def customer_invoice(customer_number: int, request: Request):
     result = await session().execute(
         select(Customer).where(Customer.customer_number == customer_number)
@@ -706,11 +687,8 @@ async def customer_invoice(customer_number: int, request: Request):
 # ── Reading CRUD ────────────────────────────────────────────────────────
 
 
-@blueprint.get("/customer/{customer_number}/reading")
-async def customer_readings(customer_number: int, request: Request, auth: tuple = Depends(require_staff("can_read_meters"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/customer/{customer_number}/reading")
+async def customer_readings(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
 
     try:
         page = int(request.query_params.get("page", "1"))
@@ -757,11 +735,8 @@ async def customer_readings(customer_number: int, request: Request, auth: tuple 
     }
 
 
-@blueprint.post("/customer/{customer_number}/reading/new")
-async def customer_reading_new(customer_number: int, request: Request, auth: tuple = Depends(require_staff("can_read_meters"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/customer/{customer_number}/reading/new")
+async def customer_reading_new(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
 
     data = await request.json()
     if not isinstance(data, dict):
@@ -805,11 +780,8 @@ async def customer_reading_new(customer_number: int, request: Request, auth: tup
     }, status_code=201)
 
 
-@blueprint.post("/customer/{customer_number}/reading/drop")
-async def customer_reading_drop(customer_number: int, request: Request, auth: tuple = Depends(require_staff("can_drop_reading"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/customer/{customer_number}/reading/drop")
+async def customer_reading_drop(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_drop_reading"))):
 
     data = await request.json()
     if not isinstance(data, dict):
@@ -828,11 +800,8 @@ async def customer_reading_drop(customer_number: int, request: Request, auth: tu
     return {"message": "Reading dropped"}
 
 
-@blueprint.post("/customer/{customer_number}/reading/edit")
-async def customer_reading_edit(customer_number: int, request: Request, auth: tuple = Depends(require_staff("can_manage_billing"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/customer/{customer_number}/reading/edit")
+async def customer_reading_edit(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_manage_billing"))):
 
     data = await request.json()
     if not isinstance(data, dict):
@@ -849,11 +818,8 @@ async def customer_reading_edit(customer_number: int, request: Request, auth: tu
     return {"message": "Reading updated"}
 
 
-@blueprint.get("/customers/changed")
-async def customers_changed(request: Request, auth: tuple = Depends(require_staff("can_read_meters"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/customers/changed")
+async def customers_changed(request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
 
     try:
         since = int(request.query_params.get("since"))
@@ -911,11 +877,8 @@ async def customers_changed(request: Request, auth: tuple = Depends(require_staf
 # ── Billing CRUD ────────────────────────────────────────────────────────
 
 
-@blueprint.get("/customer/{customer_number}/billing")
-async def customer_billing(customer_number: int, request: Request, auth: tuple = Depends(require_staff("can_read_meters"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/customer/{customer_number}/billing")
+async def customer_billing(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
 
     try:
         page = int(request.query_params.get("page", "1"))
@@ -975,11 +938,8 @@ async def customer_billing(customer_number: int, request: Request, auth: tuple =
     }
 
 
-@blueprint.post("/customer/{customer_number}/billing/new")
-async def customer_billing_new(customer_number: int, request: Request, auth: tuple = Depends(require_staff("can_accept_payment"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/customer/{customer_number}/billing/new")
+async def customer_billing_new(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_accept_payment"))):
 
     data = await request.json()
     if not isinstance(data, dict):
@@ -999,11 +959,8 @@ async def customer_billing_new(customer_number: int, request: Request, auth: tup
     return JSONResponse(result, status_code=status)
 
 
-@blueprint.post("/customer/{customer_number}/billing/drop")
-async def customer_billing_drop(customer_number: int, request: Request, auth: tuple = Depends(require_staff("can_drop_payment"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/customer/{customer_number}/billing/drop")
+async def customer_billing_drop(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_drop_payment"))):
 
     data = await request.json()
     if not isinstance(data, dict):
@@ -1031,11 +988,8 @@ async def customer_billing_drop(customer_number: int, request: Request, auth: tu
 # ── NFC ──────────────────────────────────────────────────────────────────
 
 
-@blueprint.get("/customer/{customer_number}/nfc")
-async def customer_nfc(customer_number: int, auth: tuple = Depends(require_staff("can_read_meters"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/customer/{customer_number}/nfc")
+async def customer_nfc(customer_number: int, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
 
     result = await session().execute(
         select(NfcTag).where(NfcTag.customer_number == customer_number)
@@ -1050,11 +1004,8 @@ async def customer_nfc(customer_number: int, auth: tuple = Depends(require_staff
     }
 
 
-@blueprint.get("/customer/all/nfc")
-async def customer_all_nfc(auth: tuple = Depends(require_staff("can_read_meters"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/customer/all/nfc")
+async def customer_all_nfc(api_key: ApiKey = Depends(require_staff("can_read_meters"))):
 
     result = await session().execute(
         select(NfcTag).order_by(desc(NfcTag.date_created))
@@ -1068,11 +1019,8 @@ async def customer_all_nfc(auth: tuple = Depends(require_staff("can_read_meters"
     }
 
 
-@blueprint.post("/customer/{customer_number}/nfc/create")
-async def customer_nfc_create(customer_number: int, request: Request, auth: tuple = Depends(require_staff("can_enroll_customer"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/customer/{customer_number}/nfc/create")
+async def customer_nfc_create(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_enroll_customer"))):
 
     data = await request.json()
     if not isinstance(data, dict):
@@ -1107,11 +1055,8 @@ async def customer_nfc_create(customer_number: int, request: Request, auth: tupl
     return JSONResponse({"message": "Tag assigned", "uid": uid, "customer_number": customer_number}, status_code=201)
 
 
-@blueprint.post("/customer/{customer_number}/nfc/delete")
-async def customer_nfc_delete(customer_number: int, auth: tuple = Depends(require_staff("can_enroll_customer"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.post("/customer/{customer_number}/nfc/delete")
+async def customer_nfc_delete(customer_number: int, api_key: ApiKey = Depends(require_staff("can_enroll_customer"))):
 
     tag_result = await session().execute(
         select(NfcTag).where(NfcTag.customer_number == customer_number)

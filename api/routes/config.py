@@ -7,16 +7,18 @@ from fastapi import Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
-from blueprint import blueprint
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api")
 from db_async import session
-from models import Config as AppConfig
+from models import ApiKey, Config as AppConfig
 from pricing import DUE_DAYS, LATE_PENALTY, PRICING_TIERS
 from utils import require_staff, resolve_api_key
 
 logger = logging.getLogger('api')
 
 
-@blueprint.get("/config/nfc_secret")
+@router.get("/config/nfc_secret")
 async def config_nfc_secret(request: Request):
     api_key = await resolve_api_key(request)
     if not api_key or not api_key.is_active:
@@ -38,11 +40,8 @@ async def config_nfc_secret(request: Request):
     }
 
 
-@blueprint.get("/config/pricing")
-async def config_pricing(auth: tuple = Depends(require_staff("can_read_meters"))):
-    api_key, err = auth
-    if err:
-        return err
+@router.get("/config/pricing")
+async def config_pricing(api_key: ApiKey = Depends(require_staff("can_read_meters"))):
     return {
         "tiers": PRICING_TIERS,
         "late_penalty": LATE_PENALTY,
