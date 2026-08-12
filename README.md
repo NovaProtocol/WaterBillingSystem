@@ -47,7 +47,7 @@ docker compose up -d --build
 
 `.env.example` is the source of truth for variables and defaults. A complete
 inventory of every variable read by code or `compose.yaml` lives in
-`~/Projects/agent_stuff/env.md`.
+`.env.example`.
 
 ## Development
 
