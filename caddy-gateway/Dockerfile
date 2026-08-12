@@ -1,7 +1,4 @@
 FROM caddy:alpine
-COPY caddy-gateway/Caddyfile.dev /etc/caddy/Caddyfile.dev
-COPY caddy-gateway/Caddyfile.prod /etc/caddy/Caddyfile.prod
-COPY caddy-gateway/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY caddy-gateway/Caddyfile /etc/caddy/Caddyfile
 EXPOSE 7020 7021
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

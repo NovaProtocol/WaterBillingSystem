@@ -14,8 +14,6 @@ services:
       - net-private
       - net-gk
       - cloudflared-tunnel
-    environment:
-      DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
 
   landing-page:
     build:
