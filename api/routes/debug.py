@@ -10,7 +10,9 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import desc, func, select
 
-from blueprint import blueprint
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api")
 from db_async import session
 from models import (
     ApiKey,
@@ -49,7 +51,7 @@ async def _enqueue(task_type: str, params: dict | None = None, title: str | None
     return task
 
 
-@blueprint.get("/debug/stats")
+@router.get("/debug/stats")
 async def debug_stats():
     _superuser_only()
     counts = {}
@@ -76,14 +78,14 @@ async def debug_stats():
     return counts
 
 
-@blueprint.post("/debug/backup")
+@router.post("/debug/backup")
 async def debug_backup():
     _superuser_only()
     task = await _enqueue(task_type="backup", params={}, title="Backup Database")
     return {"ok": True, "order_id": task.id, "message": "Backup queued."}
 
 
-@blueprint.get("/debug/backups")
+@router.get("/debug/backups")
 async def debug_backups():
     _superuser_only()
     if not BACKUP_DIR.exists():
@@ -101,7 +103,7 @@ async def debug_backups():
     }
 
 
-@blueprint.post("/debug/restore")
+@router.post("/debug/restore")
 async def debug_restore(request: Request):
     _superuser_only()
     data = await request.json()
@@ -119,7 +121,7 @@ async def debug_restore(request: Request):
     return {"ok": True, "order_id": task.id, "message": "Restore queued."}
 
 
-@blueprint.get("/debug/restore-newest")
+@router.get("/debug/restore-newest")
 async def debug_restore_newest():
     global _last_restore_newest_time
     with _restore_newest_lock:
@@ -139,14 +141,14 @@ async def debug_restore_newest():
     return {"ok": True, "order_id": task.id, "message": f"Restoring from newest backup: {filename}"}
 
 
-@blueprint.post("/debug/clear")
+@router.post("/debug/clear")
 async def debug_clear():
     _superuser_only()
     task = await _enqueue(task_type="clear", params={}, title="Clear Database")
     return {"ok": True, "order_id": task.id, "message": "Clear queued."}
 
 
-@blueprint.post("/debug/seed")
+@router.post("/debug/seed")
 async def debug_seed(request: Request):
     _superuser_only()
     data = await request.json()
@@ -185,7 +187,7 @@ async def debug_seed(request: Request):
     return {"ok": True, "order_id": task.id, "message": "Seed queued."}
 
 
-@blueprint.post("/debug/read-month")
+@router.post("/debug/read-month")
 async def debug_read_month():
     _superuser_only()
     task = await _enqueue(
@@ -194,7 +196,7 @@ async def debug_read_month():
     return {"ok": True, "order_id": task.id, "message": "Read-this-month queued."}
 
 
-@blueprint.post("/debug/unread-month")
+@router.post("/debug/unread-month")
 async def debug_unread_month():
     _superuser_only()
     task = await _enqueue(
@@ -203,7 +205,7 @@ async def debug_unread_month():
     return {"ok": True, "order_id": task.id, "message": "Unread-this-month queued."}
 
 
-@blueprint.post("/debug/pay-month")
+@router.post("/debug/pay-month")
 async def debug_pay_month():
     _superuser_only()
     task = await _enqueue(
@@ -212,7 +214,7 @@ async def debug_pay_month():
     return {"ok": True, "order_id": task.id, "message": "Pay-this-month queued."}
 
 
-@blueprint.post("/debug/remove-pay-month")
+@router.post("/debug/remove-pay-month")
 async def debug_remove_pay_month():
     _superuser_only()
     task = await _enqueue(
@@ -221,7 +223,7 @@ async def debug_remove_pay_month():
     return {"ok": True, "order_id": task.id, "message": "Remove-payment queued."}
 
 
-@blueprint.get("/debug/tasks")
+@router.get("/debug/tasks")
 async def debug_tasks():
     _superuser_only()
     current_result = await session().execute(
@@ -262,7 +264,7 @@ async def debug_tasks():
     }
 
 
-@blueprint.get("/debug/tasks/{task_id}")
+@router.get("/debug/tasks/{task_id}")
 async def debug_task(task_id: int):
     _superuser_only()
     task = await session().get(BackgroundTask, task_id)

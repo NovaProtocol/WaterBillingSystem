@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import os
 
-from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi import HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -52,25 +51,22 @@ async def get_staff_id(request: Request) -> int | None:
 
 
 def require_staff(*perms: str):
-    """FastAPI dependency factory. Returns (api_key_or_True, err_or_None) so
-    route bodies keep the original Flask shape:
-        api_key, err = auth
-        if err: return err
-    """
+    """FastAPI dependency factory. Returns the ApiKey (or True for the
+    internal key) on success; raises HTTPException on auth failure."""
 
     async def _dep(request: Request):
         internal_key = request.headers.get("X-Internal-API-Key", "")
         if internal_key and internal_key == os.environ["INTERNAL_API_KEY"]:
-            return True, None
+            return True
 
         api_key = await resolve_api_key(request)
         if not api_key:
-            return None, JSONResponse({"error": "Authentication required"}, status_code=401)
+            raise HTTPException(status_code=401, detail={"error": "Authentication required"})
         if not api_key.staff:
-            return None, JSONResponse({"error": "Permission denied"}, status_code=403)
+            raise HTTPException(status_code=403, detail={"error": "Permission denied"})
         for perm in perms:
             if not getattr(api_key.staff, perm, False):
-                return None, JSONResponse({"error": "Permission denied"}, status_code=403)
-        return api_key, None
+                raise HTTPException(status_code=403, detail={"error": "Permission denied"})
+        return api_key
 
     return _dep

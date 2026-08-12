@@ -4,13 +4,15 @@ import logging
 
 from sqlalchemy import text
 
-from blueprint import blueprint
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api")
 from db_async import session
 
 logger = logging.getLogger('api')
 
 
-@blueprint.get("/health")
+@router.get("/health")
 async def health():
     try:
         await session().execute(text("SELECT 1"))
