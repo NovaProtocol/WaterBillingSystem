@@ -113,7 +113,7 @@ def session_factory() -> async_sessionmaker:
 
 
 async def init_db() -> None:
-    """Create all tables (FastAPI startup). Migrations arrive with phase 2."""
+    """Create all tables (FastAPI startup)."""
     if _engine is None:
         init_engine()
     async with _engine.begin() as conn:
