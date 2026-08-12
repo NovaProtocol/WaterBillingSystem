@@ -6,6 +6,7 @@
 !.gitignore
 !.env.example
 !.agents/
+!.editorconfig
 !MeterReadingApp/.prettierrc
 
 # === byte-compiled / optimized / DLL files ===
