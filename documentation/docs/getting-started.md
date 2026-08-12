@@ -92,12 +92,10 @@ Developer Portal (`http://localhost:7021/developer/`) → Database Tools panel: 
 
 ## 5. Development Workflow
 
-`documentation/launch.sh` runs the docs site standalone (venv on first run, builds MkDocs site, dev server on port 8005). Other services run via Docker:
+Run the docs site via Docker (FastAPI + granian, port 8005 inside the compose network, exposed at `http://localhost:7021/documentation/`):
 
 ```bash
-# Run the documentation site standalone
-cd documentation
-./launch.sh
+docker compose up -d --build documentation
 ```
 
 The shared library lives at `shared/` and is mounted via `PYTHONPATH=/app/shared`.
