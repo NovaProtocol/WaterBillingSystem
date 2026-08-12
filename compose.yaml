@@ -206,6 +206,8 @@ services:
       - app_logs:/var/log/app
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
       WORKER_JOB_CONCURRENCY: ${WORKER_JOB_CONCURRENCY:-8}
       DB_ENGINE: ${DB_ENGINE:?}
       DB_HOST: ${DB_HOST:?}
@@ -254,7 +256,7 @@ services:
     networks:
       - net-private
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=2)"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=2)"]
       interval: 30s
       timeout: 5s
       retries: 3
