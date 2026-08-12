@@ -182,7 +182,7 @@ async def login(request: Request):
     token = make_token({'customer_number': customer_number, 'customer': customer})
     resp = JSONResponse({'ok': True, 'redirect': '/customer/', 'customer': customer})
     resp.set_cookie('billing_session', token, max_age=MAX_AGE, httponly=True,
-                    samesite='Lax', path='/customer/')
+                    samesite='Lax', secure=True, path='/customer/')
     return _no_cache(resp)
 
 
