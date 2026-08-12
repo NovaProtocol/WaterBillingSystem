@@ -22,9 +22,9 @@ def _async_url() -> str:
     """Derive the async DB URL from the configured (sync) URI by swapping the
     driver. Keeps DB_ENGINE=mysql+pymysql valid for the transitional Flask
     services while the FastAPI side uses aiomysql; SQLite becomes aiosqlite."""
-    from config import Config
+    from config import get_config
 
-    uri = Config.SQLALCHEMY_DATABASE_URI
+    uri = get_config().SQLALCHEMY_DATABASE_URI
     if uri.startswith("sqlite"):
         return uri.replace("sqlite://", "sqlite+aiosqlite://", 1)
     return uri.replace("+pymysql", "+aiomysql")
@@ -34,11 +34,11 @@ def init_engine() -> None:
     global _engine, _sessionmaker, _sync_engine, _sync_sessionmaker
     if _engine is not None:
         return
-    from config import Config
+    from config import get_config
 
     _engine = create_async_engine(_async_url(), pool_pre_ping=True, pool_size=5)
     _sessionmaker = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
-    _sync_engine = create_engine(Config.SQLALCHEMY_DATABASE_URI, pool_size=5)
+    _sync_engine = create_engine(get_config().SQLALCHEMY_DATABASE_URI, pool_size=5)
     _sync_sessionmaker = sessionmaker(_sync_engine, expire_on_commit=False)
 
 
