@@ -22,6 +22,9 @@ from services.payment_service import (
 from utils import get_staff_id, require_staff, resolve_api_key
 
 from shared.passwords import hash_password, verify_password
+from shared.security import RateLimiter
+
+login_limiter = RateLimiter(limit=10, window=60.0)
 
 
 def _staff_to_dict(staff: Staff) -> dict:
@@ -44,6 +47,10 @@ def _staff_to_dict(staff: Staff) -> dict:
 
 @router.post("/staff/login")
 async def staff_login(request: Request):
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    ip = forwarded.split(',')[0].strip() or (request.client.host if request.client else 'unknown')
+    if not login_limiter.allow(ip):
+        return JSONResponse({"error": "Too many attempts. Try again later."}, status_code=429)
     data = await request.json()
     if not isinstance(data, dict):
         data = {}
