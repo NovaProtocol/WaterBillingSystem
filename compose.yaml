@@ -172,6 +172,7 @@ services:
       - app_logs:/var/log/app
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+      WORKER_JOB_CONCURRENCY: ${WORKER_JOB_CONCURRENCY:-8}
       DB_ENGINE: ${DB_ENGINE:?}
       DB_HOST: ${DB_HOST:?}
       DB_PORT: ${DB_PORT:?}
