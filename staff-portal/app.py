@@ -50,7 +50,7 @@ def _datetimeformat(ts):
     return ''
 
 
-import routes  # noqa: E402import routes  # noqa: E402  (registers routes on the router)
+import routes  # noqa: E402  (registers routes on the router)
 
 app.include_router(routes.router)
 
