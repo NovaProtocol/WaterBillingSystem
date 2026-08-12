@@ -60,7 +60,7 @@ def _generate_and_store_code(request: Request) -> str:
 def _with_confirm_cookie(resp, payload: dict | None):
     if payload is not None:
         resp.set_cookie(COOKIE_NAME, _resign_cookie(payload), max_age=MAX_AGE,
-                        httponly=True, samesite='Lax', path='/')
+                        httponly=True, samesite='Lax', secure=True, path='/')
     return resp
 
 

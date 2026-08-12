@@ -83,6 +83,7 @@ async def login_submit(request: Request):
                 max_age=staff_auth.MAX_AGE,
                 httponly=True,
                 samesite='Lax',
+                secure=True,
                 path='/',
             )
             login_limiter.reset(ip)
