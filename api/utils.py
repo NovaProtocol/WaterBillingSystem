@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 
 from fastapi import HTTPException, Request
 from sqlalchemy import select
@@ -56,7 +57,7 @@ def require_staff(*perms: str):
 
     async def _dep(request: Request):
         internal_key = request.headers.get("X-Internal-API-Key", "")
-        if internal_key and internal_key == os.environ["INTERNAL_API_KEY"]:
+        if internal_key and secrets.compare_digest(internal_key, os.environ["INTERNAL_API_KEY"]):
             return True
 
         api_key = await resolve_api_key(request)
