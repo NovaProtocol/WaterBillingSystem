@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import text
-
 from fastapi import APIRouter
+from sqlalchemy import text
 
 router = APIRouter(prefix="/api")
 from db_async import session
 
-logger = logging.getLogger('api')
+logger = logging.getLogger("api")
 
 
 @router.get("/health")

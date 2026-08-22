@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package api.v1;
+
+// BillingService handles customer, billing, payment and reading
+// operations for internal container-to-container traffic over gRPC.
+// Public HTTP via Caddy handle /api/* remains the external surface;
+// internal callers (portals, webhook, worker) should prefer this service
+// via grpc.aio.insecure_channel("api:50051").
+service BillingService {
+  rpc GetCustomer (GetCustomerRequest) returns (GetCustomerResponse);
+  rpc ListCustomers (ListCustomersRequest) returns (ListCustomersResponse);
+  rpc CreateCustomer (CreateCustomerRequest) returns (CreateCustomerResponse);
+  rpc GetBillingHistory (GetBillingHistoryRequest) returns (GetBillingHistoryResponse);
+  rpc SubmitPayment (SubmitPaymentRequest) returns (SubmitPaymentResponse);
+  rpc GetReadings (GetReadingsRequest) returns (GetReadingsResponse);
+  rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+service CustomerService {
+  rpc GetCustomer (GetCustomerRequest) returns (GetCustomerResponse);
+  rpc CreateCustomer (CreateCustomerRequest) returns (CreateCustomerResponse);
+}
+
+// ── Customer ───────────────────────────────────────────────────────────
+
+message GetCustomerRequest {
+  int32 customer_number = 1;
+}
+
+message GetCustomerResponse {
+  int32 customer_number = 1;
+  string name = 2;
+  string contact_number = 3;
+  string address = 4;
+  string email = 5;
+  bool is_active = 6;
+  double total_due = 7;
+  double cumulative_balance = 8;
+  string meter_serial_number = 9;
+}
+
+message ListCustomersRequest {
+  string q = 1;
+  int32 page = 2;
+  int32 size = 3;
+  string sort_by = 4;
+  string sort_dir = 5;
+}
+
+message ListCustomersResponse {
+  repeated GetCustomerResponse customers = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 pages = 4;
+  int32 page_size = 5;
+}
+
+message CreateCustomerRequest {
+  string name = 1;
+  string address = 2;
+  string contact_number = 3;
+  string email = 4;
+}
+
+message CreateCustomerResponse {
+  int32 customer_number = 1;
+  string name = 2;
+}
+
+// ── Billing ────────────────────────────────────────────────────────────
+
+message BillingRecord {
+  int32 id = 1;
+  int32 customer_number = 2;
+  string month = 3;
+  double consumption = 4;
+  double billed_amount = 5;
+  double penalty = 6;
+  bool is_paid = 7;
+  double paid_amount = 8;
+  int64 payment_timestamp = 9;
+}
+
+message GetBillingHistoryRequest {
+  int32 customer_number = 1;
+  int32 page = 2;
+  int32 size = 3;
+}
+
+message GetBillingHistoryResponse {
+  repeated BillingRecord records = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 pages = 4;
+}
+
+message SubmitPaymentRequest {
+  int32 customer_number = 1;
+  double amount = 2;
+  string payment_method = 3;
+}
+
+message SubmitPaymentResponse {
+  bool success = 1;
+  string message = 2;
+  int32 billing_id = 3;
+}
+
+// ── Readings ───────────────────────────────────────────────────────────
+
+message ReadingRecord {
+  int32 id = 1;
+  int32 customer_number = 2;
+  double reading_value = 3;
+  int64 timestamp = 4;
+  string reader_name = 5;
+}
+
+message GetReadingsRequest {
+  int32 customer_number = 1;
+  int32 page = 2;
+  int32 size = 3;
+}
+
+message GetReadingsResponse {
+  repeated ReadingRecord readings = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 pages = 4;
+}
+
+// ── Health ─────────────────────────────────────────────────────────────
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  string db = 2;
+}

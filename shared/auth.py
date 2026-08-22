@@ -4,10 +4,10 @@ import os
 
 from itsdangerous import URLSafeTimedSerializer
 
-SALT = 'portal-session'
+SALT = "portal-session"
 MAX_AGE = 3600
 
-_serializer = URLSafeTimedSerializer(os.environ['SECRET_KEY'], salt=SALT)
+_serializer = URLSafeTimedSerializer(os.environ["SECRET_KEY"], salt=SALT)
 
 
 def make_token(payload: dict) -> str:

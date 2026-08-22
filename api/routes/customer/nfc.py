@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from db_async import session
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from models import ApiKey, Config, Customer, NfcTag
 from pydantic import BaseModel
 from sqlalchemy import desc, select
-
-from db_async import session
-from models import ApiKey, Config, Customer, NfcTag
 from utils import get_staff_id, require_staff
 
 router = APIRouter()
@@ -19,8 +18,9 @@ class NfcCreatePayload(BaseModel):
 
 
 @router.get("/customer/{customer_number}/nfc")
-async def customer_nfc(customer_number: int, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
-
+async def customer_nfc(
+    customer_number: int, api_key: ApiKey = Depends(require_staff("can_read_meters"))
+):
     result = await session().execute(
         select(NfcTag).where(NfcTag.customer_number == customer_number)
     )
@@ -36,29 +36,23 @@ async def customer_nfc(customer_number: int, api_key: ApiKey = Depends(require_s
 
 @router.get("/customer/all/nfc")
 async def customer_all_nfc(api_key: ApiKey = Depends(require_staff("can_read_meters"))):
-
-    result = await session().execute(
-        select(NfcTag).order_by(desc(NfcTag.date_created))
-    )
+    result = await session().execute(select(NfcTag).order_by(desc(NfcTag.date_created)))
     tags = result.scalars().all()
-    return {
-        "tags": [
-            {"uid": t.uid, "customer_number": t.customer_number}
-            for t in tags
-        ]
-    }
+    return {"tags": [{"uid": t.uid, "customer_number": t.customer_number} for t in tags]}
 
 
 @router.post("/customer/{customer_number}/nfc/create", status_code=201)
-async def customer_nfc_create(customer_number: int, payload: NfcCreatePayload, request: Request, api_key: ApiKey = Depends(require_staff("can_enroll_customer"))):
-
+async def customer_nfc_create(
+    customer_number: int,
+    payload: NfcCreatePayload,
+    request: Request,
+    api_key: ApiKey = Depends(require_staff("can_enroll_customer")),
+):
     uid = str(payload.uid or "").strip()
     if not uid:
         return JSONResponse({"error": "uid is required"}, status_code=400)
 
-    existing_result = await session().execute(
-        select(NfcTag).where(NfcTag.uid == uid)
-    )
+    existing_result = await session().execute(select(NfcTag).where(NfcTag.uid == uid))
     if existing_result.scalar_one_or_none():
         return JSONResponse({"error": "Tag UID already assigned"}, status_code=409)
 
@@ -83,8 +77,10 @@ async def customer_nfc_create(customer_number: int, payload: NfcCreatePayload, r
 
 
 @router.post("/customer/{customer_number}/nfc/delete")
-async def customer_nfc_delete(customer_number: int, api_key: ApiKey = Depends(require_staff("can_enroll_customer"))):
-
+async def customer_nfc_delete(
+    customer_number: int,
+    api_key: ApiKey = Depends(require_staff("can_enroll_customer")),
+):
     tag_result = await session().execute(
         select(NfcTag).where(NfcTag.customer_number == customer_number)
     )
@@ -98,9 +94,7 @@ async def customer_nfc_delete(customer_number: int, api_key: ApiKey = Depends(re
     customer = customer_result.scalar_one_or_none()
     await session().delete(tag)
 
-    gen_result = await session().execute(
-        select(Config).where(Config.key == "nfc_generation")
-    )
+    gen_result = await session().execute(select(Config).where(Config.key == "nfc_generation"))
     gen_row = gen_result.scalar_one_or_none()
     if gen_row:
         gen_row.value = str(int(gen_row.value) + 1)

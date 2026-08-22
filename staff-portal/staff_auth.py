@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from contextvars import ContextVar
+
 from fastapi import Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from shared.auth import MAX_AGE, load_token, make_token
+from shared.auth import load_token, make_token
 
-COOKIE_NAME = 'session'
+COOKIE_NAME = "session"
 
-_current_staff: ContextVar[dict | None] = ContextVar('current_staff', default=None)
+_current_staff: ContextVar[dict | None] = ContextVar("current_staff", default=None)
 
 
 class _Anonymous:
@@ -36,9 +37,9 @@ class _StaffProxy:
         staff = _current_staff.get()
         if staff is None:
             return getattr(_Anonymous(), name)
-        if name == 'is_authenticated':
+        if name == "is_authenticated":
             return True
-        if name == 'is_anonymous':
+        if name == "is_anonymous":
             return False
         return staff.get(name)
 
@@ -48,7 +49,7 @@ current_user = _StaffProxy()
 
 def set_staff(request: Request) -> None:
     payload = load_token(request.cookies.get(COOKIE_NAME))
-    if payload and payload.get('id'):
+    if payload and payload.get("id"):
         _current_staff.set(payload)
 
 
@@ -65,15 +66,15 @@ def login_cookie(staff: dict) -> str:
 
 
 def logout_response() -> RedirectResponse:
-    resp = RedirectResponse('/staff/login', status_code=302)
-    resp.headers['Cache-Control'] = 'no-store'
-    resp.delete_cookie(COOKIE_NAME, path='/')
+    resp = RedirectResponse("/staff/login", status_code=302)
+    resp.headers["Cache-Control"] = "no-store"
+    resp.delete_cookie(COOKIE_NAME, path="/")
     return resp
 
 
 async def require_login(request: Request):
     if not _current_staff.get():
-        return RedirectResponse('/staff/login', status_code=302)
+        return RedirectResponse("/staff/login", status_code=302)
     return None
 
 
@@ -81,10 +82,10 @@ def require_perms(*perms: str):
     async def _dep(request: Request):
         staff = _current_staff.get()
         if staff is None:
-            return RedirectResponse('/staff/login', status_code=302)
+            return RedirectResponse("/staff/login", status_code=302)
         for perm in perms:
             if not staff.get(perm, False):
-                return JSONResponse({'error': 'Unauthorized'}, status_code=403)
+                return JSONResponse({"error": "Unauthorized"}, status_code=403)
         return None
 
     return _dep

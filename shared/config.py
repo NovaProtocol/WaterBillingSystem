@@ -45,13 +45,15 @@ class Config:
     REMEMBER_COOKIE_SAMESITE: str = "Lax"
     REMEMBER_COOKIE_DURATION: int = 3600
 
-    SQLALCHEMY_ENGINE_OPTIONS: dict = field(default_factory=lambda: {
-        "pool_size": 10,
-        "pool_recycle": 3600,
-        "pool_pre_ping": True,
-        "pool_timeout": 5,
-        "max_overflow": 2,
-    })
+    SQLALCHEMY_ENGINE_OPTIONS: dict = field(
+        default_factory=lambda: {
+            "pool_size": 10,
+            "pool_recycle": 3600,
+            "pool_pre_ping": True,
+            "pool_timeout": 5,
+            "max_overflow": 2,
+        }
+    )
 
 
 REQUIRED_ENV_VARS = [

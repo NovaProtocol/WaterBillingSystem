@@ -4,20 +4,30 @@ Policy (see the DB preflight design):
 a fix is SAFE iff applying it cannot invalidate existing data. Missing
 tables/indexes, widening, and NOT NULL -> NULL are safe. Missing columns,
 incompatible types, and time-type violations are FATAL (sys.exit(1))."""
+
 from __future__ import annotations
 
 import logging
 import re
 import sys
 from dataclasses import dataclass
-from typing import Callable
 
-from sqlalchemy import UniqueConstraint, inspect as sa_inspect, text
-from sqlalchemy.types import (BigInteger, Boolean, DateTime, Float, Integer,
-                              JSON, LargeBinary, Numeric, SmallInteger,
-                              String, Text)
-
-from db_async import Base, engine, sync_engine
+from db_async import Base, sync_engine
+from sqlalchemy import UniqueConstraint, text
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.types import (
+    JSON,
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    Integer,
+    LargeBinary,
+    Numeric,
+    SmallInteger,
+    String,
+    Text,
+)
 
 logger = logging.getLogger("preflight")
 
@@ -33,20 +43,65 @@ def is_time_name(name: str) -> bool:
 # Canonical index list from the 2026-08-06 query audit (see spec). Entries are
 # (name, table, [columns], unique). Missing entries are auto-created at startup.
 MANIFEST = [
-    ("ix_meter_readings_customer_timestamp", "meter_readings", ["customer_number", "timestamp"], False),
+    (
+        "ix_meter_readings_customer_timestamp",
+        "meter_readings",
+        ["customer_number", "timestamp"],
+        False,
+    ),
     ("ix_meter_readings_date_created", "meter_readings", ["date_created"], False),
     ("ix_meter_readings_date_modified", "meter_readings", ["date_modified"], False),
     ("ix_billings_reading_id", "billings", ["reading_id"], False),
     ("ix_billings_receipt_number", "billings", ["receipt_number"], False),
-    ("ix_billings_customer_date_created", "billings", ["customer_number", "date_created"], False),
-    ("ix_billings_customer_paid_created", "billings", ["customer_number", "is_paid", "date_created"], False),
-    ("ix_billings_payment_timestamp", "billings", ["payment_timestamp", "is_paid", "cashier_id"], False),
-    ("ix_xendit_status_created", "xendit_transactions", ["status", "date_created"], False),
-    ("ix_background_tasks_status_sched", "background_tasks", ["status", "scheduled_at", "created_at"], False),
-    ("ix_customers_active_modified", "customers", ["is_active", "date_modified"], False),
+    (
+        "ix_billings_customer_date_created",
+        "billings",
+        ["customer_number", "date_created"],
+        False,
+    ),
+    (
+        "ix_billings_customer_paid_created",
+        "billings",
+        ["customer_number", "is_paid", "date_created"],
+        False,
+    ),
+    (
+        "ix_billings_payment_timestamp",
+        "billings",
+        ["payment_timestamp", "is_paid", "cashier_id"],
+        False,
+    ),
+    (
+        "ix_xendit_status_created",
+        "xendit_transactions",
+        ["status", "date_created"],
+        False,
+    ),
+    (
+        "ix_background_tasks_status_sched",
+        "background_tasks",
+        ["status", "scheduled_at", "created_at"],
+        False,
+    ),
+    (
+        "ix_customers_active_modified",
+        "customers",
+        ["is_active", "date_modified"],
+        False,
+    ),
     ("ix_customers_name", "customers", ["name"], False),
-    ("ix_management_logs_target_ts", "management_logs", ["target_type", "timestamp"], False),
-    ("ix_management_logs_target_action", "management_logs", ["target_type", "action_type", "date_created"], False),
+    (
+        "ix_management_logs_target_ts",
+        "management_logs",
+        ["target_type", "timestamp"],
+        False,
+    ),
+    (
+        "ix_management_logs_target_action",
+        "management_logs",
+        ["target_type", "action_type", "date_created"],
+        False,
+    ),
 ]
 
 
@@ -94,8 +149,8 @@ def _expected_indexes(table):
 
 @dataclass(frozen=True)
 class TypeSpec:
-    family: str                 # STRING | TEXT | INTEGER | NUMERIC | FLOAT | BOOLEAN | DATETIME | BLOB | JSON | UNKNOWN
-    size: int | None = None     # STRING: length; TEXT: 0-3 tier; INTEGER: 0-4 tier
+    family: str  # STRING | TEXT | INTEGER | NUMERIC | FLOAT | BOOLEAN | DATETIME | BLOB | JSON | UNKNOWN
+    size: int | None = None  # STRING: length; TEXT: 0-3 tier; INTEGER: 0-4 tier
     precision: int | None = None
     scale: int | None = None
 
@@ -104,10 +159,12 @@ class TypeSpec:
             return f"VARCHAR({self.size or 255})"
         if self.family == "TEXT":
             return {0: "TINYTEXT", 1: "TEXT", 2: "MEDIUMTEXT", 3: "LONGTEXT"}[
-                self.size if self.size is not None else 1]
+                self.size if self.size is not None else 1
+            ]
         if self.family == "INTEGER":
-            return {0: "TINYINT", 1: "SMALLINT", 2: "MEDIUMINT", 3: "INT",
-                    4: "BIGINT"}[self.size if self.size is not None else 3]
+            return {0: "TINYINT", 1: "SMALLINT", 2: "MEDIUMINT", 3: "INT", 4: "BIGINT"}[
+                self.size if self.size is not None else 3
+            ]
         if self.family == "NUMERIC":
             return f"DECIMAL({self.precision or 10}, {self.scale or 2})"
         if self.family == "BOOLEAN":
@@ -126,9 +183,9 @@ class TypeSpec:
 def from_model(typ) -> TypeSpec:
     if isinstance(typ, Text):
         ln = typ.length
-        if ln is None or ln <= 2 ** 16:
+        if ln is None or ln <= 2**16:
             return TypeSpec("TEXT", size=1)
-        if ln <= 2 ** 24:
+        if ln <= 2**24:
             return TypeSpec("TEXT", size=2)
         return TypeSpec("TEXT", size=3)
     if isinstance(typ, String):
@@ -156,7 +213,14 @@ def from_model(typ) -> TypeSpec:
 
 _TYPER = re.compile(r"^\s*([A-Za-z]+)(?:\((\d+)(?:,\s*(\d+))?\))?\s*$")
 _TEXT_TIERS = {"TINYTEXT": 0, "TEXT": 1, "MEDIUMTEXT": 2, "LONGTEXT": 3}
-_INT_TIERS = {"TINYINT": 0, "SMALLINT": 1, "MEDIUMINT": 2, "INT": 3, "INTEGER": 3, "BIGINT": 4}
+_INT_TIERS = {
+    "TINYINT": 0,
+    "SMALLINT": 1,
+    "MEDIUMINT": 2,
+    "INT": 3,
+    "INTEGER": 3,
+    "BIGINT": 4,
+}
 
 
 def from_db(type_str: str) -> TypeSpec:
@@ -171,9 +235,7 @@ def from_db(type_str: str) -> TypeSpec:
     if base in ("DATETIME", "TIMESTAMP"):
         return TypeSpec("DATETIME")
     if base in ("DECIMAL", "NUMERIC", "FIXED"):
-        return TypeSpec("NUMERIC",
-                        precision=int(a) if a else None,
-                        scale=int(b) if b else None)
+        return TypeSpec("NUMERIC", precision=int(a) if a else None, scale=int(b) if b else None)
     if base == "BOOLEAN":
         return TypeSpec("BOOLEAN")
     if base == "TINYINT":
@@ -196,8 +258,7 @@ def compare(db_spec: TypeSpec, model_spec: TypeSpec) -> str:
     # the column without the deprecated display width, so a genuine boolean
     # column arrives as widthless TINYINT. Storage is identical (1-byte),
     # no data can be invalidated, so this is a match, not a family mismatch.
-    if (db_spec.family == "INTEGER" and db_spec.size == 0
-            and model_spec.family == "BOOLEAN"):
+    if db_spec.family == "INTEGER" and db_spec.size == 0 and model_spec.family == "BOOLEAN":
         return "ok"
     if db_spec.family != model_spec.family:
         return "fatal"
@@ -233,7 +294,7 @@ def compare(db_spec: TypeSpec, model_spec: TypeSpec) -> str:
 
 @dataclass
 class Finding:
-    kind: str          # created_index | dropped_index | modified_column | warning | fatal
+    kind: str  # created_index | dropped_index | modified_column | warning | fatal
     message: str
     ddl: str | None = None
 
@@ -253,13 +314,11 @@ def _default_sql(col) -> str:
 
 def _modify_column_sql(table: str, col) -> str:
     null = "" if col.nullable else " NOT NULL"
-    return (f"ALTER TABLE {table} MODIFY {col.name} {_type_sql(col)}"
-            f"{_default_sql(col)}{null}")
+    return f"ALTER TABLE {table} MODIFY {col.name} {_type_sql(col)}{_default_sql(col)}{null}"
 
 
 def _add_column_sql(table: str, col) -> str:
-    sql = (f"ALTER TABLE {table} ADD COLUMN {col.name} {_type_sql(col)}"
-           f"{_default_sql(col)}")
+    sql = f"ALTER TABLE {table} ADD COLUMN {col.name} {_type_sql(col)}{_default_sql(col)}"
     sql += " NULL" if col.nullable else " NOT NULL"
     return sql
 
@@ -271,10 +330,13 @@ def decide(inspector, metadata, manifest) -> list[Finding]:
 
     for name in sorted(model_tables):
         if name not in db_tables:
-            findings.append(Finding(
-                "fatal",
-                f"table '{name}' exists in models but not in the database "
-                f"(create_all failed or DB was partially reset)"))
+            findings.append(
+                Finding(
+                    "fatal",
+                    f"table '{name}' exists in models but not in the database "
+                    f"(create_all failed or DB was partially reset)",
+                )
+            )
 
     for name, table in sorted(model_tables.items()):
         if name not in db_tables:
@@ -282,83 +344,103 @@ def decide(inspector, metadata, manifest) -> list[Finding]:
         db_cols = {c["name"]: c for c in inspector.get_columns(name)}
         for col in table.columns:
             if col.name not in db_cols:
-                findings.append(Finding(
-                    "fatal",
-                    f"missing column {name}.{col.name} (refusing to auto-add; "
-                    f"NULL would mutate data)",
-                    ddl=_add_column_sql(name, col)))
+                findings.append(
+                    Finding(
+                        "fatal",
+                        f"missing column {name}.{col.name} (refusing to auto-add; "
+                        f"NULL would mutate data)",
+                        ddl=_add_column_sql(name, col),
+                    )
+                )
                 continue
             model_spec = from_model(col.type)
             if is_time_name(col.name) and model_spec.family != "DATETIME":
-                findings.append(Finding(
-                    "fatal",
-                    f"time-named column {name}.{col.name} has model type "
-                    f"{model_spec.type_sql()} — must be DateTime"))
+                findings.append(
+                    Finding(
+                        "fatal",
+                        f"time-named column {name}.{col.name} has model type "
+                        f"{model_spec.type_sql()} — must be DateTime",
+                    )
+                )
                 continue
             db_col = db_cols[col.name]
             db_spec = from_db(str(db_col["type"]))
             verdict = compare(db_spec, model_spec)
             if verdict == "fatal":
-                findings.append(Finding(
-                    "fatal",
-                    f"type mismatch {name}.{col.name}: db "
-                    f"{db_col['type']} vs model {model_spec.type_sql()}",
-                    ddl=_modify_column_sql(name, col)))
+                findings.append(
+                    Finding(
+                        "fatal",
+                        f"type mismatch {name}.{col.name}: db "
+                        f"{db_col['type']} vs model {model_spec.type_sql()}",
+                        ddl=_modify_column_sql(name, col),
+                    )
+                )
             elif verdict == "widen":
-                findings.append(Finding(
-                    "modified_column",
-                    f"widened {name}.{col.name} "
-                    f"({db_col['type']} -> {model_spec.type_sql()})",
-                    ddl=_modify_column_sql(name, col)))
+                findings.append(
+                    Finding(
+                        "modified_column",
+                        f"widened {name}.{col.name} ({db_col['type']} -> {model_spec.type_sql()})",
+                        ddl=_modify_column_sql(name, col),
+                    )
+                )
             elif verdict == "warn":
-                findings.append(Finding(
-                    "warning",
-                    f"{name}.{col.name}: db type {db_col['type']} is wider than "
-                    f"model {model_spec.type_sql()} — left alone (shrinking "
-                    f"could truncate data)"))
+                findings.append(
+                    Finding(
+                        "warning",
+                        f"{name}.{col.name}: db type {db_col['type']} is wider than "
+                        f"model {model_spec.type_sql()} — left alone (shrinking "
+                        f"could truncate data)",
+                    )
+                )
             if col.nullable and db_col.get("nullable") is False:
-                findings.append(Finding(
-                    "modified_column",
-                    f"loosened {name}.{col.name} to nullable",
-                    ddl=_modify_column_sql(name, col)))
+                findings.append(
+                    Finding(
+                        "modified_column",
+                        f"loosened {name}.{col.name} to nullable",
+                        ddl=_modify_column_sql(name, col),
+                    )
+                )
             elif not col.nullable and db_col.get("nullable") is True:
-                findings.append(Finding(
-                    "warning",
-                    f"{name}.{col.name}: db is nullable but model declares "
-                    f"NOT NULL — left alone (enforcing could reject data)"))
+                findings.append(
+                    Finding(
+                        "warning",
+                        f"{name}.{col.name}: db is nullable but model declares "
+                        f"NOT NULL — left alone (enforcing could reject data)",
+                    )
+                )
 
     for name, table in sorted(model_tables.items()):
         if name not in db_tables:
             continue
         existing = {ix["name"]: ix for ix in inspector.get_indexes(name)}
         manifest_here = [m for m in manifest if m[1] == name]
-        expected = _expected_indexes(table) + [
-            (m[0], list(m[2]), m[3]) for m in manifest_here]
+        expected = _expected_indexes(table) + [(m[0], list(m[2]), m[3]) for m in manifest_here]
 
         for exp_name, exp_cols, exp_unique in expected:
             ix = existing.get(exp_name)
             if ix is None:
                 if any(
-                    list(e["column_names"]) == exp_cols
-                    and bool(e["unique"]) == exp_unique
+                    list(e["column_names"]) == exp_cols and bool(e["unique"]) == exp_unique
                     for e in existing.values()
                 ):
                     continue  # already covered by an existing index
                 uniq = "UNIQUE " if exp_unique else ""
-                findings.append(Finding(
-                    "created_index",
-                    f"creating index {exp_name} on {name} ({', '.join(exp_cols)})",
-                    ddl=f"CREATE {uniq}INDEX {exp_name} ON {name} "
-                        f"({', '.join(exp_cols)})"))
-            elif (
-                list(ix["column_names"]) != exp_cols
-                or bool(ix["unique"]) != exp_unique
-            ):
-                findings.append(Finding(
-                    "fatal",
-                    f"index {exp_name} on {name} exists with columns "
-                    f"{ix['column_names']} but models/manifest declare "
-                    f"{exp_cols}"))
+                findings.append(
+                    Finding(
+                        "created_index",
+                        f"creating index {exp_name} on {name} ({', '.join(exp_cols)})",
+                        ddl=f"CREATE {uniq}INDEX {exp_name} ON {name} ({', '.join(exp_cols)})",
+                    )
+                )
+            elif list(ix["column_names"]) != exp_cols or bool(ix["unique"]) != exp_unique:
+                findings.append(
+                    Finding(
+                        "fatal",
+                        f"index {exp_name} on {name} exists with columns "
+                        f"{ix['column_names']} but models/manifest declare "
+                        f"{exp_cols}",
+                    )
+                )
 
     # Redundancy sweep: drop non-unique indexes that are strict left-prefixes
     # of another index on the same table (never PRIMARY/UNIQUE, never an index
@@ -368,9 +450,12 @@ def decide(inspector, metadata, manifest) -> list[Finding]:
             continue
         existing = inspector.get_indexes(name)
         expected_colsets = {
-            tuple(e[1]) for e in (_expected_indexes(table)
-                                  + [(m[0], list(m[2]), m[3])
-                                     for m in manifest if m[1] == name])}
+            tuple(e[1])
+            for e in (
+                _expected_indexes(table)
+                + [(m[0], list(m[2]), m[3]) for m in manifest if m[1] == name]
+            )
+        }
         for a in existing:
             if a["unique"] or not a["name"]:
                 continue
@@ -382,11 +467,14 @@ def decide(inspector, metadata, manifest) -> list[Finding]:
                     continue
                 cols_b = list(b["column_names"])
                 if len(cols_a) < len(cols_b) and cols_a == cols_b[: len(cols_a)]:
-                    findings.append(Finding(
-                        "dropped_index",
-                        f"dropping redundant index {a['name']} on {name} "
-                        f"(covered by {b['name']})",
-                        ddl=f"DROP INDEX {a['name']} ON {name}"))
+                    findings.append(
+                        Finding(
+                            "dropped_index",
+                            f"dropping redundant index {a['name']} on {name} "
+                            f"(covered by {b['name']})",
+                            ddl=f"DROP INDEX {a['name']} ON {name}",
+                        )
+                    )
                     break
 
     return findings
@@ -401,8 +489,7 @@ async def apply(findings: list[Finding], eng) -> None:
         return
     if eng.dialect.name != "mysql":
         for sql in ddl_list:
-            logger.warning("preflight: skipping DDL on %s dialect: %s",
-                           eng.dialect.name, sql)
+            logger.warning("preflight: skipping DDL on %s dialect: %s", eng.dialect.name, sql)
         return
     async with eng.begin() as conn:
         for sql in ddl_list:
@@ -419,8 +506,7 @@ def run_preflight() -> list:
     if errs:
         for err in errs:
             print(f"FATAL: {err}", file=sys.stderr)
-        logger.error("preflight FATAL: %d manifest error(s) — refusing to start",
-                     len(errs))
+        logger.error("preflight FATAL: %d manifest error(s) — refusing to start", len(errs))
         sys.exit(1)
     findings = decide(sa_inspect(sync_engine()), Base.metadata, MANIFEST)
     fatals = [f for f in findings if f.kind == "fatal"]
@@ -435,15 +521,10 @@ def run_preflight() -> list:
             print(f"  - {f.message}", file=sys.stderr)
             if f.ddl:
                 print(f"    suggested command: {f.ddl}", file=sys.stderr)
-        logger.error("preflight FATAL: %d issue(s) — refusing to start",
-                     len(fatals))
+        logger.error("preflight FATAL: %d issue(s) — refusing to start", len(fatals))
         sys.exit(1)
     for f in findings:
-        if f.kind == "created_index":
-            logger.info("preflight: %s", f.message)
-        elif f.kind == "dropped_index":
-            logger.info("preflight: %s", f.message)
-        elif f.kind == "modified_column":
+        if f.kind == "created_index" or f.kind == "dropped_index" or f.kind == "modified_column":
             logger.info("preflight: %s", f.message)
         elif f.kind == "warning":
             logger.warning("preflight: %s", f.message)

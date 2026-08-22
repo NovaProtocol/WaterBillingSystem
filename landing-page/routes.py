@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import os
 
+from data import MODELS
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from templating import templates
 
 from shared.config import shared_static_dir
-from data import MODELS
-from templating import templates
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ MODEL_TEMPLATES: dict[str, str] = {
     "lucia": "landing/models/lucia.html",
 }
 
-_IMAGE_DIR = os.path.join(shared_static_dir(), 'landing', 'img')
+_IMAGE_DIR = os.path.join(shared_static_dir(), "landing", "img")
 
 _FOLDERS = {
     "catherine-4": "catherine",
@@ -44,59 +44,68 @@ def _scan_photos(slug: str) -> list[str]:
     if not os.path.isdir(folder):
         return []
     photos = sorted(
-        f for f in os.listdir(folder)
-        if f.lower().endswith(('.jpg', '.jpeg', '.png')) and not f.startswith('.')
+        f
+        for f in os.listdir(folder)
+        if f.lower().endswith((".jpg", ".jpeg", ".png")) and not f.startswith(".")
     )
-    photos.sort(key=lambda f: (f != '1.jpg', f))
-    return [f'{_FOLDERS.get(slug, slug)}/{f}' for f in photos]
+    photos.sort(key=lambda f: (f != "1.jpg", f))
+    return [f"{_FOLDERS.get(slug, slug)}/{f}" for f in photos]
 
 
 for _slug in MODELS:
-    MODELS[_slug]['photos'] = _scan_photos(_slug)
+    MODELS[_slug]["photos"] = _scan_photos(_slug)
 
 
-@router.get('/offerings')
+@router.get("/offerings")
 async def offerings(request: Request):
-    return templates.TemplateResponse(request, 'landing/offerings.html', {'models': MODELS})
+    return templates.TemplateResponse(request, "landing/offerings.html", {"models": MODELS})
 
 
-@router.get('/offerings/{slug}')
+@router.get("/offerings/{slug}")
 async def model_detail(slug: str, request: Request):
     template = MODEL_TEMPLATES.get(slug)
     model = MODELS.get(slug)
     if not template or not model:
-        raise HTTPException(status_code=404, detail='Not Found')
-    return templates.TemplateResponse(request, template, {
-        'models': MODELS,
-        'current_slug': slug,
-        'model': model,
-    })
+        raise HTTPException(status_code=404, detail="Not Found")
+    return templates.TemplateResponse(
+        request,
+        template,
+        {
+            "models": MODELS,
+            "current_slug": slug,
+            "model": model,
+        },
+    )
 
 
-@router.get('/')
+@router.get("/")
 async def index(request: Request):
-    return templates.TemplateResponse(request, 'landing/index.html', {'models': MODELS})
+    return templates.TemplateResponse(request, "landing/index.html", {"models": MODELS})
 
 
-@router.post('/')
+@router.post("/")
 async def index_post(request: Request):
     try:
         form = await request.form()
     except Exception:
         form = {}
-    customer_number = str(form.get('customer_number', '') or '').strip()
-    last_receipt = str(form.get('last_receipt', '') or '').strip()
+    customer_number = str(form.get("customer_number", "") or "").strip()
+    last_receipt = str(form.get("last_receipt", "") or "").strip()
 
     if not customer_number:
         return templates.TemplateResponse(
-            request, 'landing/index.html',
-            {'models': MODELS, 'modal_error': 'Customer number is required.'},
+            request,
+            "landing/index.html",
+            {"models": MODELS, "modal_error": "Customer number is required."},
         )
 
     try:
-        return RedirectResponse(f"/customer/login?account_number={int(customer_number)}", status_code=302)
+        return RedirectResponse(
+            f"/customer/login?account_number={int(customer_number)}", status_code=302
+        )
     except (ValueError, TypeError):
         return templates.TemplateResponse(
-            request, 'landing/index.html',
-            {'models': MODELS, 'modal_error': 'Customer number is required.'},
+            request,
+            "landing/index.html",
+            {"models": MODELS, "modal_error": "Customer number is required."},
         )

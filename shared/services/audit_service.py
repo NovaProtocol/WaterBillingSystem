@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy.orm import Session
-
 from models import ManagementLog
+from sqlalchemy.orm import Session
 
 
 def log_action(
@@ -14,7 +13,8 @@ def log_action(
     target_id: int,
     details: str,
     customer_number: int | None = None,
-    *, session: Session | None = None,
+    *,
+    session: Session | None = None,
 ) -> ManagementLog:
     if session is None:
         raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")

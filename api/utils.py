@@ -3,12 +3,11 @@ from __future__ import annotations
 import os
 import secrets
 
+from db_async import session
 from fastapi import HTTPException, Request
+from models import ApiKey
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-
-from db_async import session
-from models import ApiKey
 
 
 async def resolve_api_key(request: Request) -> ApiKey | None:

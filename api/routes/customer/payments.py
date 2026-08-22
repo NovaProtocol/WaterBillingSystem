@@ -6,14 +6,13 @@ import secrets
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from sqlalchemy import select
-
 from db_async import session
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from fee_service import calculate_fee
 from models import Customer, PaymentMethod, XenditTransaction
+from pydantic import BaseModel
+from sqlalchemy import select
 
 from routes.customer.common import logger
 
@@ -114,7 +113,7 @@ async def customer_invoice(customer_number: int, payload: InvoicePayload):
             session_data = resp.json()
     except Exception as e:
         logger.exception(f"Invoice failed for customer {customer_number}:")
-        return JSONResponse({"error": f"Unexpected error: {str(e)}"}, status_code=500)
+        return JSONResponse({"error": f"Unexpected error: {e!s}"}, status_code=500)
 
     session_id = session_data.get("payment_session_id", "")
     payment_link_url = session_data.get("payment_link_url", "")

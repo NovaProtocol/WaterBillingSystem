@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from sqlalchemy import desc, func, select
-from sqlalchemy.orm import selectinload
-
 from billing_service import ensure_penalty
 from db_async import session
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 from models import ApiKey, Billing
+from pydantic import BaseModel
 from services.payment_service import (
     drop_payment as service_drop_payment,
+)
+from services.payment_service import (
     submit_payment as service_submit_payment,
 )
+from sqlalchemy import desc, func, select
+from sqlalchemy.orm import selectinload
 from utils import require_staff
 
 from routes.customer.common import _run_sync
@@ -32,8 +33,11 @@ class BillingDropPayload(BaseModel):
 
 
 @router.get("/customer/{customer_number}/billing")
-async def customer_billing(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
-
+async def customer_billing(
+    customer_number: int,
+    request: Request,
+    api_key: ApiKey = Depends(require_staff("can_read_meters")),
+):
     try:
         page = int(request.query_params.get("page", "1"))
     except (ValueError, TypeError):
@@ -44,9 +48,7 @@ async def customer_billing(customer_number: int, request: Request, api_key: ApiK
         size = 50
 
     count_result = await session().execute(
-        select(func.count()).select_from(Billing).where(
-            Billing.customer_number == customer_number
-        )
+        select(func.count()).select_from(Billing).where(Billing.customer_number == customer_number)
     )
     total = count_result.scalar() or 0
 
@@ -63,23 +65,31 @@ async def customer_billing(customer_number: int, request: Request, api_key: ApiK
     for b in billings:
         await ensure_penalty(b)
         reading = b.reading
-        items.append({
-            "id": b.id,
-            "reading_id": b.reading_id,
-            "month": reading.timestamp.strftime("%B %Y") if reading else None,
-            "previous_reading": float(b.previous_reading_value) if b.previous_reading_value else None,
-            "current_reading": float(b.current_reading_value) if b.current_reading_value else None,
-            "consumption": float(b.consumption) if b.consumption else None,
-            "billed_amount": float(b.billed_amount),
-            "penalty": float(b.penalty),
-            "paid_amount": float(b.paid_amount),
-            "is_paid": b.is_paid,
-            "receipt_number": b.receipt_number,
-            "cashier_id": b.cashier_id,
-            "payment_timestamp": int(b.payment_timestamp.timestamp()) if b.payment_timestamp else None,
-            "date_paid": int(b.date_paid.timestamp()) if b.date_paid else None,
-            "created_at": int(b.date_created.timestamp()) if b.date_created else None,
-        })
+        items.append(
+            {
+                "id": b.id,
+                "reading_id": b.reading_id,
+                "month": reading.timestamp.strftime("%B %Y") if reading else None,
+                "previous_reading": float(b.previous_reading_value)
+                if b.previous_reading_value
+                else None,
+                "current_reading": float(b.current_reading_value)
+                if b.current_reading_value
+                else None,
+                "consumption": float(b.consumption) if b.consumption else None,
+                "billed_amount": float(b.billed_amount),
+                "penalty": float(b.penalty),
+                "paid_amount": float(b.paid_amount),
+                "is_paid": b.is_paid,
+                "receipt_number": b.receipt_number,
+                "cashier_id": b.cashier_id,
+                "payment_timestamp": int(b.payment_timestamp.timestamp())
+                if b.payment_timestamp
+                else None,
+                "date_paid": int(b.date_paid.timestamp()) if b.date_paid else None,
+                "created_at": int(b.date_created.timestamp()) if b.date_created else None,
+            }
+        )
     pages = max(1, (total + size - 1) // size) if size else 1
     return {
         "data": items,
@@ -93,8 +103,11 @@ async def customer_billing(customer_number: int, request: Request, api_key: ApiK
 
 
 @router.post("/customer/{customer_number}/billing/new")
-async def customer_billing_new(customer_number: int, payload: BillingNewPayload, api_key: ApiKey = Depends(require_staff("can_accept_payment"))):
-
+async def customer_billing_new(
+    customer_number: int,
+    payload: BillingNewPayload,
+    api_key: ApiKey = Depends(require_staff("can_accept_payment")),
+):
     amount = payload.amount
     try:
         amount_float = float(amount)
@@ -104,15 +117,20 @@ async def customer_billing_new(customer_number: int, payload: BillingNewPayload,
         return JSONResponse({"error": "Amount must be positive"}, status_code=400)
 
     staff_id = payload.staff_id if api_key is True else api_key.staff.id
-    result, error, status = await _run_sync(service_submit_payment, customer_number, amount_float, staff_id)
+    result, error, status = await _run_sync(
+        service_submit_payment, customer_number, amount_float, staff_id
+    )
     if error:
         return JSONResponse({"error": error}, status_code=status)
     return JSONResponse(result, status_code=status)
 
 
 @router.post("/customer/{customer_number}/billing/drop")
-async def customer_billing_drop(customer_number: int, payload: BillingDropPayload, api_key: ApiKey = Depends(require_staff("can_drop_payment"))):
-
+async def customer_billing_drop(
+    customer_number: int,
+    payload: BillingDropPayload,
+    api_key: ApiKey = Depends(require_staff("can_drop_payment")),
+):
     billing_id = payload.billing_id
     reason = str(payload.reason or "").strip()
     staff_id = payload.staff_id if api_key is True else api_key.staff.id

@@ -49,17 +49,20 @@ class TestVerifyLegacyWerkzeugHashes:
 
 
 class TestVerifyGarbageInput:
-    @pytest.mark.parametrize("stored", [
-        b"",
-        b"abc",
-        b"$",
-        b"sha256$onlytwo",
-        b"pbkdf2:sha256:1000$onlytwo",
-        b"pbkdf2:notahash:1000$salt$" + b"ab" * 32,
-        b"pbkdf2:sha256:notanumber$salt$" + b"ab" * 32,
-        b"scrypt:16384:8:1$onlytwo",
-        b"\xff\xfe invalid utf8",
-    ])
+    @pytest.mark.parametrize(
+        "stored",
+        [
+            b"",
+            b"abc",
+            b"$",
+            b"sha256$onlytwo",
+            b"pbkdf2:sha256:1000$onlytwo",
+            b"pbkdf2:notahash:1000$salt$" + b"ab" * 32,
+            b"pbkdf2:sha256:notanumber$salt$" + b"ab" * 32,
+            b"scrypt:16384:8:1$onlytwo",
+            b"\xff\xfe invalid utf8",
+        ],
+    )
     def test_garbage_returns_false_without_exceptions(self, stored):
         assert verify_password(stored, "pw") is False
 

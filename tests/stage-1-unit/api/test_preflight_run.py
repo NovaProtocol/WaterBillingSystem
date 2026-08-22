@@ -1,14 +1,15 @@
-import sys, os
-BASE = os.path.join(os.path.dirname(__file__), '..', '..', '..')
-sys.path.insert(0, os.path.join(BASE, 'api'))
-sys.path.insert(0, os.path.join(BASE, 'shared'))
+import os
+import sys
 
-import pytest
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+BASE = os.path.join(os.path.dirname(__file__), "..", "..", "..")
+sys.path.insert(0, os.path.join(BASE, "api"))
+sys.path.insert(0, os.path.join(BASE, "shared"))
 
 import preflight
+import pytest
 from preflight import Finding, apply
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 
 class TestApply:
@@ -18,13 +19,14 @@ class TestApply:
         eng = create_async_engine(f"sqlite+aiosqlite:///{db}")
         async with eng.begin() as conn:
             await conn.execute(text("CREATE TABLE t1 (id INTEGER PRIMARY KEY, a TEXT)"))
-        findings = [Finding("created_index", "x",
-                            "CREATE INDEX ix_t1_a ON t1 (a)")]
+        findings = [Finding("created_index", "x", "CREATE INDEX ix_t1_a ON t1 (a)")]
         await apply(findings, eng)
         async with eng.connect() as conn:
-            rows = (await conn.execute(text(
-                "SELECT name FROM sqlite_master WHERE type='index' "
-                "AND name='ix_t1_a'"))).all()
+            rows = (
+                await conn.execute(
+                    text("SELECT name FROM sqlite_master WHERE type='index' AND name='ix_t1_a'")
+                )
+            ).all()
         assert rows == []
         await eng.dispose()
 
@@ -40,8 +42,7 @@ class TestApply:
 
 class TestRunPreflight:
     def test_fatal_manifest_exits_before_decide(self, monkeypatch):
-        monkeypatch.setattr(preflight, "MANIFEST",
-                            [("ix_bad", "no_such_table", ["id"], False)])
+        monkeypatch.setattr(preflight, "MANIFEST", [("ix_bad", "no_such_table", ["id"], False)])
 
         def fail_exit(code):
             raise SystemExit(code)

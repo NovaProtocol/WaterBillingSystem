@@ -6,6 +6,7 @@ Polls the background_tasks table for queued tasks, executes handlers,
 and updates progress in the DB. Claims exactly ONE job at a time;
 concurrency happens only inside a job (bounded by WORKER_JOB_CONCURRENCY).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -16,10 +17,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from db_async import init_db, init_engine, session_factory
 from fastapi import FastAPI
 from sqlalchemy import select
 
-from db_async import init_db, init_engine, session_factory
 from shared.logger import attach_sqlite_logging
 
 logger = logging.getLogger("background_worker")
@@ -35,11 +36,19 @@ def require_env(*names):
             sys.exit(1)
 
 
-require_env('DEPLOYMENT_TYPE', 'DB_ENGINE', 'DB_HOST', 'DB_PORT', 'DB_NAME',
-            'DB_USERNAME', 'DB_PASS', 'XENDIT_API_KEY')
+require_env(
+    "DEPLOYMENT_TYPE",
+    "DB_ENGINE",
+    "DB_HOST",
+    "DB_PORT",
+    "DB_NAME",
+    "DB_USERNAME",
+    "DB_PASS",
+    "XENDIT_API_KEY",
+)
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
-attach_sqlite_logging('worker')
+attach_sqlite_logging("worker")
 
 
 class TaskState:
@@ -70,11 +79,10 @@ async def _persist_progress() -> None:
         return
     try:
         from models import BackgroundTask
+
         async with session_factory()() as s:
             task = (
-                await s.execute(
-                    select(BackgroundTask).where(BackgroundTask.id == _state.task_id)
-                )
+                await s.execute(select(BackgroundTask).where(BackgroundTask.id == _state.task_id))
             ).scalar_one_or_none()
             if task is None:
                 return
@@ -89,19 +97,27 @@ async def _persist_progress() -> None:
 async def _mark_stale_failed() -> None:
     async with session_factory()() as s:
         from models import BackgroundTask
+
         stale = (
-            await s.execute(
-                select(BackgroundTask).where(
-                    BackgroundTask.status == "running",
-                    BackgroundTask.started_at
-                    < datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
+            (
+                await s.execute(
+                    select(BackgroundTask).where(
+                        BackgroundTask.status == "running",
+                        BackgroundTask.started_at
+                        < datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         for t in stale:
-            logger.warning("[background_worker] Found stale running task #%s (%s) — marking as failed",
-                           t.id, t.task_type)
+            logger.warning(
+                "[background_worker] Found stale running task #%s (%s) — marking as failed",
+                t.id,
+                t.task_type,
+            )
             t.status = "failed"
             t.finished_at = now
         if stale:
@@ -120,8 +136,7 @@ async def _claim_task() -> Any | None:
                 select(BackgroundTask)
                 .where(
                     BackgroundTask.status == "queued",
-                    (BackgroundTask.scheduled_at.is_(None))
-                    | (BackgroundTask.scheduled_at <= now),
+                    (BackgroundTask.scheduled_at.is_(None)) | (BackgroundTask.scheduled_at <= now),
                 )
                 .order_by(BackgroundTask.created_at.asc())
                 .limit(1)
@@ -151,8 +166,9 @@ async def _execute_task(task: Any) -> None:
     if not handler:
         logger.error("[background_worker] Unknown task type: %s", task.task_type)
         async with session_factory()() as s:
-            row = (await s.execute(
-                select(type(task)).where(type(task).id == task.id))).scalar_one_or_none()
+            row = (
+                await s.execute(select(type(task)).where(type(task).id == task.id))
+            ).scalar_one_or_none()
             if row is not None:
                 row.status = "failed"
                 row.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -174,8 +190,10 @@ async def _execute_task(task: Any) -> None:
     # Persist final state (handler may have deleted the row, e.g. restore).
     async with session_factory()() as s:
         from models import BackgroundTask
-        row = (await s.execute(
-            select(BackgroundTask).where(BackgroundTask.id == task_id))).scalar_one_or_none()
+
+        row = (
+            await s.execute(select(BackgroundTask).where(BackgroundTask.id == task_id))
+        ).scalar_one_or_none()
         if row is None:
             logger.warning("[background_worker] Task #%s row unavailable (restore?)", task_id)
             return
@@ -223,6 +241,7 @@ async def lifespan(app: FastAPI):
     init_engine()
     await init_db()
     from models import BackgroundTask
+
     await BackgroundTask.enqueue_unique(
         task_type="xendit_reconcile",
         title="Xendit Reconciliation",

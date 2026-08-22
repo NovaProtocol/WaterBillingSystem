@@ -26,8 +26,10 @@ Key variables (full list in `.env.example`, the source of truth):
 | `DEPLOYMENT_TYPE` | `PRODUCTION` | `DEBUG` or `PRODUCTION` |
 | `DEBUG` | `false` | `true` bypasses receipt verification in the customer portal |
 | `SECRET_KEY` | — | Session/cookie signing. Generate: `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `INTERNAL_API_KEY` | — | API-to-API auth between containers (`X-Internal-API-Key`) |
-| `API_BASE_URL` | `http://api:8008` | Internal API endpoint |
+| `INTERNAL_API_KEY` | — | API-to-API auth between containers (`X-Internal-API-Key` and `x-internal-api-key` gRPC metadata) |
+| `API_BASE_URL` | `http://api:8008` | Internal API endpoint (legacy alias for `API_INTERNAL_URL`) |
+| `API_INTERNAL_URL` | `http://api:8008` | Internal HTTP API (Caddy bypass, Docker DNS) |
+| `API_GRPC_ADDR` | `api:50051` | Internal gRPC address (`grpc.aio.insecure_channel`) — preferred for portal → api |
 | `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASS` | — | MySQL connection |
 | `NFC_PWD_SECRET` | — | NFC tag password derivation |
 | `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN` | — | Xendit payment gateway API key + webhook token |

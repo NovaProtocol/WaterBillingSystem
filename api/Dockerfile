@@ -9,7 +9,7 @@ ENV PYTHONPATH=/app/shared
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 RUN useradd --create-home --uid 10001 appuser \
     && chown -R appuser:appuser /app
-EXPOSE 8008
+EXPOSE 8008 50051
 USER appuser
 
 CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8008", "--workers", "1", "app:app"]

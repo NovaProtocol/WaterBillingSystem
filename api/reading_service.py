@@ -3,18 +3,19 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy.orm import Session
-
+from customer_service import recalc_total_due
 from models import Billing, Customer, MeterReading
 from pricing import compute_water_bill
 from services.audit_service import log_action
-from customer_service import recalc_total_due
+from sqlalchemy.orm import Session
 
-logger = logging.getLogger('api')
+logger = logging.getLogger("api")
 
 
 def _existing_this_month(
-    customer_number: int, timestamp_dt: datetime, exclude_id: int | None,
+    customer_number: int,
+    timestamp_dt: datetime,
+    exclude_id: int | None,
     session,
 ) -> MeterReading | None:
     year = timestamp_dt.year
@@ -64,7 +65,9 @@ def log_duplicate_attempt(
 
 
 def _create_billing_for_reading(
-    reading: MeterReading, customer_number: int, session,
+    reading: MeterReading,
+    customer_number: int,
+    session,
 ) -> Billing | None:
     prev_reading = (
         session.query(MeterReading)
@@ -98,7 +101,11 @@ def _create_billing_for_reading(
 
 
 def sync_readings(
-    readings: list, token_id: int, staff_id: int, staff_name: str, *,
+    readings: list,
+    token_id: int,
+    staff_id: int,
+    staff_name: str,
+    *,
     session: Session | None = None,
 ) -> tuple[int, list, list]:
     if session is None:
@@ -133,11 +140,17 @@ def sync_readings(
             continue
         existing = _existing_this_month(cust, reading_dt, None, session)
         if existing:
-            log_duplicate_attempt(staff_id, staff_name, cust, existing, float(value), token_id, session=session)
-            session.flush()
-            errors.append(
-                {"index": i, "error": "This meter has already been read this month"}
+            log_duplicate_attempt(
+                staff_id,
+                staff_name,
+                cust,
+                existing,
+                float(value),
+                token_id,
+                session=session,
             )
+            session.flush()
+            errors.append({"index": i, "error": "This meter has already been read this month"})
             continue
 
         reading = MeterReading(
@@ -202,7 +215,12 @@ def upload_reading(
     existing = _existing_this_month(customer_number, reading_dt, None, session)
     if existing:
         log_duplicate_attempt(
-            staff_id, staff_name, customer_number, existing, reading_value, token_id,
+            staff_id,
+            staff_name,
+            customer_number,
+            existing,
+            reading_value,
+            token_id,
             session=session,
         )
         session.commit()
@@ -225,13 +243,18 @@ def upload_reading(
 
 
 def drop_reading(
-    reading_id: int, staff_id: int, reason: str, *, session: Session | None = None,
+    reading_id: int,
+    staff_id: int,
+    reason: str,
+    *,
+    session: Session | None = None,
 ) -> MeterReading | None:
     if session is None:
         raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     reading = session.query(MeterReading).get(reading_id)
     if not reading:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Reading not found")
 
     billing = session.query(Billing).filter_by(reading_id=reading_id).first()
@@ -267,13 +290,18 @@ def drop_reading(
 
 
 def edit_reading(
-    reading_id: int, new_value: float, staff_id: int, *, session: Session | None = None,
+    reading_id: int,
+    new_value: float,
+    staff_id: int,
+    *,
+    session: Session | None = None,
 ) -> MeterReading | None:
     if session is None:
         raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     reading = session.query(MeterReading).get(reading_id)
     if not reading:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Reading not found")
     old_value = float(reading.reading_value)
     log_action(

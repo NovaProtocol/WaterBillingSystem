@@ -13,9 +13,7 @@ _engine = None
 _sessionmaker = None
 _sync_engine = None
 _sync_sessionmaker = None
-_current_session: ContextVar[AsyncSession | None] = ContextVar(
-    'current_session', default=None
-)
+_current_session: ContextVar[AsyncSession | None] = ContextVar("current_session", default=None)
 
 
 def _async_url() -> str:
@@ -59,7 +57,7 @@ def session() -> AsyncSession:
     """Current request-scoped async session (set by the get_db dependency)."""
     s = _current_session.get()
     if s is None:
-        raise RuntimeError('No DB session bound to this context')
+        raise RuntimeError("No DB session bound to this context")
     return s
 
 

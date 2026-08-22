@@ -3,15 +3,15 @@ from __future__ import annotations
 import logging
 import secrets
 from collections import defaultdict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
+from models import Billing, Customer, Staff
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from models import Billing, Customer, Staff
 from services.audit_service import log_action
 
-logger = logging.getLogger('api')
+logger = logging.getLogger("api")
 
 
 def _generate_receipt(now: datetime) -> str:
@@ -21,21 +21,18 @@ def _generate_receipt(now: datetime) -> str:
 def _recalc_total_due(customer_number: int, session) -> None:
     total = 0.0
     unpaid_bills = (
-        session.query(Billing)
-        .filter_by(customer_number=customer_number, is_paid=False)
-        .all()
+        session.query(Billing).filter_by(customer_number=customer_number, is_paid=False).all()
     )
     for bill in unpaid_bills:
         bill_due = (
-            float(bill.billed_amount or 0)
-            + float(bill.penalty or 0)
-            - float(bill.paid_amount or 0)
+            float(bill.billed_amount or 0) + float(bill.penalty or 0) - float(bill.paid_amount or 0)
         )
         total += max(0, bill_due)
     balance = float(
         session.query(func.sum(Billing.carryover_offset))
         .filter_by(customer_number=customer_number)
-        .scalar() or 0
+        .scalar()
+        or 0
     )
     total_due = max(0, round(total - balance, 2))
     customer = session.query(Customer).filter_by(customer_number=customer_number).first()
@@ -44,7 +41,9 @@ def _recalc_total_due(customer_number: int, session) -> None:
 
 
 def recalc_cumulative_balance(
-    customer_number: int, *, customer: Customer | None = None,
+    customer_number: int,
+    *,
+    customer: Customer | None = None,
     session: Session | None = None,
 ) -> None:
     if session is None:
@@ -71,7 +70,8 @@ def submit_payment(
     customer_number: int,
     amount: float,
     cashier_id: int,
-    *, session: Session | None = None,
+    *,
+    session: Session | None = None,
 ) -> tuple[dict | None, str | None, int]:
     if session is None:
         raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
@@ -79,10 +79,7 @@ def submit_payment(
         return None, "Customer number and valid amount required", 400
 
     customer = (
-        session.query(Customer)
-        .filter_by(customer_number=customer_number)
-        .with_for_update()
-        .first()
+        session.query(Customer).filter_by(customer_number=customer_number).with_for_update().first()
     )
     if not customer:
         return None, "Customer not found", 404
@@ -111,9 +108,7 @@ def submit_payment(
 
     for bill in unpaid_bills:
         total_due = round(
-            float(bill.billed_amount)
-            + float(bill.penalty)
-            - float(bill.paid_amount),
+            float(bill.billed_amount) + float(bill.penalty) - float(bill.paid_amount),
             2,
         )
         if total_due <= 0.01:
@@ -169,13 +164,20 @@ def submit_payment(
 
 
 def drop_payment(
-    payment_id: int, staff_id: int, reason: str, *, session: Session | None = None,
+    payment_id: int,
+    staff_id: int,
+    reason: str,
+    *,
+    session: Session | None = None,
 ) -> dict | None:
     if session is None:
         raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     billing = session.query(Billing).with_for_update().get(payment_id)
     if not billing:
-        return {"error": "Billing record not found", "message": "Billing record not found"}
+        return {
+            "error": "Billing record not found",
+            "message": "Billing record not found",
+        }
     receipt = billing.receipt_number
     if not receipt:
         return {"error": "No receipt found", "message": "No receipt found"}
@@ -289,8 +291,12 @@ def compute_intervals(
 
 
 def compute_cashier_tally(
-    start: datetime, end: datetime, staff_id: int | None, group_days: int,
-    *, session: Session | None = None,
+    start: datetime,
+    end: datetime,
+    staff_id: int | None,
+    group_days: int,
+    *,
+    session: Session | None = None,
 ) -> tuple[list, bool]:
     if session is None:
         raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
@@ -356,9 +362,7 @@ def compute_cashier_tally(
         return tally, False
 
 
-def compute_nav_dates(
-    period: str, start: datetime, end: datetime, today: datetime
-) -> dict:
+def compute_nav_dates(period: str, start: datetime, end: datetime, today: datetime) -> dict:
     nav = {}
     if period == "daily":
         nav["prev_date"] = (start - timedelta(days=1)).strftime("%Y-%m-%d")

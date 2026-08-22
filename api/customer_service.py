@@ -2,26 +2,29 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any
 
+from models import Billing, Customer
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from models import Billing, Customer
-
 
 def _ensure_penalty_sync(billing, session) -> float:
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
 
     from pricing import DUE_DAYS, LATE_PENALTY
 
     if billing.is_paid:
         return float(billing.penalty or 0)
-    reading_ts = billing.reading.timestamp if billing.reading else (
-        billing.date_created or datetime.now(tz=timezone.utc).replace(tzinfo=None)
+    reading_ts = (
+        billing.reading.timestamp
+        if billing.reading
+        else (billing.date_created or datetime.now(tz=timezone.utc).replace(tzinfo=None))
     )
     due_dt = reading_ts + timedelta(days=DUE_DAYS)
-    if datetime.now(tz=timezone.utc).replace(tzinfo=None) > due_dt and float(billing.penalty or 0) == 0:
+    if (
+        datetime.now(tz=timezone.utc).replace(tzinfo=None) > due_dt
+        and float(billing.penalty or 0) == 0
+    ):
         billing.penalty = LATE_PENALTY
         session.flush()
     return float(billing.penalty or 0)
@@ -32,14 +35,18 @@ def _is_name_query(s: str) -> bool:
 
 
 def get_customer_by_number(
-    customer_number: int, *, session: Session | None = None,
+    customer_number: int,
+    *,
+    session: Session | None = None,
 ) -> Customer | None:
     if session is None:
         raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     return session.query(Customer).filter_by(customer_number=customer_number).first()
 
 
-def create_customer(data: dict, *, session: Session | None = None) -> tuple[Customer | None, str | None]:
+def create_customer(
+    data: dict, *, session: Session | None = None
+) -> tuple[Customer | None, str | None]:
     if session is None:
         raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     customer_number = data.get("customer_number")
@@ -74,15 +81,16 @@ def create_customer(data: dict, *, session: Session | None = None) -> tuple[Cust
 
 
 def update_customer(
-    customer: Customer, data: dict, *, session: Session | None = None,
+    customer: Customer,
+    data: dict,
+    *,
+    session: Session | None = None,
 ) -> None:
     if session is None:
         raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
     customer.name = data.get("name", customer.name) or None
     customer.address = data.get("address", customer.address) or None
-    customer.contact_number = (
-        data.get("contact_number", customer.contact_number) or None
-    )
+    customer.contact_number = data.get("contact_number", customer.contact_number) or None
     customer.email = data.get("email", customer.email) or None
     customer.phase = data.get("phase", customer.phase) or None
     customer.block = data.get("block", customer.block) or None
@@ -115,7 +123,9 @@ def _total_carryover(customer_number: int, session) -> float:
 
 
 def compute_customer_due(
-    customer: Customer, *, session: Session | None = None,
+    customer: Customer,
+    *,
+    session: Session | None = None,
 ) -> float:
     if session is None:
         raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
@@ -128,9 +138,7 @@ def compute_customer_due(
     for bill in unpaid_bills:
         _ensure_penalty_sync(bill, session)
         bill_due = (
-            float(bill.billed_amount or 0)
-            + float(bill.penalty or 0)
-            - float(bill.paid_amount or 0)
+            float(bill.billed_amount or 0) + float(bill.penalty or 0) - float(bill.paid_amount or 0)
         )
         total_due += max(0, bill_due)
     balance = _total_carryover(customer.customer_number, session)
@@ -150,7 +158,9 @@ def recalc_total_due(customer_number: int, *, session: Session | None = None) ->
 
 
 def compute_batch_due(
-    customers: list[Customer], *, session: Session | None = None,
+    customers: list[Customer],
+    *,
+    session: Session | None = None,
 ) -> dict[int, float]:
     if session is None:
         raise ValueError("session is required (Flask-SQLAlchemy db.session is gone)")
@@ -180,9 +190,7 @@ def compute_batch_due(
         .group_by(Billing.customer_number)
         .all()
     )
-    offset_map: dict[int, float] = {
-        r.customer_number: float(r.total_offset) for r in offset_rows
-    }
+    offset_map: dict[int, float] = {r.customer_number: float(r.total_offset) for r in offset_rows}
 
     result: dict[int, float] = {}
     for c in customers:
@@ -206,7 +214,8 @@ def list_customers(
     q: str | None = None,
     sort_by: str = "name",
     sort_dir: str = "asc",
-    *, session: Session | None = None,
+    *,
+    session: Session | None = None,
 ) -> tuple[list[Customer], int]:
     """Returns (items, total)."""
     if session is None:
@@ -228,7 +237,7 @@ def list_customers(
             if conditions:
                 query = query.filter(or_(*conditions))
         elif _is_name_query(q):
-            query = query.filter(Customer.name.like(f'{q}%'))
+            query = query.filter(Customer.name.like(f"{q}%"))
 
     if sort_by == "customer_number":
         order = Customer.customer_number

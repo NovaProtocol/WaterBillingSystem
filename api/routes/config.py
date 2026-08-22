@@ -3,19 +3,18 @@ from __future__ import annotations
 import logging
 import os
 
-from fastapi import Depends, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
-from fastapi import APIRouter
-
 router = APIRouter(prefix="/api")
 from db_async import session
-from models import ApiKey, Config as AppConfig
+from models import ApiKey
+from models import Config as AppConfig
 from pricing import DUE_DAYS, LATE_PENALTY, PRICING_TIERS
 from utils import require_staff, resolve_api_key
 
-logger = logging.getLogger('api')
+logger = logging.getLogger("api")
 
 
 @router.get("/config/nfc_secret")
@@ -28,9 +27,7 @@ async def config_nfc_secret(request: Request):
     ):
         return JSONResponse({"error": "Permission denied"}, status_code=403)
 
-    result = await session().execute(
-        select(AppConfig).where(AppConfig.key == "nfc_generation")
-    )
+    result = await session().execute(select(AppConfig).where(AppConfig.key == "nfc_generation"))
     gen_row = result.scalar_one_or_none()
     generation = int(gen_row.value) if gen_row else 0
 

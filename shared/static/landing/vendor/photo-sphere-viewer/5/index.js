@@ -3767,7 +3767,7 @@ console.warn('PhotoSphereViewer "index.js" scripts are deprecated and will be re
       const largeArc = value > 50 ? "1" : "0";
       this.canvas.innerHTML = `
             <circle cx="${halfSize}" cy="${halfSize}" r="${halfSize}" fill="${this.color}"/>
-            <path d="M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArc} 1 ${endX} ${endY}" 
+            <path d="M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArc} 1 ${endX} ${endY}"
                   fill="none" stroke="${this.textColor}" stroke-width="${this.thickness}" stroke-linecap="round"/>
         `;
       this.viewer.dispatchEvent(new LoadProgressEvent(Math.round(value)));

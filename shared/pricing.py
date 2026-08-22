@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 LATE_PENALTY: float = 15.00
@@ -45,7 +45,7 @@ PRICING_TIERS: list[dict[str, Any]] = [
 ]
 
 
-def compute_water_bill(consumption: int | float) -> tuple[float, list[dict[str, Any]]]:
+def compute_water_bill(consumption: float) -> tuple[float, list[dict[str, Any]]]:
     total = 0.0
     breakdown: list[dict[str, Any]] = []
     for tier in PRICING_TIERS:
@@ -57,19 +57,19 @@ def compute_water_bill(consumption: int | float) -> tuple[float, list[dict[str, 
             charge = tier["rate"] if units_in_tier > 0 else 0
         else:
             charge = units_in_tier * tier["rate"]
-        breakdown.append(
-            {"label": tier["label"], "units": units_in_tier, "charge": charge}
-        )
+        breakdown.append({"label": tier["label"], "units": units_in_tier, "charge": charge})
         total += charge
     return total, breakdown
 
 
-def compute_penalty(
-    reading_timestamp: datetime, billing_record: Any | None = None
-) -> float:
+def compute_penalty(reading_timestamp: datetime, billing_record: Any | None = None) -> float:
     due_dt = reading_timestamp + timedelta(days=DUE_DAYS)
     if billing_record:
-        payment_ts = billing_record.payment_timestamp or billing_record.date_paid or datetime.now(tz=timezone.utc).replace(tzinfo=None)
+        payment_ts = (
+            billing_record.payment_timestamp
+            or billing_record.date_paid
+            or datetime.now(tz=timezone.utc).replace(tzinfo=None)
+        )
         if payment_ts > due_dt:
             return LATE_PENALTY
     else:

@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
-
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from sqlalchemy import desc, func, or_, select
-from sqlalchemy.orm import joinedload, selectinload
+from datetime import datetime, timedelta, timezone
 
 from billing_service import ensure_penalty
 from customer_service import (
@@ -17,8 +11,13 @@ from customer_service import (
     update_customer,
 )
 from db_async import session
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 from models import ApiKey, Billing, Customer, MeterReading, NfcTag
 from pricing import PRICING_TIERS
+from pydantic import BaseModel
+from sqlalchemy import desc, func, or_, select
+from sqlalchemy.orm import joinedload, selectinload
 from utils import require_staff
 
 from routes.customer.common import _run_sync
@@ -67,7 +66,9 @@ async def customer_count(api_key: ApiKey = Depends(require_staff("can_read_meter
 
 
 @router.get("/customer/all")
-async def customer_all(request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
+async def customer_all(
+    request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))
+):
     try:
         page = int(request.query_params.get("page", "1"))
     except (ValueError, TypeError):
@@ -81,41 +82,45 @@ async def customer_all(request: Request, api_key: ApiKey = Depends(require_staff
     sort_dir = request.query_params.get("sort_dir", "asc")
 
     items, total = await _run_sync(
-        list_customers, page=page, per_page=size, q=q or None,
-        sort_by=sort_by, sort_dir=sort_dir,
+        list_customers,
+        page=page,
+        per_page=size,
+        q=q or None,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
     )
 
     cnums = [c.customer_number for c in items]
     nfc_map: dict[str, str] = {}
     if cnums:
         result = await session().execute(
-            select(NfcTag.customer_number, NfcTag.uid).where(
-                NfcTag.customer_number.in_(cnums)
-            )
+            select(NfcTag.customer_number, NfcTag.uid).where(NfcTag.customer_number.in_(cnums))
         )
         nfc_map = {row[0]: row[1] for row in result.all()}
 
     customers_data = []
     for c in items:
-        customers_data.append({
-            "id": c.id,
-            "customer_number": c.customer_number,
-            "name": c.name,
-            "address": c.address,
-            "meter_serial_number": c.meter_serial_number or "",
-            "contact_number": c.contact_number,
-            "email": c.email,
-            "phase": c.phase,
-            "block": c.block,
-            "street": c.street,
-            "x_coordinate": c.x_coordinate,
-            "y_coordinate": c.y_coordinate,
-            "cumulative_balance": float(c.cumulative_balance or 0),
-            "max_meter_value": float(c.max_meter_value or 99999),
-            "total_due": float(c.total_due or 0),
-            "is_active": c.is_active,
-            "nfc_uid": nfc_map.get(c.customer_number),
-        })
+        customers_data.append(
+            {
+                "id": c.id,
+                "customer_number": c.customer_number,
+                "name": c.name,
+                "address": c.address,
+                "meter_serial_number": c.meter_serial_number or "",
+                "contact_number": c.contact_number,
+                "email": c.email,
+                "phase": c.phase,
+                "block": c.block,
+                "street": c.street,
+                "x_coordinate": c.x_coordinate,
+                "y_coordinate": c.y_coordinate,
+                "cumulative_balance": float(c.cumulative_balance or 0),
+                "max_meter_value": float(c.max_meter_value or 99999),
+                "total_due": float(c.total_due or 0),
+                "is_active": c.is_active,
+                "nfc_uid": nfc_map.get(c.customer_number),
+            }
+        )
     pages = max(1, (total + size - 1) // size) if size else 1
     return {
         "data": customers_data,
@@ -129,7 +134,11 @@ async def customer_all(request: Request, api_key: ApiKey = Depends(require_staff
 
 
 @router.get("/customer/{customer_number}")
-async def customer_info(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
+async def customer_info(
+    customer_number: int,
+    request: Request,
+    api_key: ApiKey = Depends(require_staff("can_read_meters")),
+):
     """Get full billing details for a specific customer."""
 
     result = await session().execute(
@@ -141,14 +150,23 @@ async def customer_info(customer_number: int, request: Request, api_key: ApiKey 
 
     await _run_sync(recalc_total_due, customer_number)
     from services.payment_service import recalc_cumulative_balance
+
     await _run_sync(recalc_cumulative_balance, customer_number)
 
     try:
-        staff_filter = int(request.query_params.get("staff_id")) if request.query_params.get("staff_id") else None
+        staff_filter = (
+            int(request.query_params.get("staff_id"))
+            if request.query_params.get("staff_id")
+            else None
+        )
     except (ValueError, TypeError):
         staff_filter = None
     try:
-        token_filter = int(request.query_params.get("token_id")) if request.query_params.get("token_id") else None
+        token_filter = (
+            int(request.query_params.get("token_id"))
+            if request.query_params.get("token_id")
+            else None
+        )
     except (ValueError, TypeError):
         token_filter = None
 
@@ -163,9 +181,7 @@ async def customer_info(customer_number: int, request: Request, api_key: ApiKey 
         readings_query = readings_query.join(MeterReading.token).where(
             ApiKey.staff_id == staff_filter
         )
-    readings_result = await session().execute(
-        readings_query.order_by(desc(MeterReading.timestamp))
-    )
+    readings_result = await session().execute(readings_query.order_by(desc(MeterReading.timestamp)))
     readings = readings_result.scalars().unique().all()
 
     latest_reading = readings[0] if len(readings) > 0 else None
@@ -219,9 +235,7 @@ async def customer_info(customer_number: int, request: Request, api_key: ApiKey 
     total_unpaid = sum(b["amount"] for b in unpaid_bills)
     total_penalties = sum(b["penalty"] for b in unpaid_bills)
     carryover_result = await session().execute(
-        select(func.sum(Billing.carryover_offset)).where(
-            Billing.customer_number == customer_number
-        )
+        select(func.sum(Billing.carryover_offset)).where(Billing.customer_number == customer_number)
     )
     total_carryover = carryover_result.scalar() or 0
     balance = float(total_carryover)
@@ -230,7 +244,9 @@ async def customer_info(customer_number: int, request: Request, api_key: ApiKey 
     due_date = None
     days_remaining = None
     if unpaid_bills:
-        due_dt = datetime.fromtimestamp(unpaid_bills[0]["timestamp"], tz=timezone.utc).replace(tzinfo=None) + timedelta(days=7)
+        due_dt = datetime.fromtimestamp(unpaid_bills[0]["timestamp"], tz=timezone.utc).replace(
+            tzinfo=None
+        ) + timedelta(days=7)
         due_date = due_dt.strftime("%m-%d-%Y")
         days_remaining = max(0, (due_dt - datetime.now(tz=timezone.utc).replace(tzinfo=None)).days)
 
@@ -310,12 +326,14 @@ async def customer_info(customer_number: int, request: Request, api_key: ApiKey 
     recent_billings = recent_result.scalars().all()
 
     from pricing import compute_water_bill
+
     water_bill, bill_breakdown = compute_water_bill(consumption) if consumption > 0 else (0.0, [])
     carryover = abs(float(total_carryover))
     balance = float(total_carryover)
     latest_unpaid = len(unpaid_bills) > 0
 
     from models import PaymentMethod
+
     methods_result = await session().execute(
         select(PaymentMethod)
         .where(PaymentMethod.is_active.is_(True))
@@ -391,9 +409,7 @@ async def customer_info(customer_number: int, request: Request, api_key: ApiKey 
                     else 0
                 ),
                 "cashier_id": b.cashier_id,
-                "cashier": (
-                    (b.cashier.name or b.cashier.username) if b.cashier else None
-                ),
+                "cashier": ((b.cashier.name or b.cashier.username) if b.cashier else None),
             }
             for b in recent_billings
         ],
@@ -413,7 +429,11 @@ async def customer_info(customer_number: int, request: Request, api_key: ApiKey 
 
 
 @router.get("/customer/{customer_number}/details")
-async def customer_details(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
+async def customer_details(
+    customer_number: int,
+    request: Request,
+    api_key: ApiKey = Depends(require_staff("can_read_meters")),
+):
     """Get customer profile with recent reading history."""
 
     result = await session().execute(
@@ -467,7 +487,10 @@ async def customer_details(customer_number: int, request: Request, api_key: ApiK
 
 
 @router.post("/customer/new", status_code=201)
-async def customer_new(payload: CustomerCreatePayload, api_key: ApiKey = Depends(require_staff("can_enroll_customer"))):
+async def customer_new(
+    payload: CustomerCreatePayload,
+    api_key: ApiKey = Depends(require_staff("can_enroll_customer")),
+):
     data = payload.model_dump()
     customer, error = await _run_sync(create_customer, data)
     if error:
@@ -480,7 +503,11 @@ async def customer_new(payload: CustomerCreatePayload, api_key: ApiKey = Depends
 
 
 @router.put("/customer/update/{customer_number}")
-async def customer_update(customer_number: int, payload: CustomerUpdatePayload, api_key: ApiKey = Depends(require_staff("can_enroll_customer"))):
+async def customer_update(
+    customer_number: int,
+    payload: CustomerUpdatePayload,
+    api_key: ApiKey = Depends(require_staff("can_enroll_customer")),
+):
     result = await session().execute(
         select(Customer).where(Customer.customer_number == customer_number)
     )
@@ -492,7 +519,10 @@ async def customer_update(customer_number: int, payload: CustomerUpdatePayload, 
 
 
 @router.delete("/customer/delete/{customer_number}")
-async def customer_delete(customer_number: int, api_key: ApiKey = Depends(require_staff("can_enroll_customer"))):
+async def customer_delete(
+    customer_number: int,
+    api_key: ApiKey = Depends(require_staff("can_enroll_customer")),
+):
     result = await session().execute(
         select(Customer).where(Customer.customer_number == customer_number)
     )
@@ -501,7 +531,7 @@ async def customer_delete(customer_number: int, api_key: ApiKey = Depends(requir
         return JSONResponse({"error": "Customer not found"}, status_code=404)
     await _run_sync(toggle_active, customer)
     return {
-        "message": f'Customer {"deactivated" if not customer.is_active else "reactivated"}',
+        "message": f"Customer {'deactivated' if not customer.is_active else 'reactivated'}",
         "is_active": customer.is_active,
     }
 
@@ -513,7 +543,10 @@ async def customer_login(payload: CustomerLoginPayload):
     last_receipt = str(payload.last_receipt or "").strip()
 
     if account_number is None:
-        return JSONResponse({"error": "Customer number is required", "error_code": "CUS400"}, status_code=400)
+        return JSONResponse(
+            {"error": "Customer number is required", "error_code": "CUS400"},
+            status_code=400,
+        )
 
     result = await session().execute(
         select(Customer).where(
@@ -523,10 +556,18 @@ async def customer_login(payload: CustomerLoginPayload):
     )
     customer = result.scalar_one_or_none()
     if not customer:
-        return JSONResponse({"error": "Customer not found", "error_code": "CUS404"}, status_code=404)
+        return JSONResponse(
+            {"error": "Customer not found", "error_code": "CUS404"}, status_code=404
+        )
 
-    if registered_name and customer.name and customer.name.lower().strip() != registered_name.lower().strip():
-        return JSONResponse({"error": "Name does not match", "error_code": "CUS403"}, status_code=403)
+    if (
+        registered_name
+        and customer.name
+        and customer.name.lower().strip() != registered_name.lower().strip()
+    ):
+        return JSONResponse(
+            {"error": "Name does not match", "error_code": "CUS403"}, status_code=403
+        )
 
     return {
         "customer_number": customer.customer_number,
@@ -539,17 +580,20 @@ async def customer_login(payload: CustomerLoginPayload):
             "meter_serial_number": customer.meter_serial_number or "",
             "x_coordinate": customer.x_coordinate,
             "y_coordinate": customer.y_coordinate,
-        }
+        },
     }
 
 
 @router.get("/customers/changed")
-async def customers_changed(request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
-
+async def customers_changed(
+    request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))
+):
     try:
         since = int(request.query_params.get("since"))
     except (ValueError, TypeError):
-        return JSONResponse({"error": "since parameter is required (Unix timestamp)"}, status_code=400)
+        return JSONResponse(
+            {"error": "since parameter is required (Unix timestamp)"}, status_code=400
+        )
 
     try:
         since_dt = datetime.fromtimestamp(since)
@@ -557,14 +601,14 @@ async def customers_changed(request: Request, api_key: ApiKey = Depends(require_
         return JSONResponse({"error": "Invalid since timestamp"}, status_code=400)
 
     modified_result = await session().execute(
-        select(Customer.customer_number)
-        .where(Customer.date_modified > since_dt, Customer.is_active.is_(True))
+        select(Customer.customer_number).where(
+            Customer.date_modified > since_dt, Customer.is_active.is_(True)
+        )
     )
     modified_customers = modified_result.all()
 
     reading_result = await session().execute(
-        select(MeterReading.customer_number.distinct())
-        .where(
+        select(MeterReading.customer_number.distinct()).where(
             or_(
                 MeterReading.date_created > since_dt,
                 MeterReading.date_modified > since_dt,
@@ -574,9 +618,9 @@ async def customers_changed(request: Request, api_key: ApiKey = Depends(require_
     reading_customers = reading_result.all()
 
     from models import ManagementLog
+
     dropped_result = await session().execute(
-        select(ManagementLog.customer_number.distinct())
-        .where(
+        select(ManagementLog.customer_number.distinct()).where(
             ManagementLog.date_created > since_dt,
             ManagementLog.action_type.in_(["drop", "edit"]),
             ManagementLog.target_type == "reading",

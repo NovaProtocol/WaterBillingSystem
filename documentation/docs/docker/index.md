@@ -97,9 +97,20 @@ documentation:
     SECRET_KEY: ${SECRET_KEY:?}
 ```
 
+## API Container (HTTP + gRPC)
+
+FastAPI on `:8008` (public via Caddy `handle /api/*`) plus `grpc.aio.server` on `:50051` (internal-only). Proto in `shared/proto/billing.proto`, stubs in `shared/proto_gen/`. Portals, webhook and worker prefer `grpc.aio.insecure_channel("api:50051")` with `x-internal-api-key` metadata; browsers and Xendit callbacks stay on HTTP via Caddy. `50051` is `expose:` only on `net-api` (never `ports:`-published).
+
+| Property | Value |
+|----------|-------|
+| Container | `waterbillingsystem_api` |
+| HTTP | `:8008` FastAPI |
+| gRPC | `:50051` `grpc.aio.server` (`api:50051`) |
+| Proto | `shared/proto/billing.proto` (`api.v1.BillingService`) |
+
 ## Background Worker
 
-A **FastAPI app run by granian `--workers 1`** (exactly one async claim loop) that polls the `background_tasks` database table and executes queued tasks one at a time. Internal concurrency inside a job is bounded by `WORKER_JOB_CONCURRENCY` (default 8). Exposes a `/health` endpoint (`idle`/`working`, current task, progress).
+A **FastAPI app run by granian `--workers 1`** (exactly one async claim loop) that polls the `background_tasks` database table and executes queued tasks one at a time. Internal concurrency inside a job is bounded by `WORKER_JOB_CONCURRENCY` (default 8). Exposes a `/health` endpoint (`idle`/`working`, current task, progress). Optionally health-checks the API via gRPC `HealthCheck` on `api:50051`.
 
 | Property | Value |
 |----------|-------|

@@ -21,12 +21,14 @@ services:
       dockerfile: landing-page/Dockerfile
     container_name: waterbillingsystem_landing
     restart: unless-stopped
+    expose:
+      - "8001"
     volumes:
       - app_logs:/var/log/app
     networks:
       - net-public
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -47,13 +49,15 @@ services:
       dockerfile: customer-portal/Dockerfile
     container_name: waterbillingsystem_customerportal
     restart: unless-stopped
+    expose:
+      - "8002"
     volumes:
       - app_logs:/var/log/app
     networks:
       - net-public
       - net-api
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -68,6 +72,8 @@ services:
       SECRET_KEY: ${SECRET_KEY:?}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
       API_BASE_URL: ${API_BASE_URL:?}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8008}
+      API_GRPC_ADDR: ${API_GRPC_ADDR:-api:50051}
       DEBUG: ${DEBUG:?}
 
   staff-portal:
@@ -76,13 +82,15 @@ services:
       dockerfile: staff-portal/Dockerfile
     container_name: waterbillingsystem_staffportal
     restart: unless-stopped
+    expose:
+      - "8003"
     volumes:
       - app_logs:/var/log/app
     networks:
       - net-private
       - net-api
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -98,6 +106,8 @@ services:
       SECRET_KEY: ${SECRET_KEY:?}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
       API_BASE_URL: ${API_BASE_URL:?}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8008}
+      API_GRPC_ADDR: ${API_GRPC_ADDR:-api:50051}
 
   developer-portal:
     build:
@@ -105,13 +115,15 @@ services:
       dockerfile: developer-portal/Dockerfile
     container_name: waterbillingsystem_devportal
     restart: unless-stopped
+    expose:
+      - "8004"
     volumes:
       - app_logs:/var/log/app
     networks:
       - net-private
       - net-api
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8004/health', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8004/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -127,6 +139,8 @@ services:
       SECRET_KEY: ${SECRET_KEY:?}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
       API_BASE_URL: ${API_BASE_URL:?}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8008}
+      API_GRPC_ADDR: ${API_GRPC_ADDR:-api:50051}
 
   webhook-container:
     build:
@@ -134,13 +148,15 @@ services:
       dockerfile: webhook-container/Dockerfile
     container_name: waterbillingsystem_webhook
     restart: unless-stopped
+    expose:
+      - "8009"
     volumes:
       - app_logs:/var/log/app
     networks:
       - net-public
       - net-api
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8009/health', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8009/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -151,6 +167,8 @@ services:
       SECRET_KEY: ${SECRET_KEY:?}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
       API_BASE_URL: ${API_BASE_URL:?}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8008}
+      API_GRPC_ADDR: ${API_GRPC_ADDR:-api:50051}
 
   api:
     build:
@@ -158,6 +176,9 @@ services:
       dockerfile: api/Dockerfile
     container_name: waterbillingsystem_api
     restart: unless-stopped
+    expose:
+      - "8008"
+      - "50051"
     networks:
       - net-public
       - net-api
@@ -183,8 +204,10 @@ services:
       XENDIT_API_KEY: ${XENDIT_API_KEY:?}
       XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN:?}
       GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:?}
+      API_GRPC_ADDR: ${API_GRPC_ADDR:-api:50051}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8008}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8008/health', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8008/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -199,8 +222,11 @@ services:
       dockerfile: worker/Dockerfile
     container_name: waterbillingsystem_worker
     restart: unless-stopped
+    expose:
+      - "8006"
     networks:
       - net-data
+      - net-api
     volumes:
       - db_backups:/app/db_backups
       - app_logs:/var/log/app
@@ -216,8 +242,12 @@ services:
       DB_USERNAME: ${DB_USERNAME:?}
       DB_PASS: ${DB_PASS:?}
       XENDIT_API_KEY: ${XENDIT_API_KEY:?}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
+      API_BASE_URL: ${API_BASE_URL:-http://api:8008}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8008}
+      API_GRPC_ADDR: ${API_GRPC_ADDR:-api:50051}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8006/health', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8006/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -251,12 +281,14 @@ services:
       dockerfile: documentation/Dockerfile
     container_name: waterbillingsystem_documentation
     restart: unless-stopped
+    expose:
+      - "8005"
     volumes:
       - app_logs:/var/log/app
     networks:
       - net-private
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
