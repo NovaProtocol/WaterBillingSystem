@@ -7,5 +7,9 @@ RUN python3 -m compileall -q /app /app/shared 2>/dev/null || true
 COPY developer-portal/ /app/
 ENV PYTHONPATH=/app/shared
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+RUN useradd --create-home --uid 10001 appuser \
+    && chown -R appuser:appuser /app
 EXPOSE 8004
+USER appuser
+
 CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8004", "--workers", "1", "app:app"]
