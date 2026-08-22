@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 DIR="$(dirname "$0")"
 VENV="$DIR/.venv/bin/python"
 
