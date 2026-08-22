@@ -1,12 +1,24 @@
-import sys, os
-BASE = os.path.join(os.path.dirname(__file__), '..', '..', '..')
-sys.path.insert(0, os.path.join(BASE, 'api'))
-sys.path.insert(0, os.path.join(BASE, 'shared'))
+import os
+import sys
 
-from sqlalchemy import (BigInteger, Boolean, DateTime, Float, Integer, JSON,
-                        LargeBinary, Numeric, SmallInteger, String, Text)
+BASE = os.path.join(os.path.dirname(__file__), "..", "..", "..")
+sys.path.insert(0, os.path.join(BASE, "api"))
+sys.path.insert(0, os.path.join(BASE, "shared"))
 
 from preflight import TypeSpec, compare, from_db, from_model, is_time_name
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    Integer,
+    LargeBinary,
+    Numeric,
+    SmallInteger,
+    String,
+    Text,
+)
 
 
 class TestFromDb:
@@ -72,8 +84,8 @@ class TestFromModel:
 
     def test_text(self):
         assert from_model(Text()) == TypeSpec("TEXT", size=1)
-        assert from_model(Text(2 ** 20)) == TypeSpec("TEXT", size=2)
-        assert from_model(Text(2 ** 30)) == TypeSpec("TEXT", size=3)
+        assert from_model(Text(2**20)) == TypeSpec("TEXT", size=2)
+        assert from_model(Text(2**30)) == TypeSpec("TEXT", size=3)
 
     def test_others(self):
         assert from_model(Integer()) == TypeSpec("INTEGER", size=3)
@@ -106,32 +118,67 @@ class TestCompare:
         assert compare(from_db("INT"), from_model(BigInteger())) == "widen"
 
     def test_widen_decimal(self):
-        assert compare(TypeSpec("NUMERIC", precision=8, scale=2),
-                       TypeSpec("NUMERIC", precision=10, scale=2)) == "widen"
+        assert (
+            compare(
+                TypeSpec("NUMERIC", precision=8, scale=2),
+                TypeSpec("NUMERIC", precision=10, scale=2),
+            )
+            == "widen"
+        )
 
     def test_decimal_missing_precision_ok(self):
-        assert compare(TypeSpec("NUMERIC", precision=None, scale=None),
-                       TypeSpec("NUMERIC", precision=10, scale=2)) == "ok"
+        assert (
+            compare(
+                TypeSpec("NUMERIC", precision=None, scale=None),
+                TypeSpec("NUMERIC", precision=10, scale=2),
+            )
+            == "ok"
+        )
 
     def test_numeric_scale_shrink_warns(self):
-        assert compare(TypeSpec("NUMERIC", precision=10, scale=2),
-                       TypeSpec("NUMERIC", precision=12, scale=0)) == "warn"
+        assert (
+            compare(
+                TypeSpec("NUMERIC", precision=10, scale=2),
+                TypeSpec("NUMERIC", precision=12, scale=0),
+            )
+            == "warn"
+        )
 
     def test_numeric_precision_grow_same_scale_widens(self):
-        assert compare(TypeSpec("NUMERIC", precision=10, scale=2),
-                       TypeSpec("NUMERIC", precision=12, scale=2)) == "widen"
+        assert (
+            compare(
+                TypeSpec("NUMERIC", precision=10, scale=2),
+                TypeSpec("NUMERIC", precision=12, scale=2),
+            )
+            == "widen"
+        )
 
     def test_numeric_frac_grow_without_int_room_warns(self):
-        assert compare(TypeSpec("NUMERIC", precision=10, scale=2),
-                       TypeSpec("NUMERIC", precision=10, scale=4)) == "warn"
+        assert (
+            compare(
+                TypeSpec("NUMERIC", precision=10, scale=2),
+                TypeSpec("NUMERIC", precision=10, scale=4),
+            )
+            == "warn"
+        )
 
     def test_numeric_frac_grow_shrinks_int_capacity_warns(self):
-        assert compare(TypeSpec("NUMERIC", precision=12, scale=0),
-                       TypeSpec("NUMERIC", precision=12, scale=2)) == "warn"
+        assert (
+            compare(
+                TypeSpec("NUMERIC", precision=12, scale=0),
+                TypeSpec("NUMERIC", precision=12, scale=2),
+            )
+            == "warn"
+        )
 
     def test_numeric_identical_ok(self):
-        assert compare(TypeSpec("NUMERIC", precision=10, scale=2),
-                       TypeSpec("NUMERIC", precision=10, scale=2)) == "ok"
+        assert (
+            compare(
+                TypeSpec("NUMERIC", precision=10, scale=2),
+                TypeSpec("NUMERIC", precision=10, scale=2),
+            )
+            == "ok"
+        )
 
     def test_smallint_db_boolean_model_fatal(self):
         assert compare(TypeSpec("INTEGER", size=1), TypeSpec("BOOLEAN")) == "fatal"
@@ -146,12 +193,30 @@ class TestCompare:
 
 class TestTimeName:
     def test_matches(self):
-        for n in ["timestamp", "date_created", "created_at", "updated_at",
-                  "scheduled_at", "started_at", "finished_at", "reversed_at",
-                  "payment_timestamp", "date_paid", "last_modified"]:
+        for n in [
+            "timestamp",
+            "date_created",
+            "created_at",
+            "updated_at",
+            "scheduled_at",
+            "started_at",
+            "finished_at",
+            "reversed_at",
+            "payment_timestamp",
+            "date_paid",
+            "last_modified",
+        ]:
             assert is_time_name(n), n
 
     def test_non_matches(self):
-        for n in ["customer_number", "name", "is_paid", "is_active",
-                  "receipt_number", "amount", "status", "id"]:
+        for n in [
+            "customer_number",
+            "name",
+            "is_paid",
+            "is_active",
+            "receipt_number",
+            "amount",
+            "status",
+            "id",
+        ]:
             assert not is_time_name(n), n

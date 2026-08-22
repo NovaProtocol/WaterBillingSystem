@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+exclude = ["__pycache__", ".venv", "shared/proto_gen", "documentation/site", "MeterReadingApp"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "C90"]
+ignore = ["E402", "E501", "F401", "F841", "W291", "W293", "C901", "I001"]
+
+[tool.ruff.format]
+exclude = ["__pycache__", ".venv", "shared/proto_gen", "documentation/site", "MeterReadingApp"]
+
+[tool.mypy]
+python_version = "3.14"
+ignore_missing_imports = true
+warn_unused_ignores = true
+show_error_codes = true
+explicit_package_bases = true
+namespace_packages = true
+exclude = "MeterReadingApp"
+disable_error_code = "union-attr,arg-type,operator,var-annotated,assignment,attr-defined,no-untyped-def,misc,return,call-arg,dict-item,has-type,index,operator,union-attr"

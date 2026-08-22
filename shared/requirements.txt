@@ -13,6 +13,11 @@ aiomysql>=0.2
 greenlet>=3.2
 python-multipart>=0.0.9
 
+# grpc (internal container-to-container)
+grpcio>=1.60,<2
+grpcio-tools>=1.60,<2
+protobuf>=4,<7
+
 # portals (not Flask — standalone libs; Flask itself is gone)
 jinja2>=3.1,<4
 itsdangerous>=2.2,<3

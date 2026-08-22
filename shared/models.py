@@ -4,10 +4,20 @@ import datetime as dt
 import decimal
 import enum
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, LargeBinary, Numeric, String, Text
-from sqlalchemy.orm import Mapped, backref, mapped_column, relationship
-
 from db_async import Base
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    Numeric,
+    String,
+    Text,
+)
+from sqlalchemy.orm import Mapped, backref, mapped_column, relationship
 
 
 def _utcnow() -> dt.datetime:
@@ -16,7 +26,6 @@ def _utcnow() -> dt.datetime:
 
 
 class Staff(Base):
-
     __tablename__ = "staff"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -36,16 +45,13 @@ class Staff(Base):
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
-    last_modified: Mapped[dt.datetime] = mapped_column(
-        DateTime, default=_utcnow, onupdate=_utcnow
-    )
+    last_modified: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     def __repr__(self) -> str:
         return str(self.name or self.username)
 
 
 class Customer(Base):
-
     __tablename__ = "customers"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -67,16 +73,13 @@ class Customer(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     deleted_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
     date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
-    date_modified: Mapped[dt.datetime] = mapped_column(
-        DateTime, default=_utcnow, onupdate=_utcnow
-    )
+    date_modified: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     def __repr__(self) -> str:
         return f"<Customer {self.customer_number}>"
 
 
 class MeterReading(Base):
-
     __tablename__ = "meter_readings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -85,18 +88,12 @@ class MeterReading(Base):
         nullable=False,
     )
     reading_value: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    token_id: Mapped[int] = mapped_column(
-        ForeignKey("api_keys.id"), nullable=False, index=True
-    )
+    token_id: Mapped[int] = mapped_column(ForeignKey("api_keys.id"), nullable=False, index=True)
     timestamp: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, index=True)
     date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
-    date_modified: Mapped[dt.datetime] = mapped_column(
-        DateTime, default=_utcnow, onupdate=_utcnow
-    )
+    date_modified: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
-    customer = relationship(
-        "Customer", backref=backref("meter_readings", lazy=True)
-    )
+    customer = relationship("Customer", backref=backref("meter_readings", lazy=True))
     token = relationship("ApiKey", backref=backref("meter_readings", lazy=True))
 
     def __repr__(self) -> str:
@@ -104,7 +101,6 @@ class MeterReading(Base):
 
 
 class Billing(Base):
-
     __tablename__ = "billings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -112,18 +108,24 @@ class Billing(Base):
         ForeignKey("customers.customer_number"),
         nullable=False,
     )
-    reading_id: Mapped[int | None] = mapped_column(
-        ForeignKey("meter_readings.id"), nullable=True
-    )
+    reading_id: Mapped[int | None] = mapped_column(ForeignKey("meter_readings.id"), nullable=True)
 
-    previous_reading_value: Mapped[decimal.Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
-    current_reading_value: Mapped[decimal.Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    previous_reading_value: Mapped[decimal.Decimal | None] = mapped_column(
+        Numeric(10, 2), nullable=True
+    )
+    current_reading_value: Mapped[decimal.Decimal | None] = mapped_column(
+        Numeric(10, 2), nullable=True
+    )
     consumption: Mapped[decimal.Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
 
-    billed_amount: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    billed_amount: Mapped[decimal.Decimal] = mapped_column(
+        Numeric(10, 2), nullable=False, default=0
+    )
     penalty: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
     paid_amount: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
-    carryover_offset: Mapped[decimal.Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    carryover_offset: Mapped[decimal.Decimal] = mapped_column(
+        Numeric(10, 2), nullable=False, default=0
+    )
     is_paid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     receipt_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -134,26 +136,17 @@ class Billing(Base):
     date_paid: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
     date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
-    date_modified: Mapped[dt.datetime] = mapped_column(
-        DateTime, default=_utcnow, onupdate=_utcnow
-    )
+    date_modified: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
-    customer = relationship(
-        "Customer", backref=backref("billings", lazy=True)
-    )
-    reading = relationship(
-        "MeterReading", backref=backref("billings", lazy=True)
-    )
-    cashier = relationship(
-        "Staff", backref=backref("billings", lazy=True)
-    )
+    customer = relationship("Customer", backref=backref("billings", lazy=True))
+    reading = relationship("MeterReading", backref=backref("billings", lazy=True))
+    cashier = relationship("Staff", backref=backref("billings", lazy=True))
 
     def __repr__(self) -> str:
         return f"<Billing {self.customer_number} {'Paid' if self.is_paid else 'Unpaid'}>"
 
 
 class ApiKey(Base):
-
     __tablename__ = "api_keys"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -162,9 +155,7 @@ class ApiKey(Base):
     staff_id: Mapped[int] = mapped_column(ForeignKey("staff.id"), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
-    last_modified: Mapped[dt.datetime] = mapped_column(
-        DateTime, default=_utcnow, onupdate=_utcnow
-    )
+    last_modified: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     staff = relationship("Staff", backref=backref("api_keys", lazy=True))
 
@@ -173,7 +164,6 @@ class ApiKey(Base):
 
 
 class NfcTag(Base):
-
     __tablename__ = "nfc_tags"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -183,17 +173,11 @@ class NfcTag(Base):
         nullable=False,
         index=True,
     )
-    enrolled_by_id: Mapped[int] = mapped_column(
-        ForeignKey("staff.id"), nullable=False
-    )
+    enrolled_by_id: Mapped[int] = mapped_column(ForeignKey("staff.id"), nullable=False)
     date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
-    last_modified: Mapped[dt.datetime] = mapped_column(
-        DateTime, default=_utcnow, onupdate=_utcnow
-    )
+    last_modified: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
-    customer = relationship(
-        "Customer", backref=backref("nfc_tags", lazy=True)
-    )
+    customer = relationship("Customer", backref=backref("nfc_tags", lazy=True))
     enrolled_by = relationship("Staff", backref=backref("nfc_tags", lazy=True))
 
     def __repr__(self) -> str:
@@ -209,7 +193,6 @@ class ActionType(enum.StrEnum):
 
 
 class ManagementLog(Base):
-
     __tablename__ = "management_logs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -225,33 +208,25 @@ class ManagementLog(Base):
     details: Mapped[str | None] = mapped_column(Text(), nullable=True)
     timestamp: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, index=True)
     date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
-    date_modified: Mapped[dt.datetime] = mapped_column(
-        DateTime, default=_utcnow, onupdate=_utcnow
-    )
+    date_modified: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
-    staff = relationship(
-        "Staff", backref=backref("management_logs", lazy=True)
-    )
+    staff = relationship("Staff", backref=backref("management_logs", lazy=True))
 
 
 class Config(Base):
-
     __tablename__ = "app_config"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     value: Mapped[str | None] = mapped_column(Text(), nullable=True)
     date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
-    date_modified: Mapped[dt.datetime] = mapped_column(
-        DateTime, default=_utcnow, onupdate=_utcnow
-    )
+    date_modified: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     def __repr__(self) -> str:
         return f"<Config {self.key}={self.value!r}>"
 
 
 class PaymentMethod(Base):
-
     __tablename__ = "payment_methods"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -282,7 +257,6 @@ class PaymentMethod(Base):
 
 
 class XenditTransaction(Base):
-
     __tablename__ = "xendit_transactions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -305,20 +279,15 @@ class XenditTransaction(Base):
     reversed_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
     xendit_payment_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     date_created: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
-    date_modified: Mapped[dt.datetime] = mapped_column(
-        DateTime, default=_utcnow, onupdate=_utcnow
-    )
+    date_modified: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
-    customer = relationship(
-        "Customer", backref=backref("xendit_transactions", lazy=True)
-    )
+    customer = relationship("Customer", backref=backref("xendit_transactions", lazy=True))
 
     def __repr__(self) -> str:
         return f"<XenditTransaction {self.xendit_pr_id} {self.status}>"
 
 
 class BackgroundTask(Base):
-
     __tablename__ = "background_tasks"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -326,7 +295,7 @@ class BackgroundTask(Base):
     params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued", index=True)
     progress: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    messages: Mapped[list] = mapped_column(JSON, nullable=False, default=lambda: [])
+    messages: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     title: Mapped[str | None] = mapped_column(String(256), nullable=True)
     scheduled_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
@@ -367,9 +336,8 @@ class BackgroundTask(Base):
         title: str | None = None,
         scheduled_at: dt.datetime | None = None,
     ) -> BackgroundTask | None:
-        from sqlalchemy import select
-
         from db_async import session_factory
+        from sqlalchemy import select
 
         async with session_factory()() as s:
             existing = (

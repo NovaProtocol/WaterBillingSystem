@@ -15,7 +15,7 @@ Proxy-style FastAPI app:
 
 ### Login
 
-**`GET /staff/login`** — Login page  
+**`GET /staff/login`** — Login page
 **`POST /staff/login`** — Submit credentials
 
 On successful login, the portal calls `POST /api/staff/login` on the API container and stores staff data (including permissions) in the signed `session` cookie.

@@ -1,29 +1,42 @@
-import os, sys, pytest, threading, time
-BASE = os.path.join(os.path.dirname(__file__), '..', '..', '..')
-os.environ['SECRET_KEY'] = 'test-secret'
-os.environ['DEBUG'] = 'true'
-os.environ['DEPLOYMENT_TYPE'] = 'DEBUG'
-os.environ['SESSION_COOKIE_SECURE'] = 'true'
-os.environ['REVERSE_PROXY_PREFIX'] = ''
-os.environ['SHARED_STATIC_DIR'] = ''
-os.environ['SHARED_TEMPLATES_DIR'] = ''
-sys.path.insert(0, os.path.join(BASE, 'landing-page'))
+import os
+import sys
+import threading
+import time
+
+import pytest
+
+BASE = os.path.join(os.path.dirname(__file__), "..", "..", "..")
+os.environ["SECRET_KEY"] = "test-secret"
+os.environ["DEBUG"] = "true"
+os.environ["DEPLOYMENT_TYPE"] = "DEBUG"
+os.environ["SESSION_COOKIE_SECURE"] = "true"
+os.environ["REVERSE_PROXY_PREFIX"] = ""
+os.environ["SHARED_STATIC_DIR"] = ""
+os.environ["SHARED_TEMPLATES_DIR"] = ""
+sys.path.insert(0, os.path.join(BASE, "landing-page"))
 import shared.logger as shared_logger
-shared_logger._LOG_DIR = '/tmp/wbs-logs'
+
+shared_logger._LOG_DIR = "/tmp/wbs-logs"
 from app import app
 from uvicorn import Config, Server
-t = threading.Thread(target=Server(Config(
-    app, host='127.0.0.1', port=9101, log_level='warning')).run, daemon=True)
+
+t = threading.Thread(
+    target=Server(Config(app, host="127.0.0.1", port=9101, log_level="warning")).run,
+    daemon=True,
+)
 t.start()
 time.sleep(1)
 
-@pytest.fixture(scope='session')
+
+@pytest.fixture(scope="session")
 def browser():
     from playwright.sync_api import sync_playwright
+
     with sync_playwright() as p:
         b = p.chromium.launch(headless=True)
         yield b
         b.close()
+
 
 @pytest.fixture
 def page(browser):

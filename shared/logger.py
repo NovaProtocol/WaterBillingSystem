@@ -33,12 +33,8 @@ def _get_db(name: str) -> sqlite3.Connection:
                 container TEXT
             )"""
         )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level)"
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp)"
-        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp)")
         _local.conn = conn
     return _local.conn
 
@@ -51,8 +47,12 @@ class SQLiteLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
             conn = _get_db(self.name)
-            ts = datetime.fromtimestamp(record.created, tz=timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+            ts = (
+                datetime.fromtimestamp(record.created, tz=timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%S.%f"
+                )[:-3]
+                + "Z"
+            )
             tb = None
             if record.exc_info and record.exc_info[0]:
                 tb = self.format(record)
@@ -110,8 +110,10 @@ def query_logs(
         svc = os.path.splitext(os.path.basename(path))[0].replace("logs_", "", 1)
         try:
             conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-            parts = ["SELECT id, timestamp, level, logger, message, traceback, "
-                      "method, path, status_code, remote_addr, container FROM logs"]
+            parts = [
+                "SELECT id, timestamp, level, logger, message, traceback, "
+                "method, path, status_code, remote_addr, container FROM logs"
+            ]
             wheres: list[str] = []
             params: list = []
             if level:
@@ -125,22 +127,24 @@ def query_logs(
             parts.append("ORDER BY id DESC LIMIT ? OFFSET ?")
             params.extend([limit, offset])
             for row in conn.execute(" ".join(parts), params).fetchall():
-                results.append({
-                    "service": svc,
-                    "id": row[0],
-                    "timestamp": row[1],
-                    "level": row[2],
-                    "logger": row[3],
-                    "message": row[4],
-                    "traceback": row[5],
-                    "method": row[6],
-                    "path": row[7],
-                    "status_code": row[8],
-                    "remote_addr": row[9],
-                    "container": row[10],
-                })
+                results.append(
+                    {
+                        "service": svc,
+                        "id": row[0],
+                        "timestamp": row[1],
+                        "level": row[2],
+                        "logger": row[3],
+                        "message": row[4],
+                        "traceback": row[5],
+                        "method": row[6],
+                        "path": row[7],
+                        "status_code": row[8],
+                        "remote_addr": row[9],
+                        "container": row[10],
+                    }
+                )
             conn.close()
         except Exception as e:
-            logging.getLogger('api').exception(f"Failed to query logs from {path}: {e}")
+            logging.getLogger("api").exception(f"Failed to query logs from {path}: {e}")
 
     return results

@@ -1,12 +1,13 @@
-import sys, os
-BASE = os.path.join(os.path.dirname(__file__), '..', '..', '..')
-sys.path.insert(0, os.path.join(BASE, 'api'))
-sys.path.insert(0, os.path.join(BASE, 'shared'))
+import os
+import sys
 
-from sqlalchemy import Column, Integer, MetaData, String, Table
+BASE = os.path.join(os.path.dirname(__file__), "..", "..", "..")
+sys.path.insert(0, os.path.join(BASE, "api"))
+sys.path.insert(0, os.path.join(BASE, "shared"))
 
 from models import Base as ModelsBase
 from preflight import MANIFEST, validate_manifest
+from sqlalchemy import Column, Integer, MetaData, Table
 
 
 class TestManifest:

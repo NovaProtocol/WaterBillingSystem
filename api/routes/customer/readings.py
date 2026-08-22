@@ -2,19 +2,22 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from db_async import session
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from sqlalchemy import desc, func, select
-from sqlalchemy.orm import joinedload
-
-from db_async import session
 from models import ApiKey, MeterReading
+from pydantic import BaseModel
 from reading_service import (
     drop_reading as service_drop_reading,
+)
+from reading_service import (
     edit_reading as service_edit_reading,
+)
+from reading_service import (
     upload_reading as service_upload_reading,
 )
+from sqlalchemy import desc, func, select
+from sqlalchemy.orm import joinedload
 from utils import require_staff
 
 from routes.customer.common import _run_sync
@@ -42,8 +45,11 @@ class ReadingEditPayload(BaseModel):
 
 
 @router.get("/customer/{customer_number}/reading")
-async def customer_readings(customer_number: int, request: Request, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
-
+async def customer_readings(
+    customer_number: int,
+    request: Request,
+    api_key: ApiKey = Depends(require_staff("can_read_meters")),
+):
     try:
         page = int(request.query_params.get("page", "1"))
     except (ValueError, TypeError):
@@ -54,9 +60,9 @@ async def customer_readings(customer_number: int, request: Request, api_key: Api
         size = 50
 
     count_result = await session().execute(
-        select(func.count()).select_from(MeterReading).where(
-            MeterReading.customer_number == customer_number
-        )
+        select(func.count())
+        .select_from(MeterReading)
+        .where(MeterReading.customer_number == customer_number)
     )
     total = count_result.scalar() or 0
 
@@ -90,10 +96,17 @@ async def customer_readings(customer_number: int, request: Request, api_key: Api
 
 
 @router.post("/customer/{customer_number}/reading/new", status_code=201)
-async def customer_reading_new(customer_number: int, payload: ReadingNewPayload, api_key: ApiKey = Depends(require_staff("can_read_meters"))):
-
+async def customer_reading_new(
+    customer_number: int,
+    payload: ReadingNewPayload,
+    api_key: ApiKey = Depends(require_staff("can_read_meters")),
+):
     reading_value = payload.reading_value
-    timestamp = payload.timestamp if payload.timestamp is not None else datetime.now(tz=timezone.utc).replace(tzinfo=None).timestamp()
+    timestamp = (
+        payload.timestamp
+        if payload.timestamp is not None
+        else datetime.now(tz=timezone.utc).replace(tzinfo=None).timestamp()
+    )
     staff_id = payload.staff_id if api_key is True else api_key.staff.id
     staff_name = payload.staff_name if api_key is True else api_key.staff.name
 
@@ -115,8 +128,13 @@ async def customer_reading_new(customer_number: int, payload: ReadingNewPayload,
     else:
         token_id = api_key.id
     reading, error, status = await _run_sync(
-        service_upload_reading, customer_number, reading_float, ts_float,
-        token_id, staff_id, staff_name,
+        service_upload_reading,
+        customer_number,
+        reading_float,
+        ts_float,
+        token_id,
+        staff_id,
+        staff_name,
     )
     if error:
         return JSONResponse({"error": error}, status_code=status)
@@ -132,8 +150,11 @@ async def customer_reading_new(customer_number: int, payload: ReadingNewPayload,
 
 
 @router.post("/customer/{customer_number}/reading/drop")
-async def customer_reading_drop(customer_number: int, payload: ReadingDropPayload, api_key: ApiKey = Depends(require_staff("can_drop_reading"))):
-
+async def customer_reading_drop(
+    customer_number: int,
+    payload: ReadingDropPayload,
+    api_key: ApiKey = Depends(require_staff("can_drop_reading")),
+):
     reading_id = payload.reading_id
     reason = str(payload.reason or "").strip()
     staff_id = payload.staff_id if api_key is True else api_key.staff.id
@@ -149,8 +170,11 @@ async def customer_reading_drop(customer_number: int, payload: ReadingDropPayloa
 
 
 @router.post("/customer/{customer_number}/reading/edit")
-async def customer_reading_edit(customer_number: int, payload: ReadingEditPayload, api_key: ApiKey = Depends(require_staff("can_manage_billing"))):
-
+async def customer_reading_edit(
+    customer_number: int,
+    payload: ReadingEditPayload,
+    api_key: ApiKey = Depends(require_staff("can_manage_billing")),
+):
     reading_id = payload.reading_id
     try:
         new_value = float(payload.reading_value)

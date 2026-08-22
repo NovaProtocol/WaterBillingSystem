@@ -238,6 +238,32 @@ Progressive tier calculation: consumption is applied to each tier bracket sequen
 
 ---
 
+## Internal gRPC vs Public HTTP
+
+Public traffic enters via Caddy (`handle /api/* -> api:8008`), internal traffic prefers gRPC (`api:50051`).
+
+| Traffic | Protocol | Endpoint | Channel / Proxy | Auth |
+|---|---|---|---|---|
+| `api:50051` internal (worker → api, customer-portal → api, webhook → api) | gRPC | `grpc.aio.server` on `api:50051` | `grpc.aio.insecure_channel("api:50051")` | `x-internal-api-key` metadata |
+| Browser / webhook / public `caddy` → `api` | HTTP | FastAPI `APIRouter(prefix="/api")` on `api:8008` | `caddy` `handle /api/*` + `reverse_proxy api:8008` | GateKeeper `forward_auth`, cookie/session, or `Authorization: Bearer` |
+
+```mermaid
+graph LR
+    Internet -- HTTP --> Caddy["caddy handle /api/*"]
+    Caddy -- HTTP --> API_HTTP["api:8008 FastAPI"]
+    Worker -- gRPC --> API_GRPC["api:50051 gRPC"]
+    CustomerPortal -- gRPC --> API_GRPC
+    Webhook -- gRPC --> API_GRPC
+```
+
+Proto definitions live in `shared/proto/billing.proto` (`package api.v1; service BillingService`). Generated stubs are in `shared/proto_gen/` via `grpc_tools.protoc`. The gRPC server runs alongside FastAPI in the same `api` container (lifespan `start_grpc_server()` on `0.0.0.0:50051`); portals and webhook dial `API_GRPC_ADDR=api:50051` with `x-internal-api-key` metadata and fall back to HTTP `API_INTERNAL_URL=http://api:8008` when gRPC is unavailable. Port `50051` is `expose:` only on the internal `net-api` network, never `ports:`-published or proxied through Caddy.
+
+- Generate stubs: `uv run --python 3.14 --with grpcio-tools -- python -m grpc_tools.protoc -I shared/proto --python_out=shared/proto_gen --grpc_python_out=shared/proto_gen shared/proto/billing.proto`
+- Client: `async with grpc.aio.insecure_channel("api:50051") as ch: stub = BillingServiceStub(ch); await stub.GetCustomer(..., metadata=(("x-internal-api-key", key),))`
+- Server: `server = grpc.aio.server(); add_BillingServiceServicer_to_server(BillingServicer(), server); server.add_insecure_port("0.0.0.0:50051")`
+
+---
+
 ## Startup Preflight & Self-Healing
 
 On every boot, the API container (`api/preflight.py`) compares the live schema against the SQLAlchemy models before serving traffic:

@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter
+from db_async import sync_session
 from fastapi.concurrency import run_in_threadpool
 
-from db_async import sync_session
-
-logger = logging.getLogger('api')
+logger = logging.getLogger("api")
 
 
 def _run_sync(fn, *args, **kwargs):

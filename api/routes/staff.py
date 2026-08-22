@@ -3,17 +3,15 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from sqlalchemy import desc, select
 from sqlalchemy.orm import joinedload, selectinload
 
-from fastapi import APIRouter
-
 router = APIRouter(prefix="/api")
 from db_async import session, sync_session
-from models import ApiKey, Billing, ManagementLog, Staff
+from models import ApiKey, ManagementLog, Staff
 from services.payment_service import (
     compute_cashier_tally,
     compute_nav_dates,
@@ -47,8 +45,8 @@ def _staff_to_dict(staff: Staff) -> dict:
 
 @router.post("/staff/login")
 async def staff_login(request: Request):
-    forwarded = request.headers.get('X-Forwarded-For', '')
-    ip = forwarded.split(',')[0].strip() or (request.client.host if request.client else 'unknown')
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    ip = forwarded.split(",")[0].strip() or (request.client.host if request.client else "unknown")
     if not login_limiter.allow(ip):
         return JSONResponse({"error": "Too many attempts. Try again later."}, status_code=429)
     data = await request.json()
@@ -58,9 +56,7 @@ async def staff_login(request: Request):
     password = str(data.get("password", "") or "")
     if not username or not password:
         return JSONResponse({"error": "Username and password required"}, status_code=400)
-    result = await session().execute(
-        select(Staff).where(Staff.username == username)
-    )
+    result = await session().execute(select(Staff).where(Staff.username == username))
     staff = result.scalar_one_or_none()
     if not staff or not staff.is_active:
         return JSONResponse({"error": "Invalid credentials"}, status_code=401)
@@ -76,7 +72,10 @@ async def staff_info(request: Request):
     if api_key is True:
         staff_id = await get_staff_id(request)
         if not staff_id:
-            return JSONResponse({"error": "staff_id required via X-Staff-ID header or request body"}, status_code=400)
+            return JSONResponse(
+                {"error": "staff_id required via X-Staff-ID header or request body"},
+                status_code=400,
+            )
         staff = await session().get(Staff, staff_id)
         if not staff:
             return JSONResponse({"error": "Staff not found"}, status_code=404)
@@ -92,7 +91,9 @@ async def staff_info(request: Request):
             "id": api_key.id,
             "label": api_key.label,
             "is_active": api_key.is_active,
-        } if api_key is not True else None,
+        }
+        if api_key is not True
+        else None,
     }
 
 
@@ -139,11 +140,18 @@ async def staff_new(request: Request, api_key: ApiKey = Depends(require_staff("c
     )
     session().add(staff)
     await session().commit()
-    return JSONResponse({"message": "Staff created", "username": staff.username, "name": staff.name}, status_code=201)
+    return JSONResponse(
+        {"message": "Staff created", "username": staff.username, "name": staff.name},
+        status_code=201,
+    )
 
 
 @router.post("/staff/{staff_id}/edit")
-async def staff_edit(staff_id: int, request: Request, api_key: ApiKey = Depends(require_staff("can_enroll_staff"))):
+async def staff_edit(
+    staff_id: int,
+    request: Request,
+    api_key: ApiKey = Depends(require_staff("can_enroll_staff")),
+):
     data = await request.json()
     if not isinstance(data, dict):
         data = {}
@@ -178,7 +186,11 @@ async def staff_edit(staff_id: int, request: Request, api_key: ApiKey = Depends(
 
 
 @router.get("/staff/{staff_id}/cashier-tally")
-async def staff_cashier_tally(staff_id: int, request: Request, api_key: ApiKey = Depends(require_staff("can_accept_payment"))):
+async def staff_cashier_tally(
+    staff_id: int,
+    request: Request,
+    api_key: ApiKey = Depends(require_staff("can_accept_payment")),
+):
     period = request.query_params.get("period", "daily")
     today = datetime.now(tz=timezone.utc).replace(tzinfo=None)
     start_str = request.query_params.get("start_date") or request.query_params.get("date")
@@ -188,7 +200,11 @@ async def staff_cashier_tally(staff_id: int, request: Request, api_key: ApiKey =
     except (ValueError, TypeError):
         group_days = 1
     try:
-        cashier_filter = int(request.query_params.get("cashier_id")) if request.query_params.get("cashier_id") else None
+        cashier_filter = (
+            int(request.query_params.get("cashier_id"))
+            if request.query_params.get("cashier_id")
+            else None
+        )
     except (ValueError, TypeError):
         cashier_filter = None
     start, end = parse_date_range(period, start_str, end_str, today)
@@ -218,7 +234,9 @@ async def staff_cashier_tally(staff_id: int, request: Request, api_key: ApiKey =
 
 
 @router.get("/staff/{staff_id}/reading-logs")
-async def staff_reading_logs(staff_id: int, api_key: ApiKey = Depends(require_staff("can_drop_reading"))):
+async def staff_reading_logs(
+    staff_id: int, api_key: ApiKey = Depends(require_staff("can_drop_reading"))
+):
     result = await session().execute(
         select(ManagementLog)
         .options(selectinload(ManagementLog.staff))
@@ -275,7 +293,9 @@ async def staff_api_keys(staff_id: int, api_key: ApiKey = Depends(require_staff(
                 "staff": {
                     "name": k.staff.name,
                     "username": k.staff.username,
-                } if k.staff else None,
+                }
+                if k.staff
+                else None,
                 "date_created": k.date_created.isoformat() if k.date_created else None,
             }
             for k in keys
@@ -284,7 +304,9 @@ async def staff_api_keys(staff_id: int, api_key: ApiKey = Depends(require_staff(
 
 
 @router.post("/staff/{staff_id}/api-key/generate")
-async def staff_api_key_generate(staff_id: int, request: Request, api_key: ApiKey = Depends(require_staff())):
+async def staff_api_key_generate(
+    staff_id: int, request: Request, api_key: ApiKey = Depends(require_staff())
+):
     await _can_manage_keys(staff_id, api_key)
     data = await request.json()
     if not isinstance(data, dict):
@@ -301,7 +323,9 @@ async def staff_api_key_generate(staff_id: int, request: Request, api_key: ApiKe
 
 
 @router.post("/staff/{staff_id}/api-key/{key_id}/revoke")
-async def staff_api_key_revoke(staff_id: int, key_id: int, api_key: ApiKey = Depends(require_staff())):
+async def staff_api_key_revoke(
+    staff_id: int, key_id: int, api_key: ApiKey = Depends(require_staff())
+):
     await _can_manage_keys(staff_id, api_key)
     target = await session().get(ApiKey, key_id)
     if not target:
@@ -353,5 +377,7 @@ async def staff_api_key_verify(staff_id: int, request: Request):
             "can_drop_payment": staff.can_drop_payment,
             "can_enroll_staff": staff.can_enroll_staff,
             "can_manage_billing": staff.can_manage_billing,
-        } if staff else None,
+        }
+        if staff
+        else None,
     }

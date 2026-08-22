@@ -16,15 +16,15 @@ def make_client(
     Mirrors the old requests-based api_client headers so the API's
     internal-key auth keeps working unchanged."""
     headers = {
-        'User-Agent': 'portal/1.0',
-        'X-Container-Name': container_name or os.environ['CONTAINER_NAME'],
+        "User-Agent": "portal/1.0",
+        "X-Container-Name": container_name or os.environ["CONTAINER_NAME"],
     }
-    key = internal_key or os.environ['INTERNAL_API_KEY']
+    key = internal_key or os.environ["INTERNAL_API_KEY"]
     if key:
-        headers['X-Internal-API-Key'] = key
+        headers["X-Internal-API-Key"] = key
 
     return httpx.AsyncClient(
-        base_url=base_url or os.environ['API_BASE_URL'],
+        base_url=base_url or os.environ["API_BASE_URL"],
         headers=headers,
         timeout=15.0,
     )

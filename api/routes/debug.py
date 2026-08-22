@@ -6,11 +6,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import Request
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import desc, func, select
-
-from fastapi import APIRouter
+from sqlalchemy import func, select
 
 router = APIRouter(prefix="/api")
 from db_async import session
@@ -27,7 +25,7 @@ from models import (
     XenditTransaction,
 )
 
-logger = logging.getLogger('api')
+logger = logging.getLogger("api")
 
 BACKUP_DIR = Path("/app/db_backups")
 _last_restore_newest_time = 0.0
@@ -39,7 +37,9 @@ def _superuser_only() -> None:
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
 
-async def _enqueue(task_type: str, params: dict | None = None, title: str | None = None) -> BackgroundTask:
+async def _enqueue(
+    task_type: str, params: dict | None = None, title: str | None = None
+) -> BackgroundTask:
     task = BackgroundTask(
         task_type=task_type,
         params=params or {},
@@ -128,7 +128,10 @@ async def debug_restore_newest():
         now = time.time()
         if now - _last_restore_newest_time < 5:
             remaining = round(5 - (now - _last_restore_newest_time), 1)
-            return JSONResponse({"error": f"Cooldown active. Try again in {remaining}s"}, status_code=429)
+            return JSONResponse(
+                {"error": f"Cooldown active. Try again in {remaining}s"},
+                status_code=429,
+            )
         _last_restore_newest_time = now
     _superuser_only()
     backups = sorted(BACKUP_DIR.glob("backup_*.sql"), reverse=True)
@@ -136,9 +139,15 @@ async def debug_restore_newest():
         return JSONResponse({"error": "No backup files found"}, status_code=404)
     filename = backups[0].name
     task = await _enqueue(
-        task_type="restore", params={"filename": filename}, title=f"Restore newest: {filename}"
+        task_type="restore",
+        params={"filename": filename},
+        title=f"Restore newest: {filename}",
     )
-    return {"ok": True, "order_id": task.id, "message": f"Restoring from newest backup: {filename}"}
+    return {
+        "ok": True,
+        "order_id": task.id,
+        "message": f"Restoring from newest backup: {filename}",
+    }
 
 
 @router.post("/debug/clear")
@@ -163,7 +172,12 @@ async def debug_seed(request: Request):
 
     total_entries = n_customers * n_months
     if n_customers < 1 or n_months < 2 or total_entries > 10_000_000:
-        return JSONResponse({"error": "Invalid range: customers × months must be between 1×2 and 10,000,000 total entries"}, status_code=400)
+        return JSONResponse(
+            {
+                "error": "Invalid range: customers × months must be between 1×2 and 10,000,000 total entries"
+            },
+            status_code=400,
+        )
 
     n_cashiers = int(data.get("cashiers", "2"))
     n_readers = int(data.get("readers", "2"))
@@ -173,9 +187,12 @@ async def debug_seed(request: Request):
     allow_deactivation = data.get("allow_deactivation", "no")
 
     params = {
-        "customers": n_customers, "months": n_months,
-        "cashiers": n_cashiers, "readers": n_readers,
-        "read_current": read_current, "pay_last": pay_last,
+        "customers": n_customers,
+        "months": n_months,
+        "cashiers": n_cashiers,
+        "readers": n_readers,
+        "read_current": read_current,
+        "pay_last": pay_last,
         "randomize_months": randomize_months,
         "allow_deactivation": allow_deactivation,
     }
@@ -190,27 +207,21 @@ async def debug_seed(request: Request):
 @router.post("/debug/read-month")
 async def debug_read_month():
     _superuser_only()
-    task = await _enqueue(
-        task_type="read-this-month", params={}, title="Read This Month"
-    )
+    task = await _enqueue(task_type="read-this-month", params={}, title="Read This Month")
     return {"ok": True, "order_id": task.id, "message": "Read-this-month queued."}
 
 
 @router.post("/debug/unread-month")
 async def debug_unread_month():
     _superuser_only()
-    task = await _enqueue(
-        task_type="unread-this-month", params={}, title="Unread This Month"
-    )
+    task = await _enqueue(task_type="unread-this-month", params={}, title="Unread This Month")
     return {"ok": True, "order_id": task.id, "message": "Unread-this-month queued."}
 
 
 @router.post("/debug/pay-month")
 async def debug_pay_month():
     _superuser_only()
-    task = await _enqueue(
-        task_type="pay-this-month", params={}, title="Pay This Month"
-    )
+    task = await _enqueue(task_type="pay-this-month", params={}, title="Pay This Month")
     return {"ok": True, "order_id": task.id, "message": "Pay-this-month queued."}
 
 
@@ -218,7 +229,9 @@ async def debug_pay_month():
 async def debug_remove_pay_month():
     _superuser_only()
     task = await _enqueue(
-        task_type="remove-payment-this-month", params={}, title="Remove Payment This Month"
+        task_type="remove-payment-this-month",
+        params={},
+        title="Remove Payment This Month",
     )
     return {"ok": True, "order_id": task.id, "message": "Remove-payment queued."}
 
