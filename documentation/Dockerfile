@@ -22,7 +22,8 @@ RUN python3 -m compileall -q /app /app/shared 2>/dev/null || true
 RUN mkdocs build
 
 RUN useradd --create-home --uid 10001 appuser \
-    && chown -R appuser:appuser /app
+    && chown -R appuser:appuser /app \
+    && mkdir -p /var/log/app && chown -R appuser:appuser /var/log/app
 
 EXPOSE 8005
 

@@ -255,6 +255,8 @@ services:
     depends_on:
       mysql-db:
         condition: service_healthy
+      api:
+        condition: service_healthy
 
   phpmyadmin:
     image: phpmyadmin:5.2
@@ -310,7 +312,7 @@ services:
       - mysql_data:/var/lib/mysql
     command: --max_connections=200
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
       interval: 5s
       timeout: 5s
       retries: 10
