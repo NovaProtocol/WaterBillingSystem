@@ -3,10 +3,6 @@
         reverse_proxy waterbillingsystem_landing:8001
     }
 
-    handle /404 {
-        reverse_proxy waterbillingsystem_landing:8001
-    }
-
     handle /webhook/* {
         reverse_proxy waterbillingsystem_webhook:8009
     }
