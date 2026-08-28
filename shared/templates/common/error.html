@@ -1,0 +1,12 @@
+{% extends "common/base.html" %}
+{% block title %}{{ code }} {{ title }}{% endblock %}
+{% block content %}
+<div style="min-height: calc(100vh - 220px); display:flex; align-items:center; justify-content:center; padding:2rem;">
+  <div class="text-center" style="max-width:520px;">
+    <div style="font-size:4.5rem; font-weight:800; color:#c9a227; line-height:1;">{{ code }}</div>
+    <h2 class="mt-2">{{ title }}</h2>
+    <p class="text-muted mb-4">{{ message }}</p>
+    <a href="/" class="btn btn-bill"><i class="fas fa-arrow-left mr-1"></i> Back to Home</a>
+  </div>
+</div>
+{% endblock %}
