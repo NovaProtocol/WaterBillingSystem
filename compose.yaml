@@ -13,6 +13,7 @@ services:
       - net-public
       - net-private
       - gatekeeper_dynamic
+      - cloudflared-tunnel
 
   landing-page:
     build:
@@ -324,6 +325,9 @@ networks:
   gatekeeper_dynamic:
     external: true
     name: gatekeeper_dynamic
+  cloudflared-tunnel:
+    external: true
+    name: cloudflared-tunnel_default
 
 volumes:
   mysql_data:
