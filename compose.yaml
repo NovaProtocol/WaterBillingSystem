@@ -12,8 +12,7 @@ services:
     networks:
       - net-public
       - net-private
-      - net-gk
-      - cloudflared-tunnel
+      - gatekeeper_dynamic
 
   landing-page:
     build:
@@ -322,12 +321,9 @@ networks:
   net-private:  { driver: bridge }
   net-api:      { internal: true }
   net-data:     { internal: true }
-  net-gk:
+  gatekeeper_dynamic:
     external: true
-    name: gatekeeper_default
-  cloudflared-tunnel:
-    external: true
-    name: cloudflared-tunnel_default
+    name: gatekeeper_dynamic
 
 volumes:
   mysql_data:
