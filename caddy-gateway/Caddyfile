@@ -8,60 +8,36 @@
     }
 
     handle /customer/* {
-        forward_auth gatekeeper:7000 {
-            uri /api/authz/forward-auth
-        }
         reverse_proxy waterbillingsystem_customerportal:8002
     }
 
     handle /static/* {
-        forward_auth gatekeeper:7000 {
-            uri /api/authz/forward-auth
-        }
         reverse_proxy waterbillingsystem_landing:8001
     }
 
     handle {
-        forward_auth gatekeeper:7000 {
-            uri /api/authz/forward-auth
-        }
         reverse_proxy waterbillingsystem_landing:8001
     }
 }
 
 :7021 {
     handle /staff/* {
-        forward_auth gatekeeper:7000 {
-            uri /api/authz/forward-auth
-        }
         reverse_proxy waterbillingsystem_staffportal:8003
     }
 
     handle /developer/* {
-        forward_auth gatekeeper:7000 {
-            uri /api/authz/forward-auth
-        }
         reverse_proxy waterbillingsystem_devportal:8004
     }
 
     handle_path /documentation/* {
-        forward_auth gatekeeper:7000 {
-            uri /api/authz/forward-auth
-        }
         reverse_proxy waterbillingsystem_documentation:8005
     }
 
     handle_path /phpmyadmin/* {
-        forward_auth gatekeeper:7000 {
-            uri /api/authz/forward-auth
-        }
         reverse_proxy waterbillingsystem_phpmyadmin:80
     }
 
     handle /static/* {
-        forward_auth gatekeeper:7000 {
-            uri /api/authz/forward-auth
-        }
         reverse_proxy waterbillingsystem_landing:8001
     }
 }
