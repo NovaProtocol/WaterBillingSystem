@@ -11,16 +11,6 @@
         reverse_proxy waterbillingsystem_customerportal:8002
     }
 
-    handle /static/* {
-        reverse_proxy waterbillingsystem_landing:8001
-    }
-
-    handle {
-        reverse_proxy waterbillingsystem_landing:8001
-    }
-}
-
-:7021 {
     handle /staff/* {
         reverse_proxy waterbillingsystem_staffportal:8003
     }
@@ -38,6 +28,10 @@
     }
 
     handle /static/* {
+        reverse_proxy waterbillingsystem_landing:8001
+    }
+
+    handle {
         reverse_proxy waterbillingsystem_landing:8001
     }
 }
