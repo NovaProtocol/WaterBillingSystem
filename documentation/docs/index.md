@@ -6,20 +6,19 @@ Water billing platform for **Cotta Realty**: meter reading collection, billing c
 
 | Service | Container | Internal Port | Caddy Route | Network |
 |---|---|---|---|---|
-| **Caddy Gateway** | `caddy-gateway` | 7020 / 7021 | — | public, private, gk, cloudflared |
-| **Landing Page** | `landing-page` | 8001 | `/*` (port 7020) | public |
+| **Caddy Gateway** | `caddy-gateway` | 7020 | — | `gatekeeper_dynamic`, cloudflared |
+| **Landing Page** | `landing-page` | 8001 | `/*` (7020) | net-public |
 | **Customer Portal** | `customer-portal` | 8002 | `/customer/*` (7020) | public, api |
-| **Staff Portal** | `staff-portal` | 8003 | `/staff/*` (7021) | private, api |
-| **Developer Portal** | `developer-portal` | 8004 | `/developer/*` (7021) | private, api |
-| **Documentation** | `documentation` | 8005 | `/documentation/*` (7021) | private |
+| **Staff Portal** | `staff-portal` | 8003 | `/staff/*` (7020) | net-private, net-api |
+| **Developer Portal** | `developer-portal` | 8004 | `/developer/*` (7020) | net-private, net-api |
+| **Documentation** | `documentation` | 8005 | `/documentation/*` (7020) | net-private |
 | **API Container** | `api` | 8008 | — | api, data, public |
 | **Webhook Container** | `webhook-container` | 8009 | `/webhook/*` (7020) | public, api |
 | **Background Worker** | `background-worker` | 8006 (EXPOSE, internal) | — | data |
-| **phpMyAdmin** | `phpmyadmin` | 80 | `/phpmyadmin/*` (7021) | private, data |
+| **phpMyAdmin** | `phpmyadmin` | 80 | `/phpmyadmin/*` (7020) | net-private, net-data |
 | **MySQL 8.4** | `mysql-db` | 3306 | — | data |
 
-- Port **7020** is public-facing; port **7021** is private.
-- All routes go through the Caddy `forward_auth` gate (GateKeeper, external network) except `/webhook/*`, `/health`, and the themed public `/404` page served by the landing page.
+- Live Caddy is single-port **7020** on `gatekeeper_dynamic` (wildcard gate `gatekeeper_caddy:7000` → `gatekeeper_auth:8001`); `caddy-gateway/Caddyfile` live has 0 `forward_auth` per-app — see `compose.yaml` `127.0.0.1:7020:7020` + `Caddyfile`.
 - Every Python service — API, all portals, the webhook proxy, the documentation site, and the background worker — is a **FastAPI app run by granian** (ASGI, 1 worker each). The legacy WSGI stack is fully replaced.
 
 ## Architecture Diagram

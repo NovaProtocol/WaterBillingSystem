@@ -8,12 +8,7 @@ A water billing management system for Cotta Realty & Development Corporation. 11
 
 ## Auth
 
-All routes pass through a GateKeeper `forward_auth` gate on the Caddy gateway
-(see `caddy-gateway/Caddyfile`), except `/webhook/*` (Xendit callback),
-`/health`, and the themed public `/404` page. The portals also enforce their
-own session auth: `staff-portal/staff_auth.py` + `developer-portal`'s
-`require_superuser` for the staff side, and a signed `billing_session` cookie
-in the customer portal.
+Gate is at the **wildcard** (`gatekeeper_caddy:7000` → `gatekeeper_auth:8001` on `gatekeeper_dynamic`) — live `caddy-gateway/Caddyfile` proxies without a per-app `forward_auth` (wildcard per `reference/gatekeeper/caddy-setup.md`). Live ingress is single port `:7020` (`127.0.0.1:7020:7020`); docs claiming `:7021` private is stale vs `compose.yaml` + live `Caddyfile`. Portals still enforce their own session auth: `staff-portal/staff_auth.py` + `developer-portal`'s `require_superuser` + signed `billing_session` cookie.
 
 ## Quick Start
 
@@ -27,21 +22,22 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-## Port Overview
+## Port Overview (live)
+
+Live Caddy is single-port `:7020` (`127.0.0.1:7020:7020` on `gatekeeper_dynamic`); all routes below are via `:7020` (`caddy-gateway/Caddyfile` live). Legacy docs claiming `:7021` private is stale vs `compose.yaml`.
 
 | Port | Access | Services |
 |------|--------|----------|
-| `7020` | Public (tunnel) | Landing page, customer portal, webhook callback, `/health`, `/404` |
-| `7021` | Private (tunnel) | Staff portal, developer portal, documentation, phpMyAdmin |
+| `7020` | Public (tunnel, `gatekeeper_dynamic`) | Landing, customer, staff, developer, documentation, phpMyAdmin, `/health`, `/webhook/*` |
 
 | Service | URL |
 |---------|-----|
 | Landing Page | `http://host:7020` |
 | Customer Portal | `http://host:7020/customer/` |
-| Staff Portal | `http://host:7021/staff/` |
-| Developer Portal | `http://host:7021/developer/` |
-| Documentation | `http://host:7021/documentation/` |
-| phpMyAdmin | `http://host:7021/phpmyadmin/` |
+| Staff Portal | `http://host:7020/staff/` |
+| Developer Portal | `http://host:7020/developer/` |
+| Documentation | `http://host:7020/documentation/` |
+| phpMyAdmin | `http://host:7020/phpmyadmin/` |
 
 ## Environment
 

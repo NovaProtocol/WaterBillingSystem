@@ -6,13 +6,10 @@
 
 ```mermaid
 graph TB
-    subgraph "Public Zone :7020"
+    subgraph "Public via :7020 (live single-port, wildcard gate)"
         LAND["Landing Page<br/>FastAPI/granian :8001"]
         CP["Customer Portal<br/>FastAPI/granian :8002"]
         WH["Webhook<br/>FastAPI/granian :8009"]
-    end
-
-    subgraph "Private Zone :7021"
         SP["Staff Portal<br/>FastAPI/granian :8003"]
         DP["Developer Portal<br/>FastAPI/granian :8004"]
         DOC["Documentation<br/>FastAPI/granian :8005"]
@@ -25,9 +22,9 @@ graph TB
         WORKER["Background Worker<br/>FastAPI/granian :8006<br/>(async claim loop)"]
     end
 
-    subgraph "Infrastructure"
-        CAD["Caddy Gateway<br/>:7020 :7021"]
-        GK["Gatekeeper<br/>:7000 (external)"]
+    subgraph "Infrastructure (wildcard gate)"
+        CAD["Caddy Gateway<br/>:7020 on gatekeeper_dynamic<br/>live Caddyfile has no per-app forward_auth"]
+        GK["GateKeeper wildcard<br/>gatekeeper_caddy:7000 → gatekeeper_auth:8001<br/>gatekeeper_dynamic"]
     end
 
     subgraph "External"
@@ -62,7 +59,7 @@ graph TB
 
 ## Network Topology
 
-Six networks: two bridge (`net-public`, `net-private`), two internal (`net-api`, `net-data`), two external (`net-gk` GateKeeper, `cloudflared-tunnel`).
+Six networks: two bridge (`net-public`, `net-private`), two internal (`net-api`, `net-data`), two external (`gatekeeper_dynamic` wildcard GateKeeper, `cloudflared-tunnel`). Live Caddy joins `gatekeeper_dynamic`; `caddy-gateway/Caddyfile` has 0 `forward_auth` — gate is at wildcard per `reference/gatekeeper/caddy-setup.md`.
 
 ```mermaid
 graph TB
@@ -94,8 +91,8 @@ graph TB
         PMA
     end
 
-    subgraph "net-gk (external: gatekeeper_default)"
-        GK[gatekeeper :7000]
+    subgraph "gatekeeper_dynamic (external: wildcard)"
+        GK[gatekeeper wildcard :7000 → :8001]
     end
 
     subgraph "cloudflared-tunnel (external)"
