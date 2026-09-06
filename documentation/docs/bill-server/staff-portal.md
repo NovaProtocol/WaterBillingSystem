@@ -2,7 +2,7 @@
 
 **Container**: `staff-portal` | **Port**: 8003 | **Base URL**: `/staff/*`
 
-FastAPI web dashboard served by the Caddy gateway at port 7021. Communicates with the API container via internal HTTP requests using the internal API key.
+FastAPI web dashboard served by the Caddy gateway at `:7020` (single domain `https://water-billing-system.projectnova.download`). Communicates with the API container via `http://api:8008` on `net-api` (`X-Internal-Api-Key`) or `grpc://api:50051`.
 
 ## Architecture
 

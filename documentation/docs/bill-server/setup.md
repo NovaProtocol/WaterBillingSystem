@@ -123,7 +123,7 @@ api:
 docker compose up -d --build api
 
 # Verify health
-curl http://localhost:7021/api/health   # via gateway
+curl http://localhost:7020/api/health   # via gateway (`:7020` single-port)
 # or directly from another container:
 docker exec waterbillingsystem_api curl http://localhost:8008/api/health
 ```

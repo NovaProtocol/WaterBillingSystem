@@ -65,14 +65,16 @@ Starts all 11 containers. First-time build takes several minutes.
 | `http://localhost:7020/health` | Health check (public) |
 | `http://localhost:7020/404` | Themed 404 page (public) |
 
-### Private Routes (port 7021)
+### Staff / Admin Routes (port 7020 — single domain)
+
+All routes are on the consolidated host `https://water-billing-system.projectnova.download` via `:7020`:
 
 | URL | Service |
 |---|---|
-| `http://localhost:7021/staff/` | Staff portal (management dashboard) |
-| `http://localhost:7021/developer/` | Developer portal (debug panel) |
-| `http://localhost:7021/documentation/` | MkDocs documentation site |
-| `http://localhost:7021/phpmyadmin/` | phpMyAdmin database admin |
+| `http://localhost:7020/staff/` | Staff portal (management dashboard) |
+| `http://localhost:7020/developer/` | Developer portal (debug panel) |
+| `http://localhost:7020/documentation/` | MkDocs documentation site |
+| `http://localhost:7020/phpmyadmin/` | phpMyAdmin database admin |
 
 ### Default Superuser
 
@@ -88,13 +90,13 @@ On first database seed, a superuser account is created:
 
 ## 4. Seed Test Data (Optional)
 
-Developer Portal (`http://localhost:7021/developer/`) → Database Tools panel: choose customer count and months of history. Seeding enqueues a `BackgroundTask` that the worker container processes.
+Developer Portal (`http://localhost:7020/developer/`) → Database Tools panel: choose customer count and months of history. Seeding enqueues a `BackgroundTask` that the worker container processes.
 
 ---
 
 ## 5. Development Workflow
 
-Run the docs site via Docker (FastAPI + granian, port 8005 inside the compose network, exposed at `http://localhost:7021/documentation/`):
+Run the docs site via Docker (FastAPI + granian, port 8005 inside the compose network, exposed at `http://localhost:7020/documentation/`):
 
 ```bash
 docker compose up -d --build documentation
