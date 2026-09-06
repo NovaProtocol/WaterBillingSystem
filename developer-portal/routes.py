@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from templating import templates
 
-from shared.jwt import create_dev_token, verify_dev_token
+from shared.wbs_jwt import create_dev_token, verify_dev_token
 
 MAX_AGE = 8 * 3600
 

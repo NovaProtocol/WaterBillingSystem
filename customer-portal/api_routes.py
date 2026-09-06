@@ -6,7 +6,7 @@ import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from shared.jwt import create_customer_token, verify_customer_token
+from shared.wbs_jwt import create_customer_token, verify_customer_token
 
 DEBUG = os.environ["DEBUG"].lower() in ("true", "1", "yes")
 

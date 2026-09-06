@@ -4,7 +4,7 @@ from app import templates
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
-from shared.jwt import verify_customer_token
+from shared.wbs_jwt import verify_customer_token
 
 DEBUG = os.environ["DEBUG"].lower() in ("true", "1", "yes")
 

@@ -5,7 +5,7 @@ from contextvars import ContextVar
 from fastapi import Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from shared.jwt import create_staff_token, verify_staff_token
+from shared.wbs_jwt import create_staff_token, verify_staff_token
 
 COOKIE_NAME = "session"
 MAX_AGE = 8 * 3600
