@@ -33,9 +33,8 @@ def require_perms(*perms: str):
         staff = staff_auth.staff_payload()
         if staff is None:
             raise HTTPException(status_code=302, headers={"Location": "/staff/login"})
-        for perm in perms:
-            if not staff.get(perm, False):
-                raise HTTPException(status_code=403, detail="Unauthorized")
+        if perms and not any(staff.get(perm, False) for perm in perms):
+            raise HTTPException(status_code=403, detail="Unauthorized")
 
     return _dep
 
@@ -255,6 +254,23 @@ async def manage_reading(request: Request, _=Depends(require_perms("can_drop_rea
     staff_id = staff_auth.staff_payload().get("id", 1)
     result = await api_client.get_reading_logs(staff_id)
     return templates.TemplateResponse(request, "staff/manage_reading.html", result)
+
+
+@router.get("/staff/logs")
+async def audit_logs_page(request: Request, _=Depends(require_perms("can_drop_reading", "can_drop_payment", "can_enroll_staff"))):
+    return templates.TemplateResponse(request, "staff/staff_logs.html", {})
+
+
+@router.get("/staff/logs/data")
+async def audit_logs_data(request: Request, _=Depends(require_perms("can_drop_reading", "can_drop_payment", "can_enroll_staff"))):
+    staff_id = staff_auth.staff_payload().get("id", 1)
+    params = dict(request.query_params)
+    try:
+        result = await api_client.get_audit_logs(staff_id, params)
+        return JSONResponse(result)
+    except Exception as e:
+        logger.exception(f"Audit logs fetch failed: {e}")
+        return JSONResponse({"logs": [], "meta": {"page": 1, "pages": 1, "total": 0}, "error": str(e)}, status_code=500)
 
 
 @router.post("/staff/manage-reading/drop-reading/{reading_id}")

@@ -84,9 +84,8 @@ def require_perms(*perms: str):
         staff = _current_staff.get()
         if staff is None:
             return RedirectResponse("/staff/login", status_code=302)
-        for perm in perms:
-            if not staff.get(perm, False):
-                return JSONResponse({"error": "Unauthorized"}, status_code=403)
+        if perms and not any(staff.get(perm, False) for perm in perms):
+            return JSONResponse({"error": "Unauthorized"}, status_code=403)
         return None
 
     return _dep

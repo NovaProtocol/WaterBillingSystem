@@ -9,7 +9,7 @@ FastAPI web dashboard served by the Caddy gateway at `:7020` (single domain `htt
 Proxy-style FastAPI app:
 - Routes render Jinja2 templates and handle form submissions
 - Business logic is delegated to the API container via `api_client.py`
-- Auth uses a signed session cookie (itsdangerous `URLSafeTimedSerializer`, 1-hour expiry) storing the staff payload returned by `POST /api/staff/login` — no server-side session store
+- Auth uses PyJWT HS256 `shared/jwt.py` (`ISS=wbs AUD=waterbillingsystem`) — 8h `session` cookie storing the staff payload from `POST /api/staff/login` (customer `billing_session` is 12h); one-deploy itsdangerous fallback, no server-side session store
 
 ## Authentication
 
@@ -28,7 +28,7 @@ Default superuser: `superuser` / `superuser` (seeded on first API container star
 
 ### Permission Dependency
 
-`require_perms(*perms)` (FastAPI dependency) — checks the signed session payload for required boolean permissions. Returns 403 if missing; redirects to `/staff/login` when not authenticated.
+`require_perms(*perms)` (FastAPI dependency, OR-semantics — any of the listed perms passes) — checks the signed session payload for required boolean permissions. Returns 403 if missing; redirects to `/staff/login` when not authenticated. API `require_staff(*perms)` mirrors this (OR) and when called via `X-Internal-API-Key` re-derives staff from `X-Staff-ID` so the internal key does not bypass RBAC. Debug routes (`/api/debug/*`) require `can_enroll_staff`.
 
 ## Routes
 
@@ -74,14 +74,22 @@ Default superuser: `superuser` / `superuser` (seeded on first API container star
 
 | Route | Method | Permission | Description |
 |-------|--------|------------|-------------|
-| `/staff/manage-billing` | GET | login_required | Billing audit page |
+| `/staff/manage-billing` | GET | can_drop_payment \| can_manage_billing | Billing audit page |
 | `/staff/manage-billing/undo-payment/{id}` | POST | can_drop_payment | Undo payment |
+
+### Audit Logs
+
+| Route | Method | Permission | Description |
+|-------|--------|------------|-------------|
+| `/staff/logs` | GET | can_drop_reading \| can_drop_payment \| can_enroll_staff | Full audit log page (filters + CSV) |
+| `/staff/logs/data` | GET | can_drop_reading \| can_drop_payment \| can_enroll_staff | JSON audit logs via `GET /api/staff/{id}/audit-logs?page,size,action_type,target_type,staff_id,customer_number,date_from,date_to,q` |
+| `/staff/manage-reading` | GET | can_drop_reading \| can_manage_billing | Recent 50 + link to full logs |
 
 ### Staff Management
 
 | Route | Method | Permission | Description |
 |-------|--------|------------|-------------|
-| `/staff/staff` | GET | login_required | Staff list |
+| `/staff/staff` | GET | can_enroll_staff | Staff list |
 | `/staff/staff/create` | POST | can_enroll_staff | Create staff |
 | `/staff/staff/{id}` | GET | can_enroll_staff | Get staff |
 | `/staff/staff/{id}` | POST | can_enroll_staff | Edit staff |
