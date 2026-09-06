@@ -59,6 +59,11 @@
     <i class="fas fa-edit"></i>Manage Reading
 </a>
 {% endif %}
+{% if current_user.can_drop_reading or current_user.can_drop_payment or current_user.can_enroll_staff %}
+<a href="{{ url_for('staff_blueprint.audit_logs_page') }}" class="nav-link {{ 'active' if request.endpoint in ('staff_blueprint.audit_logs_page','staff_blueprint.audit_logs_data') }}">
+    <i class="fas fa-clipboard-list"></i>Audit Logs
+</a>
+{% endif %}
 {% if current_user.can_enroll_staff %}
 <a href="{{ url_for('staff_blueprint.staff_list') }}" class="nav-link {{ 'active' if request.endpoint in ('staff_blueprint.staff_list', 'staff_blueprint.staff_edit') }}">
     <i class="fas fa-users-cog"></i>Staff

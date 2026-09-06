@@ -23,26 +23,38 @@ def _get_client():
     return _client
 
 
+def _staff_headers() -> dict[str, str]:
+    try:
+        import staff_auth as _sa  # late import to avoid cycle
+
+        p = _sa.staff_payload()
+        if p and p.get("id"):
+            return {"X-Staff-ID": str(p["id"])}
+    except Exception:
+        pass
+    return {}
+
+
 async def _post(path, data=None):
-    r = await _get_client().post(path, json=data or {})
+    r = await _get_client().post(path, json=data or {}, headers=_staff_headers())
     r.raise_for_status()
     return r.json()
 
 
 async def _get(path, params=None):
-    r = await _get_client().get(path, params=params or {})
+    r = await _get_client().get(path, params=params or {}, headers=_staff_headers())
     r.raise_for_status()
     return r.json()
 
 
 async def _put(path, data=None):
-    r = await _get_client().put(path, json=data or {})
+    r = await _get_client().put(path, json=data or {}, headers=_staff_headers())
     r.raise_for_status()
     return r.json()
 
 
 async def _delete(path):
-    r = await _get_client().delete(path)
+    r = await _get_client().delete(path, headers=_staff_headers())
     r.raise_for_status()
     return r.json()
 
@@ -229,6 +241,12 @@ async def list_api_keys(staff_id: int = 1) -> dict:
 
 async def get_reading_logs(staff_id: int = 1) -> dict:
     return await _get(f"/api/staff/{staff_id}/reading-logs")
+
+
+async def get_audit_logs(
+    staff_id: int = 1, params: dict | None = None
+) -> dict:
+    return await _get(f"/api/staff/{staff_id}/audit-logs", params or {})
 
 
 async def list_staff() -> dict:

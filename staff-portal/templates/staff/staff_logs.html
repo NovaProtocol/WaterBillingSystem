@@ -1,0 +1,70 @@
+{% extends "staff/base.html" %}
+{% block title %}Audit Logs{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="page-title mb-0"><i class="fas fa-clipboard-list mr-2 text-cotta"></i>Audit Logs</h4>
+        <button class="btn btn-outline-cotta btn-sm" id="exportCsv"><i class="fas fa-download mr-1"></i>CSV</button>
+    </div>
+    <div class="card card-cotta mb-3">
+        <div class="card-body">
+            <form id="logFilters" class="form-row align-items-end">
+                <div class="form-group col-md-2"><label>Action</label><select class="form-control form-control-sm" name="action_type"><option value="">All</option><option value="drop">drop</option><option value="edit">edit</option><option value="duplicate">duplicate</option><option value="create">create</option></select></div>
+                <div class="form-group col-md-2"><label>Target</label><select class="form-control form-control-sm" name="target_type"><option value="">All</option><option value="reading">reading</option><option value="billing">billing</option><option value="customer">customer</option><option value="staff">staff</option><option value="nfc">nfc</option></select></div>
+                <div class="form-group col-md-2"><label>Staff ID</label><input class="form-control form-control-sm" name="staff_id" placeholder="e.g. 1"></div>
+                <div class="form-group col-md-2"><label>Customer #</label><input class="form-control form-control-sm" name="customer_number" placeholder="e.g. 1001"></div>
+                <div class="form-group col-md-2"><label>Search details</label><input class="form-control form-control-sm" name="q" placeholder="free text"></div>
+                <div class="form-group col-md-2"><button class="btn btn-cotta btn-sm btn-block" type="submit"><i class="fas fa-filter mr-1"></i>Filter</button></div>
+            </form>
+            <div class="form-row">
+                <div class="form-group col-md-3"><label>Date from</label><input type="date" class="form-control form-control-sm" name="date_from" form="logFilters"></div>
+                <div class="form-group col-md-3"><label>Date to</label><input type="date" class="form-control form-control-sm" name="date_to" form="logFilters"></div>
+                <div class="form-group col-md-2"><label>Page size</label><select class="form-control form-control-sm" name="size" form="logFilters"><option>20</option><option>50</option><option>100</option></select></div>
+            </div>
+        </div>
+    </div>
+    <div class="card card-cotta">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0 table-font-sm">
+                    <thead class="thead-light"><tr><th>Time</th><th>Staff</th><th>Action</th><th>Target</th><th>Customer</th><th>Details</th></tr></thead>
+                    <tbody id="logsBody"><tr><td colspan="6" class="text-center text-muted py-4">Loading…</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <span class="text-muted small" id="logsMeta"></span>
+            <nav><ul class="pagination pagination-sm mb-0 pagination-cotta" id="logsPager"></ul></nav>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block javascripts %}
+<script>
+(function(){
+  let page=1;
+  async function load(){
+    const fd=new FormData(document.getElementById('logFilters'));
+    const p=new URLSearchParams();
+    for(const [k,v] of fd.entries()) if(String(v).trim()) p.set(k,String(v).trim());
+    p.set('page',String(page));
+    const r=await fetch('/staff/logs/data?'+p.toString(),{credentials:'same-origin'});
+    if(!r.ok){ document.getElementById('logsBody').innerHTML='<tr><td colspan=6 class=text-center><span class=text-danger>'+r.status+' '+r.statusText+'</span></td></tr>'; return; }
+    const j=await r.json();
+    const logs=j.logs||[]; const meta=j.meta||{};
+    const tb=document.getElementById('logsBody');
+    if(!logs.length){ tb.innerHTML='<tr><td colspan=6 class=text-center text-muted>\"No entries match those filters.\"</td></tr>'; }
+    else tb.innerHTML=logs.map(l=>`<tr><td>${new Date(l.timestamp*1000).toLocaleString()}</td><td>${l.staff_name||'#'+l.staff_id}</td><td><span class=\"badge badge-${l.action_type==='drop'?'danger':l.action_type==='edit'?'warning':'secondary'}\">${l.action_type}</span></td><td>${l.target_type} #${l.target_id}</td><td>${l.customer_number??''}</td><td class=text-truncate style=\"max-width:360px\">${(l.details||'').replace(/</g,'&lt;')}</td></tr>`).join('');
+    document.getElementById('logsMeta').textContent=`Page ${meta.page||page}/${meta.pages||1} · ${meta.total??logs.length} total`;
+    const pager=document.getElementById('logsPager');
+    const pages=meta.pages||1; let html='';
+    for(let i=1;i<=pages&&i<=7;i++) html+=`<li class=\"page-item ${i===(meta.page||page)?'active':''}\"><a class=page-link href=\"#\" data-p=\"${i}\">${i}</a></li>`;
+    pager.innerHTML=html;
+    pager.querySelectorAll('a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault(); page=parseInt(a.dataset.p,10); load();}));
+    document.getElementById('exportCsv').onclick=()=>{const rows=[['time','staff','action','target','customer','details']].concat(logs.map(l=>[new Date(l.timestamp*1000).toISOString(),l.staff_name||l.staff_id,l.action_type,l.target_type+' #'+l.target_id,l.customer_number??'',(l.details||'').replace(/\"/g,'\"\"')])); const csv=rows.map(r=>r.map(v=>`\"${v}\"`).join(',')).join('\n'); const b=new Blob([csv],{type:'text/csv'}); const u=URL.createObjectURL(b); const a2=document.createElement('a'); a2.href=u; a2.download='audit-logs.csv'; a2.click(); URL.revokeObjectURL(u);};
+  }
+  document.getElementById('logFilters').addEventListener('submit',e=>{e.preventDefault(); page=1; load();});
+  load();
+})();
+</script>
+{% endblock %}

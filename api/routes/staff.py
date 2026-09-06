@@ -235,8 +235,10 @@ async def staff_cashier_tally(
 
 @router.get("/staff/{staff_id}/reading-logs")
 async def staff_reading_logs(
-    staff_id: int, api_key: ApiKey = Depends(require_staff("can_drop_reading"))
+    staff_id: int,
+    api_key: ApiKey = Depends(require_staff("can_drop_reading")),
 ):
+    """Legacy alias: reading-only, 50 rows. New code should use /audit-logs."""
     result = await session().execute(
         select(ManagementLog)
         .options(selectinload(ManagementLog.staff))
@@ -252,6 +254,7 @@ async def staff_reading_logs(
                 "staff_id": log.staff_id,
                 "staff_name": log.staff.name if log.staff else None,
                 "action_type": log.action_type,
+                "target_type": log.target_type,
                 "target_id": log.target_id,
                 "customer_number": log.customer_number,
                 "details": log.details,
@@ -259,6 +262,96 @@ async def staff_reading_logs(
             }
             for log in logs
         ]
+    }
+
+
+@router.get("/staff/{staff_id}/audit-logs")
+async def staff_audit_logs(
+    staff_id: int,
+    request: Request,
+    api_key: ApiKey | bool = Depends(require_staff("can_drop_reading", "can_drop_payment", "can_enroll_staff")),
+):
+    q = request.query_params
+    try:
+        page = max(1, int(q.get("page", "1")))
+    except (ValueError, TypeError):
+        page = 1
+    try:
+        size = min(100, max(1, int(q.get("size", "20"))))
+    except (ValueError, TypeError):
+        size = 20
+    action_type = (q.get("action_type") or "").strip() or None
+    target_type = (q.get("target_type") or "").strip() or None
+    q_filter_staff = (q.get("staff_id") or "").strip()
+    q_cnum = (q.get("customer_number") or "").strip()
+    date_from = (q.get("date_from") or "").strip() or None
+    date_to = (q.get("date_to") or "").strip() or None
+    search = (q.get("q") or "").strip() or None
+
+    filt_staff_id: int | None = None
+    if q_filter_staff:
+        try:
+            filt_staff_id = int(q_filter_staff)
+        except (ValueError, TypeError):
+            filt_staff_id = None
+    filt_cnum: int | None = None
+    if q_cnum:
+        try:
+            filt_cnum = int(q_cnum)
+        except (ValueError, TypeError):
+            filt_cnum = None
+
+    from sqlalchemy import and_, func
+
+    stmt = select(ManagementLog).options(selectinload(ManagementLog.staff))
+    where: list = []
+    if action_type:
+        where.append(ManagementLog.action_type == action_type)
+    if target_type:
+        where.append(ManagementLog.target_type == target_type)
+    if filt_staff_id is not None:
+        where.append(ManagementLog.staff_id == filt_staff_id)
+    if filt_cnum is not None:
+        where.append(ManagementLog.customer_number == filt_cnum)
+    if search:
+        where.append(ManagementLog.details.ilike(f"%{search}%"))
+    if date_from:
+        try:
+            where.append(ManagementLog.timestamp >= datetime.fromisoformat(date_from))
+        except Exception:
+            pass
+    if date_to:
+        try:
+            where.append(ManagementLog.timestamp < datetime.fromisoformat(date_to))
+        except Exception:
+            pass
+    if where:
+        stmt = stmt.where(and_(*where))
+    count_stmt = select(func.count()).select_from(ManagementLog)
+    if where:
+        count_stmt = count_stmt.where(and_(*where))
+    total = (await session().execute(count_stmt)).scalar() or 0
+    result = await session().execute(
+        stmt.order_by(desc(ManagementLog.timestamp)).offset((page - 1) * size).limit(size)
+    )
+    logs = result.scalars().all()
+    pages = max(1, (total + size - 1) // size) if size else 1
+    return {
+        "logs": [
+            {
+                "id": log.id,
+                "staff_id": log.staff_id,
+                "staff_name": log.staff.name if log.staff else None,
+                "action_type": log.action_type,
+                "target_type": log.target_type,
+                "target_id": log.target_id,
+                "customer_number": log.customer_number,
+                "details": log.details,
+                "timestamp": int(log.timestamp.timestamp()) if log.timestamp else 0,
+            }
+            for log in logs
+        ],
+        "meta": {"page": page, "size": size, "total": total, "pages": pages},
     }
 
 

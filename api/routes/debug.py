@@ -6,12 +6,13 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
 router = APIRouter(prefix="/api")
 from db_async import session
+from utils import require_staff
 from models import (
     ApiKey,
     BackgroundTask,
@@ -52,7 +53,7 @@ async def _enqueue(
 
 
 @router.get("/debug/stats")
-async def debug_stats():
+async def debug_stats(api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     counts = {}
 
@@ -79,14 +80,14 @@ async def debug_stats():
 
 
 @router.post("/debug/backup")
-async def debug_backup():
+async def debug_backup(api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     task = await _enqueue(task_type="backup", params={}, title="Backup Database")
     return {"ok": True, "order_id": task.id, "message": "Backup queued."}
 
 
 @router.get("/debug/backups")
-async def debug_backups():
+async def debug_backups(api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     if not BACKUP_DIR.exists():
         return {"backups": []}
@@ -104,7 +105,7 @@ async def debug_backups():
 
 
 @router.post("/debug/restore")
-async def debug_restore(request: Request):
+async def debug_restore(request: Request, api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     data = await request.json()
     if not isinstance(data, dict):
@@ -122,7 +123,7 @@ async def debug_restore(request: Request):
 
 
 @router.get("/debug/restore-newest")
-async def debug_restore_newest():
+async def debug_restore_newest(api_key=Depends(require_staff("can_enroll_staff"))):
     global _last_restore_newest_time
     with _restore_newest_lock:
         now = time.time()
@@ -151,14 +152,14 @@ async def debug_restore_newest():
 
 
 @router.post("/debug/clear")
-async def debug_clear():
+async def debug_clear(api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     task = await _enqueue(task_type="clear", params={}, title="Clear Database")
     return {"ok": True, "order_id": task.id, "message": "Clear queued."}
 
 
 @router.post("/debug/seed")
-async def debug_seed(request: Request):
+async def debug_seed(request: Request, api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     data = await request.json()
     if not isinstance(data, dict):
@@ -205,28 +206,28 @@ async def debug_seed(request: Request):
 
 
 @router.post("/debug/read-month")
-async def debug_read_month():
+async def debug_read_month(api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     task = await _enqueue(task_type="read-this-month", params={}, title="Read This Month")
     return {"ok": True, "order_id": task.id, "message": "Read-this-month queued."}
 
 
 @router.post("/debug/unread-month")
-async def debug_unread_month():
+async def debug_unread_month(api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     task = await _enqueue(task_type="unread-this-month", params={}, title="Unread This Month")
     return {"ok": True, "order_id": task.id, "message": "Unread-this-month queued."}
 
 
 @router.post("/debug/pay-month")
-async def debug_pay_month():
+async def debug_pay_month(api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     task = await _enqueue(task_type="pay-this-month", params={}, title="Pay This Month")
     return {"ok": True, "order_id": task.id, "message": "Pay-this-month queued."}
 
 
 @router.post("/debug/remove-pay-month")
-async def debug_remove_pay_month():
+async def debug_remove_pay_month(api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     task = await _enqueue(
         task_type="remove-payment-this-month",
@@ -237,7 +238,7 @@ async def debug_remove_pay_month():
 
 
 @router.get("/debug/tasks")
-async def debug_tasks():
+async def debug_tasks(api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     current_result = await session().execute(
         select(BackgroundTask).where(BackgroundTask.status == "running").limit(1)
@@ -278,7 +279,7 @@ async def debug_tasks():
 
 
 @router.get("/debug/tasks/{task_id}")
-async def debug_task(task_id: int):
+async def debug_task(task_id: int, api_key=Depends(require_staff("can_enroll_staff"))):
     _superuser_only()
     task = await session().get(BackgroundTask, task_id)
     if not task:
