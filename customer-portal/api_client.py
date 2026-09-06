@@ -15,6 +15,8 @@ try:
 except ImportError:
     _GRPC_AVAILABLE = False
 
+_client = None
+
 
 def _get_client():
     global _client
