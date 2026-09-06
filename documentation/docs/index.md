@@ -44,25 +44,25 @@ graph TB
         API["API Container<br/>FastAPI/granian :8008"]
     end
 
-    subgraph "net-gk (external)"
-        GK["GateKeeper<br/>forward_auth :7000"]
+    subgraph "gatekeeper_dynamic (external wildcard)"
+        GK["GateKeeper wildcard<br/>gatekeeper_caddy:7000 → gatekeeper_auth:8001"]
     end
 
     subgraph "cloudflared-tunnel (external)"
         TUN["Cloudflare Tunnel"]
     end
 
-    subgraph "Caddy Gateway :7020 / :7021"
-        CAD["Caddy<br/>7020: public<br/>7021: private"]
+    subgraph "Caddy Gateway :7020 (single-port, wildcard)"
+        CAD["Caddy<br/>:7020 wildcard"]
     end
 
-    CAD -->|"7020 /*"| LAND
-    CAD -->|"7020 /customer/*"| CP
-    CAD -->|"7020 /webhook/*"| WH
-    CAD -->|"7021 /staff/*"| SP
-    CAD -->|"7021 /developer/*"| DP
-    CAD -->|"7021 /documentation/*"| DOC
-    CAD -->|"7021 /phpmyadmin/*"| PMA
+    CAD -->|"/ /*"| LAND
+    CAD -->|"/customer/*"| CP
+    CAD -->|"/webhook/*"| WH
+    CAD -->|"/staff/*"| SP
+    CAD -->|"/developer/*"| DP
+    CAD -->|"/documentation/*"| DOC
+    CAD -->|"/phpmyadmin/*"| PMA
 
     CP -->|"internal API"| API
     SP -->|"internal API"| API

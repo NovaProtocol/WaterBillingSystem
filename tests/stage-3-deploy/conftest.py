@@ -46,6 +46,7 @@ def public(stack):
 
 @pytest.fixture(scope="session")
 def private(stack):
-    status = _wait_for("http://127.0.0.1:7021/health")
-    assert status in (200, 302), "Private endpoint not responding"
-    return "http://127.0.0.1:7021"
+    # single-port live: :7020 serves all paths (consolidated from :7021 private)
+    status = _wait_for("http://127.0.0.1:7020/health")
+    assert status in (200, 302), "Private (now :7020) endpoint not responding"
+    return "http://127.0.0.1:7020"

@@ -8,7 +8,7 @@
 
 | Service | Container | Host Port | Internal Port | Network | Purpose |
 |---------|-----------|-----------|---------------|---------|---------|
-| `caddy-gateway` | waterbillingsystem_gateway | 7020, 7021 | 7020, 7021 | net-public, net-private, net-gk, cloudflared-tunnel | Reverse proxy + routing |
+| `caddy-gateway` | waterbillingsystem_gateway | 7020 | 7020 | net-public, net-private, gatekeeper_dynamic, cloudflared-tunnel | Reverse proxy + routing (single-port wildcard) |
 | `landing-page` | waterbillingsystem_landing | — | 8001 | net-public | Public marketing page |
 | `customer-portal` | waterbillingsystem_customerportal | — | 8002 | net-public, net-api | Customer bill lookup |
 | `staff-portal` | waterbillingsystem_staffportal | — | 8003 | net-private, net-api | Staff dashboard |
@@ -22,26 +22,20 @@
 
 ### Caddy Gateway Routing
 
-Every route passes through the GateKeeper `forward_auth` gate first, except `/webhook/*`, `/health`, and `/404` (public by design). The `/404` page is a themed page served by `landing-page:8001` for any unknown path.
+Gate is at the **wildcard** (`gatekeeper_dynamic` — `gatekeeper_caddy:7000 → gatekeeper_auth:8001`); live `caddy-gateway/Caddyfile` proxies without per-app `forward_auth` (wildcard per `reference/gatekeeper/caddy-setup.md`). `/webhook/*` + `/health` + themed `404` (served by `landing-page:8001`) are public by design.
 
-**Public port 7020** (external-facing):
 | Path | Target | Gate |
 |------|--------|------|
 | `/health` | `landing-page:8001` | bypass |
 | `/404` | `landing-page:8001` | bypass |
-| `/webhook/*` | `webhook-container:8009` | bypass (Xendit callback) |
-| `/customer/*` | `customer-portal:8002` | `forward_auth` |
-| `/static/*` | `landing-page:8001` | `forward_auth` |
-| `/` (catch-all) | `landing-page:8001` | `forward_auth` |
-
-**Private port 7021** (internal/admin):
-| Path | Target | Gate |
-|------|--------|------|
-| `/staff/*` | `staff-portal:8003` | `forward_auth` |
-| `/developer/*` | `developer-portal:8004` | `forward_auth` |
-| `/documentation/*` | `documentation:8005` | `forward_auth` |
-| `/phpmyadmin/*` | `phpmyadmin:80` | `forward_auth` |
-| `/static/*` | `landing-page:8001` | `forward_auth` |
+| `/webhook/*` | `webhook-container:8009` | bypass (Xendit) |
+| `/customer/*` | `customer-portal:8002` | wildcard (GateKeeper) |
+| `/staff/*` | `staff-portal:8003` | wildcard |
+| `/developer/*` | `developer-portal:8004` | wildcard |
+| `/documentation/*` | `documentation:8005` | wildcard |
+| `/phpmyadmin/*` | `phpmyadmin:80` | wildcard |
+| `/static/*` | `landing-page:8001` | wildcard |
+| `/` (catch-all) | `landing-page:8001` | wildcard |
 
 ### Network Topology
 
@@ -55,7 +49,7 @@ graph TB
     end
 
     subgraph "net-private"
-        C2[caddy-gateway:7021]
+        C2[caddy-gateway:7020 (alias)]
         SP[staff-portal:8003]
         DP[developer-portal:8004]
         DOC[documentation:8005]
@@ -77,9 +71,9 @@ graph TB
         PMA
     end
 
-    subgraph "net-gk external"
+    subgraph "gatekeeper_dynamic external (wildcard)"
         CG[caddy-gateway]
-        GK[gatekeeper:7000]
+        GK[gatekeeper wildcard]
     end
 
     subgraph "cloudflared-tunnel external"

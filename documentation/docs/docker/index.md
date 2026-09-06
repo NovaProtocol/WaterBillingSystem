@@ -55,9 +55,9 @@ Database administration UI. Internal network only.
 | Guest account | `GUEST_DB_PASSWORD` — the guest MySQL user (instant login, `only_db` = `DB_NAME`) is provisioned automatically by the API at startup (`shared/services/guest_seeder.py`) |
 | Upload limit | `UPLOAD_LIMIT` from `.env` |
 
-Networks: `net-private` (accessible via gateway port 7021), `net-data` (DB access).
+Networks: `net-private` (internal logical group), `net-data` (DB access) — Caddy publishes single `:7020` on `gatekeeper_dynamic`.
 
-Access via Caddy gateway at `https://<private-domain>/phpmyadmin/`.
+Access via Caddy gateway at `https://water-billing-system.projectnova.download/phpmyadmin/` (single domain `:7020`).
 
 ## Documentation
 
