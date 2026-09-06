@@ -148,7 +148,7 @@ async def api_customers_search_sort(request: Request, _=Depends(require_login)):
 
 
 @router.get("/staff/customers")
-async def customers(request: Request, _=Depends(require_login)):
+async def customers(request: Request, _=Depends(require_perms("can_enroll_customer"))):
     try:
         page = int(request.query_params.get("page", "1"))
     except (ValueError, TypeError):
@@ -176,7 +176,7 @@ async def customer_create(request: Request, _=Depends(require_perms("can_enroll_
 
 
 @router.get("/staff/manage-customers")
-async def manage_customers(request: Request, _=Depends(require_login)):
+async def manage_customers(request: Request, _=Depends(require_perms("can_enroll_customer"))):
     return templates.TemplateResponse(request, "staff/manage_customers.html", {})
 
 
@@ -217,7 +217,7 @@ async def clear_customer_nfc(customer_id: int, _=Depends(require_perms("can_enro
 
 
 @router.get("/staff/meter-reading")
-async def meter_reading(request: Request, _=Depends(require_login)):
+async def meter_reading(request: Request, _=Depends(require_perms("can_read_meters"))):
     staff_id = staff_auth.staff_payload().get("id", 1)
     keys_result = await api_client.list_api_keys(staff_id)
     keys = keys_result.get("keys", [])
@@ -225,7 +225,7 @@ async def meter_reading(request: Request, _=Depends(require_login)):
 
 
 @router.post("/staff/meter-reading/generate")
-async def generate_api_key(request: Request, _=Depends(require_login)):
+async def generate_api_key(request: Request, _=Depends(require_perms("can_read_meters"))):
     staff_id = staff_auth.staff_payload().get("id", 1)
     try:
         data = await request.json()
@@ -240,7 +240,7 @@ async def generate_api_key(request: Request, _=Depends(require_login)):
 
 
 @router.post("/staff/meter-reading/revoke/{key_id}")
-async def revoke_api_key(key_id: int, _=Depends(require_login)):
+async def revoke_api_key(key_id: int, _=Depends(require_perms("can_read_meters"))):
     staff_id = staff_auth.staff_payload().get("id", 1)
     try:
         result = await api_client.revoke_api_key(staff_id, key_id)
@@ -251,7 +251,7 @@ async def revoke_api_key(key_id: int, _=Depends(require_login)):
 
 
 @router.get("/staff/manage-reading")
-async def manage_reading(request: Request, _=Depends(require_login)):
+async def manage_reading(request: Request, _=Depends(require_perms("can_drop_reading", "can_manage_billing"))):
     staff_id = staff_auth.staff_payload().get("id", 1)
     result = await api_client.get_reading_logs(staff_id)
     return templates.TemplateResponse(request, "staff/manage_reading.html", result)
@@ -275,7 +275,7 @@ async def drop_reading(
 
 @router.post("/staff/manage-reading/edit-reading/{reading_id}")
 async def edit_reading(
-    reading_id: int, request: Request, _=Depends(require_perms("can_drop_reading"))
+    reading_id: int, request: Request, _=Depends(require_perms("can_manage_billing"))
 ):
     try:
         data = await request.json()
@@ -290,7 +290,7 @@ async def edit_reading(
 
 
 @router.get("/staff/payments")
-async def payments(request: Request, _=Depends(require_login)):
+async def payments(request: Request, _=Depends(require_perms("can_accept_payment"))):
     return templates.TemplateResponse(request, "staff/payments.html", {})
 
 
@@ -323,7 +323,7 @@ async def cashier_tally(request: Request, _=Depends(require_perms("can_accept_pa
 
 
 @router.get("/staff/manage-billing")
-async def manage_billing(request: Request, _=Depends(require_login)):
+async def manage_billing(request: Request, _=Depends(require_perms("can_drop_payment", "can_manage_billing"))):
     return templates.TemplateResponse(request, "staff/manage_billing.html", {})
 
 
@@ -344,7 +344,7 @@ async def undo_payment(
 
 
 @router.get("/staff/staff")
-async def staff_list(request: Request, _=Depends(require_login)):
+async def staff_list(request: Request, _=Depends(require_perms("can_enroll_staff"))):
     result = await api_client.list_staff()
     return templates.TemplateResponse(request, "staff/staff_list.html", result)
 

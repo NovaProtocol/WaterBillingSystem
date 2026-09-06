@@ -4,7 +4,7 @@ from app import templates
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
-from shared.auth import load_token
+from shared.jwt import verify_customer_token
 
 DEBUG = os.environ["DEBUG"].lower() in ("true", "1", "yes")
 
@@ -35,14 +35,14 @@ async def app_shell(request: Request):
 
 @pages_bp.get("/customer/maintenance")
 async def maintenance(request: Request):
-    if not load_token(request.cookies.get("billing_session")):
+    if not verify_customer_token(request.cookies.get("billing_session")):
         return _redirect("/customer/login")
     return templates.TemplateResponse(request, "customer/maintenance.html", {})
 
 
 @pages_bp.get("/customer/report")
 async def report(request: Request):
-    if not load_token(request.cookies.get("billing_session")):
+    if not verify_customer_token(request.cookies.get("billing_session")):
         return _redirect("/customer/login")
     return templates.TemplateResponse(request, "customer/report.html", {})
 

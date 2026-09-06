@@ -6,7 +6,7 @@ import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from shared.auth import MAX_AGE, load_token, make_token
+from shared.jwt import create_customer_token, verify_customer_token
 
 DEBUG = os.environ["DEBUG"].lower() in ("true", "1", "yes")
 
@@ -126,7 +126,7 @@ def _clean_history_page(page):
 
 
 def _session_data(request: Request) -> dict | None:
-    return load_token(request.cookies.get("billing_session"))
+    return verify_customer_token(request.cookies.get("billing_session"))
 
 
 def _require_session(request: Request):
@@ -190,12 +190,12 @@ async def login(request: Request):
     if not customer_number:
         return JSONResponse({"error": "Verification failed"}, status_code=500)
     customer = _clean_customer(result.get("customer", {}))
-    token = make_token({"customer_number": customer_number, "customer": customer})
+    token = create_customer_token(customer_number, customer)
     resp = JSONResponse({"ok": True, "redirect": "/customer/", "customer": customer})
     resp.set_cookie(
         "billing_session",
         token,
-        max_age=MAX_AGE,
+        max_age=12 * 3600,
         httponly=True,
         samesite="Lax",
         secure=True,
