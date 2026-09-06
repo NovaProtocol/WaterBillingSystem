@@ -47,8 +47,10 @@
       }),
     })
       .then(function (resp) {
-        return resp.json().then(function (data) {
-          return { ok: resp.ok, data: data };
+        return resp.text().then(function (text) {
+          var data;
+          try { data = JSON.parse(text); } catch (e) { data = { error: text ? text.slice(0, 300) : 'Unexpected response (' + resp.status + ')', error_code: 'ERR0001' }; }
+          return { ok: resp.ok, status: resp.status, data: data };
         });
       })
       .then(function (result) {
@@ -56,12 +58,16 @@
           window.location.href = result.data.redirect;
           return;
         }
-        showError((result.data && result.data.error) || 'Verification failed. Please try again.');
+        var msg = (result.data && (result.data.error || result.data.detail)) || 'Verification failed. Please try again.';
+        if (result.data && result.data.error_code) { msg += ' (' + result.data.error_code + ')'; }
+        showError(msg);
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-search mr-2"></i>View My Bill';
       })
-      .catch(function () {
-        showError('Unable to reach the server. Please try again.');
+      .catch(function (err) {
+        var msg = 'Unable to reach the server. Please try again.';
+        if (err && err.message) { msg += ' (' + err.message.slice(0, 120) + ')'; }
+        showError(msg);
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-search mr-2"></i>View My Bill';
       });

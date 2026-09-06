@@ -5,9 +5,10 @@ from contextvars import ContextVar
 from fastapi import Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from shared.auth import load_token, make_token
+from shared.jwt import create_staff_token, verify_staff_token
 
 COOKIE_NAME = "session"
+MAX_AGE = 8 * 3600
 
 _current_staff: ContextVar[dict | None] = ContextVar("current_staff", default=None)
 
@@ -48,7 +49,7 @@ current_user = _StaffProxy()
 
 
 def set_staff(request: Request) -> None:
-    payload = load_token(request.cookies.get(COOKIE_NAME))
+    payload = verify_staff_token(request.cookies.get(COOKIE_NAME))
     if payload and payload.get("id"):
         _current_staff.set(payload)
 
@@ -62,7 +63,7 @@ def staff_payload() -> dict | None:
 
 
 def login_cookie(staff: dict) -> str:
-    return make_token(staff)
+    return create_staff_token(staff)
 
 
 def logout_response() -> RedirectResponse:
