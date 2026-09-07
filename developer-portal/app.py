@@ -62,9 +62,23 @@ def _err(request: Request, code: int, title: str, msg: str):
 
 @app.exception_handler(StarletteHTTPException)
 async def _http(request: Request, exc: StarletteHTTPException):
+    # 302 redirects (dev login gate) must pass through, not render as error page
+    if exc.status_code == 302:
+        raise exc
     code = exc.status_code if exc.status_code in _TITLES else 500
     title = _TITLES.get(code, "Error")
-    msg = str(exc.detail) if code != 404 else "The page you're looking for doesn't exist."
+    detail = str(exc.detail) if exc.detail else ""
+    if code == 403:
+        title = "Access denied"
+        msg = (
+            detail
+            if detail and "permission" in detail.lower()
+            else "You do not have permission to access the developer portal."
+        )
+    elif code == 404:
+        msg = "The page you're looking for doesn't exist."
+    else:
+        msg = detail or title
     return _err(request, code, title, msg)
 
 

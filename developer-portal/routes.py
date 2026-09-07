@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from templating import templates
 
-from shared.wbs_jwt import create_dev_token, verify_dev_token
+from shared.wbs_jwt import create_dev_token, verify_dev_token, verify_staff_token
 
 MAX_AGE = 8 * 3600
 
@@ -24,9 +24,28 @@ def _set_endpoint(request: Request) -> None:
 
 def require_superuser(request: Request):
     _set_endpoint(request)
-    payload = verify_dev_token(request.cookies.get(COOKIE_NAME))
-    if not payload or payload.get("username") != "superuser":
-        raise HTTPException(status_code=302, headers={"Location": "/staff/login"})
+    raw = request.cookies.get(COOKIE_NAME)
+    # Not logged in at all (no valid staff session) -> ask to log in
+    staff_payload = verify_staff_token(raw)
+    if not staff_payload or not staff_payload.get("id"):
+        # also try dev token for legacy superuser session
+        dev_fallback = verify_dev_token(raw)
+        if not dev_fallback or dev_fallback.get("username") != "superuser":
+            raise HTTPException(status_code=302, headers={"Location": "/staff/login"})
+        request.state.dev_payload = dev_fallback
+        return
+    # Logged in as staff but not superuser -> friendly 403
+    if staff_payload.get("username") != "superuser":
+        dev_payload = verify_dev_token(raw)
+        if not dev_payload or dev_payload.get("username") != "superuser":
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to access the developer portal.",
+            )
+        request.state.dev_payload = dev_payload
+        return
+    # superuser via staff token
+    payload = verify_dev_token(raw) or staff_payload
     request.state.dev_payload = payload
 
 
