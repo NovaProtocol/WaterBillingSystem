@@ -9,7 +9,7 @@ FastAPI web dashboard served by the Caddy gateway at `:7020` (single domain `htt
 Proxy-style FastAPI app:
 - Routes render Jinja2 templates and handle form submissions
 - Business logic is delegated to the API container via `api_client.py`
-- Auth uses PyJWT HS256 `shared/jwt.py` (`ISS=wbs AUD=waterbillingsystem`) — 8h `session` cookie storing the staff payload from `POST /api/staff/login` (customer `billing_session` is 12h); one-deploy itsdangerous fallback, no server-side session store
+- Auth uses PyJWT HS256 `shared/wbs_jwt.py` (`ISS=wbs AUD=waterbillingsystem`) — 8h `session` cookie storing the staff payload from `POST /api/staff/login` (customer `billing_session` is 12h); one-deploy `shared/auth.py` itsdangerous fallback, no server-side session store
 
 ## Authentication
 

@@ -124,7 +124,7 @@ All backup/restore operations run via the background task queue (worker containe
 | Network | Type | Purpose |
 |---------|------|---------|
 | `cloudflared-tunnel` | external (`cloudflared-tunnel_default`) | Cloudflare tunnel for public access |
-| `net-gk` | external (`gatekeeper_default`) | GateKeeper forward-auth service (caddy-gateway only) |
+| `gatekeeper_dynamic` | external wildcard (`gatekeeper_dynamic`) | GateKeeper wildcard gate (caddy `:7020` single-port) |
 
 ## Deployment Flow
 
