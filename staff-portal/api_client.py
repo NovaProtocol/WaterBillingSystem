@@ -5,9 +5,10 @@ import os
 from shared.http_client import make_client
 
 try:
-    from shared.grpc_client import get_customer_via_grpc, list_customers_via_grpc
+    from shared.grpc_client import list_customers_via_grpc
 
     _GRPC_AVAILABLE = True
+    get_customer_via_grpc = None  # type: ignore  # disabled: staff billing needs full HTTP payload
 except ImportError:
     _GRPC_AVAILABLE = False
     get_customer_via_grpc = None  # type: ignore
@@ -74,14 +75,10 @@ async def get_dashboard_data() -> dict:
 
 
 async def get_customer(customer_number: int, params: dict = None) -> dict:
-    # Prefer gRPC internal (api:50051) — falls back to HTTP via api:8008
-    if _GRPC_AVAILABLE and not params:
-        try:
-            data = await get_customer_via_grpc(customer_number)  # type: ignore[misc]
-            if data is not None:
-                return data
-        except Exception:
-            pass
+    # Staff billing views need the full HTTP payload (consumption,
+    # bill_breakdown, billing_items, etc). The gRPC GetCustomer stub
+    # returns a short summary only and was causing undefined.toFixed
+    # crashes in manage_billing/payments. Always use HTTP here.
     return await _get(f"/api/customer/{customer_number}", params)
 
 

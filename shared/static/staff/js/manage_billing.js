@@ -7,7 +7,8 @@ $(function() {
   });
 
   function loadCustomer(custNum) {
-    $.get(API_CUSTOMER_URL.replace('0', encodeURIComponent(custNum)), function(data) {
+    $.get(API_CUSTOMER_URL.replace('0', encodeURIComponent(custNum)))
+      .done(function(data) {
       if (data.error) { alert(data.error); return; }
 
       $('#custNumLabel').text('#' + custNum);
@@ -38,11 +39,14 @@ $(function() {
         $('#prevDate').text('');
       }
 
-      $('#consumptionLabel').text(data.consumption.toFixed(1) + ' m\u00B3');
+      var _cons = (data.consumption != null && isFinite(data.consumption)) ? Number(data.consumption) : 0;
+      $('#consumptionLabel').text(_cons.toFixed(1) + ' m\u00B3');
       var tierBody = $('#tierTable tbody'); tierBody.empty();
       (data.bill_breakdown || []).forEach(function(tier) {
+        var _u = (tier.units != null && isFinite(tier.units)) ? Number(tier.units) : 0;
+        var _c = (tier.charge != null && isFinite(tier.charge)) ? Number(tier.charge) : 0;
         tierBody.append(
-          '<tr><td>' + tier.label + '</td><td>' + tier.units + '</td><td>₱' + tier.charge.toFixed(2) + '</td></tr>'
+          '<tr><td>' + (tier.label||'') + '</td><td>' + _u.toFixed(2) + '</td><td>₱' + _c.toFixed(2) + '</td></tr>'
         );
       });
 
@@ -53,14 +57,14 @@ $(function() {
         ul.append(
           '<div class="d-flex justify-content-between mb-1">' +
             '<span class="text-muted" style="font-size: 0.85rem;">' + b.month + '</span>' +
-            '<span class="font-weight-bold" style="font-size: 0.85rem;">₱' + b.amount.toFixed(2) + '</span>' +
+            '<span class="font-weight-bold" style="font-size: 0.85rem;">₱' + ((b.amount!=null&&isFinite(b.amount))?Number(b.amount):0).toFixed(2) + '</span>' +
           '</div>'
         );
         if (b.penalty > 0) {
           ul.append(
             '<div class="d-flex justify-content-between mb-2">' +
               '<span class="text-muted" style="font-size: 0.85rem; padding-left: 1.2rem;">+ Late Penalty</span>' +
-              '<span class="font-weight-bold" style="font-size: 0.85rem; color: #dc3545;">+ ₱' + b.penalty.toFixed(2) + '</span>' +
+              '<span class="font-weight-bold" style="font-size: 0.85rem; color: #dc3545;">+ ₱' + ((b.penalty!=null&&isFinite(b.penalty))?Number(b.penalty):0).toFixed(2) + '</span>' +
             '</div>'
           );
         }
@@ -69,9 +73,11 @@ $(function() {
 
       if (data.carryover > 0) {
         $('#carryoverRow').show();
-        $('#summaryCarryover').text('₱' + data.carryover.toFixed(2));
+        var _co = (data.carryover!=null&&isFinite(data.carryover))?Number(data.carryover):0;
+        $('#summaryCarryover').text('₱' + _co.toFixed(2));
       } else { $('#carryoverRow').hide(); }
-      $('#summaryTotalDue').text('₱' + data.total_due.toFixed(2));
+      var _td = (data.total_due!=null&&isFinite(data.total_due))?Number(data.total_due):0;
+      $('#summaryTotalDue').text('₱' + _td.toFixed(2));
       if (data.due_date) {
         $('#dueDateRow').show().html('Due in ' + data.days_remaining + ' days (' + data.due_date + ')');
       } else { $('#dueDateRow').hide(); }
@@ -83,13 +89,14 @@ $(function() {
       var phb = $('#paymentHistoryBody'); phb.empty();
       (data.recent_payments || []).forEach(function(p) {
         var pd = new Date(p.timestamp * 1000);
+        var _pa = (p.paid_amount!=null&&isFinite(p.paid_amount))?Number(p.paid_amount):0;
         phb.append(
-          '<tr><td>' + (p.receipt_number || 'N/A') + '</td><td>₱' + p.paid_amount.toFixed(2) + '</td><td>' + pd.toLocaleDateString() + '</td><td>' + (p.cashier || '—') + '</td></tr>'
+          '<tr><td>' + (p.receipt_number || 'N/A') + '</td><td>₱' + _pa.toFixed(2) + '</td><td>' + pd.toLocaleDateString() + '</td><td>' + (p.cashier || '—') + '</td></tr>'
         );
       });
 
       $('#billingInfo').show();
-    });
+    }).fail(function(xhr){ var m=(xhr.responseJSON&&xhr.responseJSON.error)||xhr.statusText||'Unknown'; alert('Failed to load customer: '+m); });
   }
 
   function renderBillingPage() {
@@ -99,11 +106,12 @@ $(function() {
     page.forEach(function(item) {
       var dt = new Date(item.timestamp * 1000);
       var period = dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      var reading = item.reading_value;
-      var consumption = item.consumption;
-      var wb = item.water_bill;
-      var penalty = item.penalty;
-      var paid = item.paid_amount;
+      var reading = (item.reading_value!=null&&isFinite(item.reading_value))?Number(item.reading_value):0;
+      var consumption = (item.consumption!=null&&isFinite(item.consumption))?Number(item.consumption):0;
+      var wb = (item.water_bill!=null&&isFinite(item.water_bill))?Number(item.water_bill):0;
+      var penalty = (item.penalty!=null&&isFinite(item.penalty))?Number(item.penalty):0;
+      var paid = (item.paid_amount!=null&&isFinite(item.paid_amount))?Number(item.paid_amount):0;
+      var _co2 = (item.carryover_offset!=null&&isFinite(item.carryover_offset))?Number(item.carryover_offset):0;
       var status = item.status || 'Unpaid';
 
       var statusBadge = '<span class="badge badge-success">Paid</span>';
@@ -125,10 +133,10 @@ $(function() {
           '<td>₱' + wb.toFixed(2) + '</td>' +
           '<td>₱' + penalty.toFixed(2) + '</td>' +
           '<td>₱' + paid.toFixed(2) + '</td>' +
-          '<td>' + (item.carryover_offset !== 0
-  ? (item.carryover_offset < 0
-    ? '<span style="color:#dc3545;">−₱' + Math.abs(item.carryover_offset).toFixed(2) + '</span>'
-    : '₱' + item.carryover_offset.toFixed(2))
+          '<td>' + (_co2 !== 0
+  ? (_co2 < 0
+    ? '<span style="color:#dc3545;">−₱' + Math.abs(_co2).toFixed(2) + '</span>'
+    : '₱' + _co2.toFixed(2))
   : '—') + '</td>' +
           '<td>' + statusBadge + '</td>' +
           '<td>' + actions + '</td>' +
