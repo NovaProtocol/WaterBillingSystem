@@ -8,7 +8,7 @@ A water billing management system for Cotta Realty & Development Corporation. 11
 
 ## Auth
 
-Gate is at the **wildcard** (`gatekeeper_caddy:7000` → `gatekeeper_auth:8001` on `gatekeeper_dynamic`) — live `caddy-gateway/Caddyfile` proxies without a per-app `forward_auth` (wildcard per `reference/gatekeeper/caddy-setup.md`). Live ingress is single port `:7020` (`127.0.0.1:7020:7020`); docs claiming `:7021` private is stale vs `compose.yaml` + live `Caddyfile`. Portals enforce their own session auth: `shared/jwt.py` PyJWT HS256 (ISS `wbs` AUD `waterbillingsystem`) — `staff-portal/staff_auth.py` 8h `session`, `developer-portal` 8h `session`, customer `billing_session` 12h — with one-deploy itsdangerous fallback; API RBAC uses `api/utils.py:require_staff(*perms)` where `X-Internal-API-Key` is re-checked against `X-Staff-ID` (no blanket bypass) and debug is gated to `can_enroll_staff`.
+Gate is at the **wildcard** (`gatekeeper_caddy:7000` → `gatekeeper_auth:8001` on `gatekeeper_dynamic`) — live `caddy-gateway/Caddyfile` proxies without a per-app `forward_auth` (wildcard per `reference/gatekeeper/caddy-setup.md`). Live ingress is single port `:7020` (`127.0.0.1:7020:7020`); docs claiming `:7021` private is stale vs `compose.yaml` + live `Caddyfile`. Portals enforce their own session auth: `shared/wbs_jwt.py` PyJWT HS256 (`ISS=wbs AUD=waterbillingsystem` — `billing_session` 12h `Path /customer/` `HttpOnly SameSite=Lax Secure`, staff `session` 8h, dev `session` 8h; `shared/auth.py` one-deploy fallback); API RBAC uses `api/utils.py:require_staff(*perms)` OR-semantics where `X-Internal-API-Key` is re-checked against `X-Staff-ID` (no blanket bypass) and debug is gated to `can_enroll_staff`.
 
 ## Quick Start
 
