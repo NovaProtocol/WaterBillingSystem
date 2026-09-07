@@ -28,7 +28,7 @@ $(function() {
       tbody.append(
         '<tr>' +
           '<td>'+item.id+'</td>' +
-          '<td>'+item.reading_value+'</td>' +
+          '<td>'+((item.reading_value!=null)?item.reading_value:'—')+'</td>' +
           '<td>'+(item.consumption || '0')+'</td>' +
           '<td>'+dateStr+'</td>' +
           '<td>'+editBtn+dropBtn+'</td>' +
@@ -41,7 +41,8 @@ $(function() {
   }
 
   function loadReadings(custNum) {
-    $.get(API_CUSTOMER_URL.replace('0', encodeURIComponent(custNum)), function(data) {
+    $.get(API_CUSTOMER_URL.replace('0', encodeURIComponent(custNum)))
+      .done(function(data) {
       if (data.error) { alert(data.error); return; }
       $('#mgmtCustNum').text(custNum);
       readingItems = (data.billing_items || data.readings || []).slice();
@@ -52,7 +53,8 @@ $(function() {
       $('#customerInfo').html(buildCustomerInfoCard(data));
       renderReadingPage();
       $('#readingList').show();
-    });
+    })
+      .fail(function(xhr){ var m=(xhr.responseJSON&&xhr.responseJSON.error)||xhr.statusText||'Unknown'; alert('Failed to load readings: '+m); });
   }
 
   $(document).on('click', '.edit-reading', function() {

@@ -11,6 +11,7 @@ $(function() {
                 dataType: 'json',
                 success: function(data) {
                     var d = $('#customerDropdown'); d.empty();
+                    if (data && data.error === 'mixed_input') { d.append('<div class="item invalid-feedback d-block px-3 py-2 mb-0" style="font-size:0.82rem;">'+(data.message||'Invalid search')+'</div>'); d.show(); return; }
                     if (!data || !data.length) { d.hide(); return; }
                     data.forEach(function(c) {
                         d.append('<div class="item" data-number="'+c.customer_number+'" data-name="'+$('<span>').text(c.name).html()+'"><strong>'+c.customer_number+'</strong> &mdash; '+$('<span>').text(c.name).html()+'<br><span class="sub">'+$('<span>').text(c.address||'').html()+'</span></div>');
@@ -57,9 +58,9 @@ $(function() {
                 $('#infoEmail').text(data.email || '—');
 
                 if (data.latest_reading) {
-                    $('#currentReading').text(data.latest_reading.reading_value);
-                    $('#currentReader').text('Recorded by: ' + (data.latest_reading.reader_id || '—'));
-                    var d = new Date(data.latest_reading.timestamp * 1000);
+                    $('#currentReading').text(data.latest_reading.reading_value != null ? data.latest_reading.reading_value : '—');
+                    $('#currentReader').text('Recorded by: ' + (data.latest_reading.reader || data.latest_reading.reader_id || '—'));
+                    var d = new Date((data.latest_reading.timestamp||0) * 1000);
                     $('#currentDate').text(d.toLocaleDateString() + ' ' + d.toLocaleTimeString());
                 } else {
                     $('#currentReading').text('—');
@@ -68,9 +69,9 @@ $(function() {
                 }
 
                 if (data.last_reading) {
-                    $('#prevReading').text(data.last_reading.reading_value);
-                    $('#prevReader').text('Recorded by: ' + (data.last_reading.reader_id || '—'));
-                    var d2 = new Date(data.last_reading.timestamp * 1000);
+                    $('#prevReading').text(data.last_reading.reading_value != null ? data.last_reading.reading_value : '—');
+                    $('#prevReader').text('Recorded by: ' + (data.last_reading.reader || data.last_reading.reader_id || '—'));
+                    var d2 = new Date((data.last_reading.timestamp||0) * 1000);
                     $('#prevDate').text(d2.toLocaleDateString() + ' ' + d2.toLocaleTimeString());
                 } else {
                     $('#prevReading').text('—');
@@ -78,7 +79,8 @@ $(function() {
                     $('#prevDate').text('');
                 }
 
-                $('#consumptionLabel').html(data.consumption.toFixed(2) + ' m&sup3; consumed this period');
+                var _cons2 = (data.consumption!=null&&isFinite(data.consumption))?Number(data.consumption):0;
+                $('#consumptionLabel').html(_cons2.toFixed(2) + ' m&sup3; consumed this period');
                 var tierBody = $('#tierTable tbody');
                 tierBody.empty();
                 if (data.bill_breakdown && data.bill_breakdown.length) {
@@ -92,16 +94,16 @@ $(function() {
                         tierBody.append(
                             '<tr' + style + '>' +
                                 '<td>' + item.label + '</td>' +
-                                '<td>' + item.units.toFixed(2) + ' m&sup3;</td>' +
+                                '<td>' + ((item.units!=null&&isFinite(item.units))?Number(item.units):0).toFixed(2) + ' m&sup3;</td>' +
                                 '<td>' + rateHtml + '</td>' +
-                                '<td class="text-right font-weight-bold">&#x20B1;' + item.charge.toFixed(2) + '</td>' +
+                                '<td class="text-right font-weight-bold">&#x20B1;' + ((item.charge!=null&&isFinite(item.charge))?Number(item.charge):0).toFixed(2) + '</td>' +
                             '</tr>'
                         );
                     });
                     tierBody.append(
                         '<tr class="font-weight-bold" style="border-top:2px solid #1a1a2e;">' +
                             '<td colspan="3">Total Water Bill</td>' +
-                            '<td class="text-right">&#x20B1;' + data.original_water_bill.toFixed(2) + '</td>' +
+                            '<td class="text-right">&#x20B1;' + ((data.original_water_bill!=null&&isFinite(data.original_water_bill))?Number(data.original_water_bill):0).toFixed(2) + '</td>' +
                         '</tr>'
                     );
                 }
@@ -113,14 +115,14 @@ $(function() {
                         ubList.append(
                             '<div class="d-flex justify-content-between mb-1" style="font-size:0.85rem;">' +
                                 '<span class="text-muted">' + ub.month + '</span>' +
-                                '<span class="font-weight-bold">₱' + ub.amount.toFixed(2) + '</span>' +
+                                '<span class="font-weight-bold">₱' + ((ub.amount!=null&&isFinite(ub.amount))?Number(ub.amount):0).toFixed(2) + '</span>' +
                             '</div>'
                         );
                         if (ub.penalty > 0) {
                             ubList.append(
                                 '<div class="d-flex justify-content-between mb-2" style="font-size:0.85rem;">' +
                                     '<span class="text-muted" style="padding-left: 1.2rem;">+ Late Penalty</span>' +
-                                    '<span class="font-weight-bold" style="color: #dc3545;">+ ₱' + ub.penalty.toFixed(2) + '</span>' +
+                                    '<span class="font-weight-bold" style="color: #dc3545;">+ ₱' + ((ub.penalty!=null&&isFinite(ub.penalty))?Number(ub.penalty):0).toFixed(2) + '</span>' +
                                 '</div>'
                             );
                         }
@@ -128,7 +130,7 @@ $(function() {
                     ubList.append(
                         '<div class="d-flex justify-content-between mb-2 pt-1" style="border-top:1px solid #dee2e6;font-size:0.85rem;">' +
                             '<span class="font-weight-bold">Total Unpaid</span>' +
-                            '<span class="font-weight-bold">₱' + data.total_unpaid.toFixed(2) + '</span>' +
+                            '<span class="font-weight-bold">₱' + ((data.total_unpaid!=null&&isFinite(data.total_unpaid))?Number(data.total_unpaid):0).toFixed(2) + '</span>' +
                         '</div>'
                     );
                 } else {
@@ -138,10 +140,12 @@ $(function() {
                 if (data.cumulative_balance !== 0) {
                     var carryText;
                     if (data.cumulative_balance > 0) {
-                        carryText = '&minus; &#x20B1;' + data.carryover.toFixed(2);
+                        var _co = (data.carryover!=null&&isFinite(data.carryover))?Number(data.carryover):0;
+                        carryText = '&minus; &#x20B1;' + _co.toFixed(2);
                         $('#summaryCarryover').css('color', '#28a745');
                     } else {
-                        carryText = '+ &#x20B1;' + data.carryover.toFixed(2);
+                        var _co2 = (data.carryover!=null&&isFinite(data.carryover))?Number(data.carryover):0;
+                        carryText = '+ &#x20B1;' + _co2.toFixed(2);
                         $('#summaryCarryover').css('color', '#dc3545');
                     }
                     $('#summaryCarryover').html(carryText);
@@ -150,7 +154,8 @@ $(function() {
                     $('#carryoverRow').hide();
                 }
 
-                $('#summaryTotalDue').html('&#x20B1;' + data.total_due.toFixed(2));
+                var _td = (data.total_due!=null&&isFinite(data.total_due))?Number(data.total_due):0;
+                $('#summaryTotalDue').html('&#x20B1;' + _td.toFixed(2));
 
                 if (data.due_date) {
                     $('#dueDateRow').text('Due in ' + data.days_remaining + ' day' + (data.days_remaining === 1 ? '' : 's') + ' (' + data.due_date + ')');
@@ -187,8 +192,9 @@ $(function() {
                     tbody.append('<tr><td colspan="9" class="text-muted text-center">No billing records</td></tr>');
                 }
 
-                $('#amountDue').val(data.total_due.toFixed(2));
-                $('#payAmount').val(data.total_due.toFixed(2));
+                var _td2 = (data.total_due!=null&&isFinite(data.total_due))?Number(data.total_due):0;
+                $('#amountDue').val(_td2.toFixed(2));
+                $('#payAmount').val(_td2.toFixed(2));
                 $('#payCustNum').val(data.customer_number);
 
                 var ph = $('#paymentHistoryBody');
@@ -196,7 +202,8 @@ $(function() {
                 if (data.recent_payments && data.recent_payments.length) {
                     data.recent_payments.forEach(function(p) {
                         var pd = new Date(p.timestamp * 1000);
-                        ph.append('<tr><td>' + p.receipt_number + '</td><td>&#x20B1;' + p.paid_amount.toFixed(2) + '</td><td>' + pd.toLocaleDateString() + '</td></tr>');
+                        var _pa = (p.paid_amount!=null&&isFinite(p.paid_amount))?Number(p.paid_amount):0;
+                        ph.append('<tr><td>' + (p.receipt_number||'N/A') + '</td><td>&#x20B1;' + _pa.toFixed(2) + '</td><td>' + pd.toLocaleDateString() + '</td></tr>');
                     });
                 } else {
                     ph.append('<tr><td colspan="3" class="text-muted text-center">No payments</td></tr>');
