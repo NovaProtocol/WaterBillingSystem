@@ -11,7 +11,9 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from shared.errors import install_error_handlers
 from shared.logger import attach_sqlite_logging
+from shared.middleware import RequestIDMiddleware
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("api")
@@ -87,6 +89,8 @@ def create_app() -> FastAPI:
         require_env("DB_ENGINE", "DB_HOST", "DB_PORT", "DB_NAME", "DB_USERNAME", "DB_PASS")
 
     app = FastAPI(title="Cotta Water Billing API", lifespan=lifespan)
+    app.add_middleware(RequestIDMiddleware)
+    install_error_handlers(app)
 
     from routes.config import router as config_router
     from routes.customer import router as customer_router
@@ -104,11 +108,6 @@ def create_app() -> FastAPI:
         webhook_router,
     ):
         app.include_router(router)
-
-    @app.exception_handler(HTTPException)
-    async def http_exception_handler(request: Request, exc: HTTPException):
-        detail = exc.detail if isinstance(exc.detail, dict) else {"error": str(exc.detail)}
-        return JSONResponse(detail, status_code=exc.status_code)
 
     @app.get("/health")
     async def health():

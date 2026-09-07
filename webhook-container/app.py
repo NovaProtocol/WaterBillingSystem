@@ -5,7 +5,9 @@ import sys
 
 from fastapi import FastAPI, Request
 
+from shared.errors import install_error_handlers
 from shared.logger import attach_sqlite_logging
+from shared.middleware import RequestIDMiddleware
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("webhook")
@@ -21,10 +23,12 @@ def require_env(*names):
 require_env("SECRET_KEY", "INTERNAL_API_KEY", "API_BASE_URL", "DEPLOYMENT_TYPE")
 
 app = FastAPI(title="Cotta Webhook")
+app.add_middleware(RequestIDMiddleware)
 
 import routes
 
 app.include_router(routes.router)
+install_error_handlers(app)
 
 
 @app.get("/health")
