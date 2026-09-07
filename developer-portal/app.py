@@ -4,7 +4,7 @@ import os
 import sys
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -62,9 +62,14 @@ def _err(request: Request, code: int, title: str, msg: str):
 
 @app.exception_handler(StarletteHTTPException)
 async def _http(request: Request, exc: StarletteHTTPException):
-    # 302 redirects (dev login gate) must pass through, not render as error page
-    if exc.status_code == 302:
-        raise exc
+    # Dev login gate uses 302 with Location header – let the redirect through
+    if exc.status_code in (301, 302, 303, 307, 308):
+        loc = ""
+        if getattr(exc, "headers", None):
+            loc = exc.headers.get("Location") or exc.headers.get("location") or ""
+        if not loc and getattr(exc, "detail", None):
+            loc = str(exc.detail) if "/" in str(exc.detail) else ""
+        return RedirectResponse(url=loc or "/staff/login", status_code=exc.status_code, headers=getattr(exc, "headers", None))
     code = exc.status_code if exc.status_code in _TITLES else 500
     title = _TITLES.get(code, "Error")
     detail = str(exc.detail) if exc.detail else ""
