@@ -118,4 +118,4 @@ graph LR
 **Models**: Staff, Customer, MeterReading, Billing, ApiKey, NfcTag, ManagementLog, Config, PaymentMethod, XenditTransaction, BackgroundTask
 
 **Networks**: `net-public` (bridge), `net-private` (bridge), `net-api` (internal), `net-data` (internal), `gatekeeper_dynamic` (external wildcard), `cloudflared-tunnel` (external)
-**Auth**: PyJWT HS256 via `shared/jwt.py` (ISS `wbs` AUD `waterbillingsystem`) — 12h customer / 8h staff+dev; API RBAC via `require_staff(*perms)` OR-semantics with no internal-key bypass; see Staff Portal / API Contract.
+**Auth**: PyJWT HS256 via `shared/wbs_jwt.py` (ISS `wbs` AUD `waterbillingsystem` — 12h customer / 8h staff+dev); API RBAC via `require_staff(*perms)` OR-semantics with `X-Staff-ID` re-check (no internal-key blanket bypass); see Staff Portal / API Contract.
