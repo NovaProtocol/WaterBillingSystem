@@ -25,7 +25,7 @@ Key variables (full list in `.env.example`, the source of truth):
 |---|---|---|
 | `DEPLOYMENT_TYPE` | `PRODUCTION` | `DEBUG` or `PRODUCTION` |
 | `DEBUG` | `false` | `true` bypasses receipt verification in the customer portal |
-| `SECRET_KEY` | — | Session/cookie signing. Generate: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `SECRET_KEY` | — | Signing key for portal JWTs (`PyJWT HS256 ISS=wbs AUD=waterbillingsystem` `>=32` chars, `billing_session` 12h / staff+dev `session` 8h `HttpOnly SameSite=Lax Secure`). Generate: `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `INTERNAL_API_KEY` | — | API-to-API auth between containers (`X-Internal-API-Key` and `x-internal-api-key` gRPC metadata) |
 | `API_BASE_URL` | `http://api:8008` | Internal API endpoint (legacy alias for `API_INTERNAL_URL`) |
 | `API_INTERNAL_URL` | `http://api:8008` | Internal HTTP API (Caddy bypass, Docker DNS) |

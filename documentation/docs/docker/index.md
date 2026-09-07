@@ -173,14 +173,14 @@ background-worker:
 | `net-private` | bridge | External | caddy-gateway, staff-portal, developer-portal, phpmyadmin, documentation |
 | `net-api` | internal | Internal only | api, customer-portal, staff-portal, developer-portal, webhook-container |
 | `net-data` | internal | Internal only | api, background-worker, mysql-db, phpmyadmin |
-| `net-gk` | external (`gatekeeper_default`) | Gatekeeper forward-auth | caddy-gateway |
+| `gatekeeper_dynamic` | external wildcard (`gatekeeper_dynamic`) | GateKeeper wildcard forward-auth (api sole `net-data` writer) | caddy-gateway |
 | `cloudflared-tunnel` | external (`cloudflared-tunnel_default`) | Cloudflare | caddy-gateway |
 
 - **`net-api`** (internal): portal→API communication. No external access.
 - **`net-data`** (internal): API's home group — API and worker access MySQL. No external access.
 - **`net-public`** (bridge): public-facing (landing page, customer portal, webhook receiver).
 - **`net-private`** (bridge): admin-facing (staff portal, developer portal, phpMyAdmin, docs).
-- **`net-gk`** (external): Caddy's `forward_auth` route to the GateKeeper SSO service. Only the gateway is attached.
+- **`gatekeeper_dynamic`** (external wildcard): Caddy wildcard gate `gatekeeper_caddy:7000 → gatekeeper_auth:8001` — Caddy `:7020` has 0 per-app `forward_auth`. Only the gateway is attached.
 - **`cloudflared-tunnel`** (external): connects Caddy to the Cloudflare tunnel for public internet access.
 
 ## External Networks
@@ -192,7 +192,7 @@ These must exist before `docker compose up`:
 docker network create cloudflared-tunnel_default
 
 # Gatekeeper network (required for the Caddy forward-auth gate)
-docker network create gatekeeper_default
+docker network create gatekeeper_dynamic  # legacy gatekeeper_default is historical — live is gatekeeper_dynamic wildcard
 ```
 
 ## Volumes
