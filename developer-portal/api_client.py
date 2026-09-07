@@ -4,14 +4,11 @@ import os
 
 from shared.http_client import make_client
 
-# gRPC is available for billing/customer data; debug routes stay HTTP
-# (they enqueue BackgroundTasks, not part of the BillingService proto).
-try:
-    from shared.grpc_client import health_check_via_grpc
+# Debug routes are HTTP-only (BackgroundTasks, not in BillingService proto).
+# No gRPC — fail loud on HTTP errors.
 
-    _GRPC_AVAILABLE = True
-except ImportError:
-    _GRPC_AVAILABLE = False
+
+_client = None
 
 
 def _get_client():

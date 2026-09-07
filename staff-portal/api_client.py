@@ -2,17 +2,14 @@ from __future__ import annotations
 
 import os
 
+from shared.grpc_client import list_customers_via_grpc
 from shared.http_client import make_client
 
-try:
-    from shared.grpc_client import list_customers_via_grpc
+# Staff billing detail (get_customer with consumption/bill_breakdown) must use
+# HTTP — gRPC GetCustomer is only core fields (see api_client comment).
+# Search/list is gRPC-only with no HTTP fallback (fail loud).
 
-    _GRPC_AVAILABLE = True
-    get_customer_via_grpc = None  # type: ignore  # disabled: staff billing needs full HTTP payload
-except ImportError:
-    _GRPC_AVAILABLE = False
-    get_customer_via_grpc = None  # type: ignore
-    list_customers_via_grpc = None  # type: ignore
+get_customer_via_grpc = None  # type: ignore  # disabled: staff billing needs full HTTP payload
 
 _client = None
 
@@ -109,38 +106,24 @@ async def customer_search_sort(
     page: int = 1,
     per_page: int = 50,
 ) -> dict:
-    """Search, sort, paginate customers via API. Returns same format as get_customers()."""
-    if _GRPC_AVAILABLE:
-        try:
-            data = await list_customers_via_grpc(
-                q=q, page=page, size=per_page, sort_by=sort_by, sort_dir=sort_dir
-            )  # type: ignore[misc]
-            if data is not None:
-                return {
-                    "customers": data.get("customers", []),
-                    "page": data.get("page", page),
-                    "per_page": data.get("per_page", per_page),
-                    "total": data.get("total", 0),
-                    "pages": data.get("pages", 1),
-                }
-        except Exception:
-            pass
-    data = await _get(
-        "/api/customer/all",
-        {
-            "q": q,
-            "page": page,
-            "size": per_page,
-            "sort_by": sort_by,
-            "sort_dir": sort_dir,
-        },
-    )
+    """Search, sort, paginate customers — gRPC is the exclusive transport, no HTTP fallback."""
+    import grpc as _grpc  # local import so missing grpc surfaces as hard error, not silent
+
+    try:
+        data = await list_customers_via_grpc(  # type: ignore[misc]
+            q=q, page=page, size=per_page, sort_by=sort_by, sort_dir=sort_dir
+        )
+    except _grpc.aio.AioRpcError as e:
+        # Fail loud — do not fall back to HTTP, surface as 503 at caller
+        raise
+    if data is None:
+        raise RuntimeError("grpc ListCustomers returned no data")
     return {
-        "customers": data.get("data", []),
-        "page": data.get("meta", {}).get("current_page", page),
-        "per_page": data.get("meta", {}).get("page_size", per_page),
-        "total": data.get("meta", {}).get("total_items", 0),
-        "pages": data.get("meta", {}).get("total_pages", 1),
+        "customers": data.get("customers", []),
+        "page": data.get("page", page),
+        "per_page": data.get("per_page", per_page),
+        "total": data.get("total", 0),
+        "pages": data.get("pages", 1),
     }
 
 

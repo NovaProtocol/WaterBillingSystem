@@ -9,7 +9,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from shared.config import shared_static_dir
+from shared.errors import install_error_handlers
 from shared.logger import attach_sqlite_logging
+from shared.middleware import RequestIDMiddleware
 
 _TITLES = {
     400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
@@ -43,6 +45,9 @@ app.include_router(routes.router)
 for route in routes.router.routes:
     if getattr(route, "name", None):
         route.name = "dev." + route.name
+
+app.add_middleware(RequestIDMiddleware)
+install_error_handlers(app)
 
 
 @app.get("/health")
