@@ -1,42 +1,37 @@
 from __future__ import annotations
 
-import os
 import sys
-from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-@dataclass(frozen=True)
-class Config:
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", populate_by_name=True)
+
     BASE_DIR: Path = Path(__file__).resolve().parent
 
-    SECRET_KEY: str = os.environ.get("SECRET_KEY", "")
-    NFC_PWD_SECRET: str = os.environ.get("NFC_PWD_SECRET", "")
+    SECRET_KEY: str = Field(min_length=32, description="Portal JWT signing key >=32 chars")
+    NFC_PWD_SECRET: str = Field(min_length=1, description="NFC password encryption secret")
 
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
 
-    DB_ENGINE: str = os.environ.get("DB_ENGINE", "")
-    DB_USERNAME: str = os.environ.get("DB_USERNAME", "")
-    DB_PASS: str = os.environ.get("DB_PASS", "")
-    DB_HOST: str = os.environ.get("DB_HOST", "")
-    DB_PORT: str = os.environ.get("DB_PORT", "")
-    DB_NAME: str = os.environ.get("DB_NAME", "")
+    DB_ENGINE: str = Field(min_length=1)
+    DB_USERNAME: str = Field(min_length=1)
+    DB_PASS: str = Field(min_length=1)
+    DB_HOST: str = Field(min_length=1)
+    DB_PORT: str = Field(min_length=1)
+    DB_NAME: str = Field(min_length=1)
 
-    SQLALCHEMY_DATABASE_URI: str = os.environ.get(
-        "SQLALCHEMY_DATABASE_URI"
-    ) or "{}://{}:{}@{}:{}/{}".format(
-        os.environ.get("DB_ENGINE", ""),
-        os.environ.get("DB_USERNAME", ""),
-        os.environ.get("DB_PASS", ""),
-        os.environ.get("DB_HOST", ""),
-        os.environ.get("DB_PORT", ""),
-        os.environ.get("DB_NAME", ""),
-    )
+    SQLALCHEMY_DATABASE_URI: str = ""
 
-    REVERSE_PROXY_PREFIX: str = os.environ.get("REVERSE_PROXY_PREFIX", "")
+    REVERSE_PROXY_PREFIX: str = ""
 
-    # Security (kept from the old ProductionConfig; hardcoded to the
-    # deployment reality — HTTPS tunnel everywhere)
+    SHARED_STATIC_DIR: str = ""
+    SHARED_TEMPLATES_DIR: str = ""
+
+    # Security (deployment reality — HTTPS tunnel everywhere)
     SESSION_COOKIE_HTTPONLY: bool = True
     SESSION_COOKIE_SECURE: bool = True
     SESSION_COOKIE_SAMESITE: str = "Lax"
@@ -45,16 +40,21 @@ class Config:
     REMEMBER_COOKIE_SAMESITE: str = "Lax"
     REMEMBER_COOKIE_DURATION: int = 3600
 
-    SQLALCHEMY_ENGINE_OPTIONS: dict = field(
-        default_factory=lambda: {
-            "pool_size": 10,
-            "pool_recycle": 3600,
-            "pool_pre_ping": True,
-            "pool_timeout": 5,
-            "max_overflow": 2,
-        }
-    )
+    @property
+    def database_uri(self) -> str:
+        if self.SQLALCHEMY_DATABASE_URI:
+            return self.SQLALCHEMY_DATABASE_URI
+        return "{}://{}:{}@{}:{}/{}".format(
+            self.DB_ENGINE,
+            self.DB_USERNAME,
+            self.DB_PASS,
+            self.DB_HOST,
+            self.DB_PORT,
+            self.DB_NAME,
+        )
 
+
+Config = Settings
 
 REQUIRED_ENV_VARS = [
     "SECRET_KEY",
@@ -71,34 +71,25 @@ ENV_VARS_ALLOW_EMPTY = [
     "REVERSE_PROXY_PREFIX",
 ]
 
-_config: Config | None = None
 
-
-def get_config() -> Config:
-    global _config
-    if _config is None:
-        _config = Config()
-    return _config
+@lru_cache
+def get_config() -> Settings:
+    return Settings()
 
 
 def validate() -> None:
     missing = []
-    for var in REQUIRED_ENV_VARS:
-        val = os.environ.get(var)
-        if val is None or val.strip() == "":
-            missing.append(var)
-    for var in ENV_VARS_ALLOW_EMPTY:
-        if os.environ.get(var) is None:
-            missing.append(var)
-    if missing:
+    try:
+        get_config()
+    except Exception as exc:
         print(
             "FATAL: Required environment variables are not set:\n"
-            + "\n".join(f"  - {v}" for v in missing)
-            + "\n\n"
+            f"  - {exc}\n\n"
             + "See .env.example for all required variables.",
             file=sys.stderr,
         )
         sys.exit(1)
+    return None
 
 
 def shared_static_dir() -> str:
@@ -107,8 +98,12 @@ def shared_static_dir() -> str:
     Order: SHARED_STATIC_DIR env -> container layout (/app/shared/static)
     -> repo layout (shared/static next to this file).
     """
+    try:
+        configured = get_config().SHARED_STATIC_DIR
+    except Exception:
+        configured = ""
     candidates = [
-        os.environ.get("SHARED_STATIC_DIR", ""),
+        configured,
         "/app/shared/static",
         str(Path(__file__).resolve().parent / "static"),
     ]
@@ -124,8 +119,12 @@ def shared_templates_dir() -> str:
     Order: SHARED_TEMPLATES_DIR env -> container layout (/app/shared/templates)
     -> repo layout (shared/templates next to this file).
     """
+    try:
+        configured = get_config().SHARED_TEMPLATES_DIR
+    except Exception:
+        configured = ""
     candidates = [
-        os.environ.get("SHARED_TEMPLATES_DIR", ""),
+        configured,
         "/app/shared/templates",
         str(Path(__file__).resolve().parent / "templates"),
     ]

@@ -56,21 +56,6 @@ def verify_customer_token(token: str | None, secret: str | None = None) -> dict[
     except jwt.ExpiredSignatureError:
         return None
     except jwt.InvalidTokenError:
-        # one-deploy grace: try itsdangerous
-        try:
-            from shared.auth import load_token as _load_its
-
-            d = _load_its(token)
-            if d and d.get("customer_number"):
-                try:
-                    import logging
-
-                    logging.getLogger("wbs.jwt").info("jwt_fallback_used customer")
-                except Exception:
-                    pass
-                return d
-        except Exception:
-            pass
         return None
     except Exception:
         return None
@@ -97,20 +82,6 @@ def verify_staff_token(token: str | None, secret: str | None = None) -> dict[str
     except jwt.ExpiredSignatureError:
         return None
     except jwt.InvalidTokenError:
-        try:
-            from shared.auth import load_token as _load_its
-
-            d = _load_its(token)
-            if d and d.get("id"):
-                try:
-                    import logging
-
-                    logging.getLogger("wbs.jwt").info("jwt_fallback_used staff")
-                except Exception:
-                    pass
-                return d
-        except Exception:
-            pass
         return None
     except Exception:
         return None
@@ -135,20 +106,6 @@ def verify_dev_token(token: str | None, secret: str | None = None) -> dict[str, 
     except jwt.ExpiredSignatureError:
         return None
     except jwt.InvalidTokenError:
-        try:
-            from shared.auth import load_token as _load_its
-
-            d = _load_its(token)
-            if d and d.get("username") == "superuser":
-                try:
-                    import logging
-
-                    logging.getLogger("wbs.jwt").info("jwt_fallback_used dev")
-                except Exception:
-                    pass
-                return d
-        except Exception:
-            pass
         return None
     except Exception:
         return None

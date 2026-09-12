@@ -1,37 +1,7 @@
 :7020 {
-    handle /health {
-        reverse_proxy waterbillingsystem_landing:8001
-    }
-
-    handle /webhook/* {
-        reverse_proxy waterbillingsystem_webhook:8009
-    }
-
-    handle /customer/* {
-        reverse_proxy waterbillingsystem_customerportal:8002
-    }
-
-    handle /staff/* {
-        reverse_proxy waterbillingsystem_staffportal:8003
-    }
-
-    handle /developer/* {
-        reverse_proxy waterbillingsystem_devportal:8004
-    }
-
-    handle_path /documentation/* {
-        reverse_proxy waterbillingsystem_documentation:8005
-    }
-
-    handle_path /phpmyadmin/* {
-        reverse_proxy waterbillingsystem_phpmyadmin:80
-    }
-
-    handle /static/* {
-        reverse_proxy waterbillingsystem_landing:8001
-    }
-
-    handle {
-        reverse_proxy waterbillingsystem_landing:8001
-    }
-}
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+	}

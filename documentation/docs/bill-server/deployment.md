@@ -2,13 +2,13 @@
 
 ## Compose Architecture
 
-11 Docker services on 6 networks, defined in `compose.yaml` at the project root. All Python services are FastAPI apps run by granian. Missing env vars fail fast: `${VAR:?}` everywhere — `docker compose config`/`up` refuses to start when `.env` is incomplete.
+11 Docker services on 5 networks, defined in `compose.yaml` at the project root. All Python services are FastAPI apps run by granian. Missing env vars fail fast: `${VAR:?}` everywhere — `docker compose config`/`up` refuses to start when a var is missing (vars come from compose interpolation, never a `.env` file).
 
 ### Services
 
 | Service | Container | Host Port | Internal Port | Network | Purpose |
 |---------|-----------|-----------|---------------|---------|---------|
-| `caddy-gateway` | waterbillingsystem_gateway | 7020 | 7020 | net-public, net-private, gatekeeper_dynamic, cloudflared-tunnel | Reverse proxy + routing (single-port wildcard) |
+| `caddy-gateway` | waterbillingsystem_gateway | 7020 | 7020 | net-public, net-private, gatekeeper | Reverse proxy + routing (single-port fan-out) |
 | `landing-page` | waterbillingsystem_landing | — | 8001 | net-public | Public marketing page |
 | `customer-portal` | waterbillingsystem_customerportal | — | 8002 | net-public, net-api | Customer bill lookup |
 | `staff-portal` | waterbillingsystem_staffportal | — | 8003 | net-private, net-api | Staff dashboard |
@@ -22,7 +22,7 @@
 
 ### Caddy Gateway Routing
 
-Gate is at the **wildcard** (`gatekeeper_dynamic` — `gatekeeper_caddy:7000 → gatekeeper_auth:8001`); live `caddy-gateway/Caddyfile` proxies without per-app `forward_auth` (wildcard per `reference/gatekeeper/caddy-setup.md`). `/webhook/*` + `/health` + themed `404` (served by `landing-page:8001`) are public by design.
+Gate is in GateKeeper (`gatekeeper_caddy:7000 → gatekeeper_auth:8001` verifies via DB routes, then proxies to `:7020`); live `caddy-gateway/Caddyfile` fans out without per-app `GateKeeper gate` (see `reference/gatekeeper/caddy-setup.md`). `/webhook/*` + `/health` + themed `404` (served by `landing-page:8001`) are public by GateKeeper rule.
 
 | Path | Target | Gate |
 |------|--------|------|
@@ -41,46 +41,40 @@ Gate is at the **wildcard** (`gatekeeper_dynamic` — `gatekeeper_caddy:7000 →
 
 ```mermaid
 graph TB
-    subgraph "net-public"
-        C1[caddy-gateway:7020]
-        LP[landing-page:8001]
-        CP[customer-portal:8002]
-        WH[webhook-container:8009]
-    end
+ subgraph "net-public"
+ C1[caddy-gateway:7020]
+ LP[landing-page:8001]
+ CP[customer-portal:8002]
+ WH[webhook-container:8009]
+ end
 
-    subgraph "net-private"
-        C2[caddy-gateway:7020 (alias)]
-        SP[staff-portal:8003]
-        DP[developer-portal:8004]
-        DOC[documentation:8005]
-        PMA[phpmyadmin:80]
-    end
+ subgraph "net-private"
+ C2[caddy-gateway:7020 (alias)]
+ SP[staff-portal:8003]
+ DP[developer-portal:8004]
+ DOC[documentation:8005]
+ PMA[phpmyadmin:80]
+ end
 
-    subgraph "net-api"
-        CP
-        SP
-        DP
-        WH
-        API
-    end
+ subgraph "net-api"
+ CP
+ SP
+ DP
+ WH
+ API
+ end
 
-    subgraph "net-data"
-        DB[mysql-db:3306]
-        API[api:8008]
-        WORKER[background-worker:8006]
-        PMA
-    end
+ subgraph "net-data"
+ DB[mysql-db:3306]
+ API[api:8008]
+ WORKER[background-worker:8006]
+ PMA
+ end
 
-    subgraph "gatekeeper_dynamic external (wildcard)"
-        CG[caddy-gateway]
-        GK[gatekeeper wildcard]
-    end
-
-    subgraph "cloudflared-tunnel external"
-        C1
-        C2
-        CF[cloudflared]
-    end
+ subgraph "gatekeeper external (GateKeeper-owned)"
+ CG[caddy-gateway]
+ GK[GateKeeper :7000 → :8001]
+ end
 ```
 
 ### Environment Variables Per Service
@@ -123,18 +117,17 @@ All backup/restore operations run via the background task queue (worker containe
 
 | Network | Type | Purpose |
 |---------|------|---------|
-| `cloudflared-tunnel` | external (`cloudflared-tunnel_default`) | Cloudflare tunnel for public access |
-| `gatekeeper_dynamic` | external wildcard (`gatekeeper_dynamic`) | GateKeeper wildcard gate (caddy `:7020` single-port) |
+| `gatekeeper` | external (`name: gatekeeper`, GateKeeper-owned) | GateKeeper gate (gateway joins it; sole routability permission) |
 
 ## Deployment Flow
 
 ```bash
 # On the server
 cd WaterBillingSystem
-git pull                      # fetch latest code
-cp .env.example .env          # first time only — fill in real values
-docker compose config > /dev/null   # fails loudly on missing env vars
-docker compose up -d --build  # rebuild + restart changed services
+git pull # fetch latest code
+cp .env.example .env # first time only — fill in real values
+docker compose config > /dev/null # fails loudly on missing env vars
+docker compose up -d --build # rebuild + restart changed services
 ```
 
 - `compose.yaml` uses `${VAR:?}` for every variable — `docker compose up` **refuses to start** if any is missing or blank (`REVERSE_PROXY_PREFIX` is the sole exception; blank is its valid value).

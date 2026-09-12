@@ -6,179 +6,179 @@
 
 ```mermaid
 erDiagram
-    staff ||--o{ api_keys : "creates"
-    staff ||--o{ billings : "processes"
-    staff ||--o{ management_logs : "performs"
-    staff ||--o{ nfc_tags : "enrolls"
-    customers ||--o{ meter_readings : "has"
-    customers ||--o{ billings : "has"
-    customers ||--o{ nfc_tags : "has"
-    customers ||--o{ xendit_transactions : "has"
-    customers ||--o{ management_logs : "references"
-    api_keys ||--o{ meter_readings : "authorizes"
-    meter_readings ||--o{ billings : "generates"
+ staff ||--o{ api_keys : "creates"
+ staff ||--o{ billings : "processes"
+ staff ||--o{ management_logs : "performs"
+ staff ||--o{ nfc_tags : "enrolls"
+ customers ||--o{ meter_readings : "has"
+ customers ||--o{ billings : "has"
+ customers ||--o{ nfc_tags : "has"
+ customers ||--o{ xendit_transactions : "has"
+ customers ||--o{ management_logs : "references"
+ api_keys ||--o{ meter_readings : "authorizes"
+ meter_readings ||--o{ billings : "generates"
 
-    staff {
-        int id PK
-        string username UK
-        string name
-        binary password
-        string email
-        string contact_number
-        bool can_read_meters
-        bool can_accept_payment
-        bool can_enroll_customer
-        bool can_drop_reading
-        bool can_drop_payment
-        bool can_enroll_staff
-        bool can_manage_billing
-        bool is_active
-        datetime date_created
-        datetime last_modified
-    }
+ staff {
+ int id PK
+ string username UK
+ string name
+ binary password
+ string email
+ string contact_number
+ bool can_read_meters
+ bool can_accept_payment
+ bool can_enroll_customer
+ bool can_drop_reading
+ bool can_drop_payment
+ bool can_enroll_staff
+ bool can_manage_billing
+ bool is_active
+ datetime date_created
+ datetime last_modified
+ }
 
-    customers {
-        int id PK
-        int customer_number UK
-        string name
-        text address
-        string contact_number
-        string email
-        float x_coordinate
-        float y_coordinate
-        string phase
-        string block
-        string street
-        numeric cumulative_balance
-        string meter_serial_number
-        numeric max_meter_value
-        numeric total_due
-        bool is_active
-        datetime deleted_at
-        datetime date_created
-        datetime date_modified
-    }
+ customers {
+ int id PK
+ int customer_number UK
+ string name
+ text address
+ string contact_number
+ string email
+ float x_coordinate
+ float y_coordinate
+ string phase
+ string block
+ string street
+ numeric cumulative_balance
+ string meter_serial_number
+ numeric max_meter_value
+ numeric total_due
+ bool is_active
+ datetime deleted_at
+ datetime date_created
+ datetime date_modified
+ }
 
-    meter_readings {
-        int id PK
-        int customer_number FK
-        numeric reading_value
-        int token_id FK
-        datetime timestamp
-        datetime date_created
-        datetime date_modified
-    }
+ meter_readings {
+ int id PK
+ int customer_number FK
+ numeric reading_value
+ int token_id FK
+ datetime timestamp
+ datetime date_created
+ datetime date_modified
+ }
 
-    billings {
-        int id PK
-        int customer_number FK
-        int reading_id FK
-        numeric previous_reading_value
-        numeric current_reading_value
-        numeric consumption
-        numeric billed_amount
-        numeric penalty
-        numeric paid_amount
-        numeric carryover_offset
-        bool is_paid
-        string receipt_number
-        int cashier_id FK
-        datetime payment_timestamp
-        datetime date_paid
-        datetime date_created
-        datetime date_modified
-    }
+ billings {
+ int id PK
+ int customer_number FK
+ int reading_id FK
+ numeric previous_reading_value
+ numeric current_reading_value
+ numeric consumption
+ numeric billed_amount
+ numeric penalty
+ numeric paid_amount
+ numeric carryover_offset
+ bool is_paid
+ string receipt_number
+ int cashier_id FK
+ datetime payment_timestamp
+ datetime date_paid
+ datetime date_created
+ datetime date_modified
+ }
 
-    api_keys {
-        int id PK
-        string key UK
-        string label
-        int staff_id FK
-        bool is_active
-        datetime date_created
-        datetime last_modified
-    }
+ api_keys {
+ int id PK
+ string key UK
+ string label
+ int staff_id FK
+ bool is_active
+ datetime date_created
+ datetime last_modified
+ }
 
-    nfc_tags {
-        int id PK
-        string uid UK
-        int customer_number FK
-        int enrolled_by_id FK
-        datetime date_created
-        datetime last_modified
-    }
+ nfc_tags {
+ int id PK
+ string uid UK
+ int customer_number FK
+ int enrolled_by_id FK
+ datetime date_created
+ datetime last_modified
+ }
 
-    management_logs {
-        int id PK
-        int staff_id FK
-        string action_type
-        string target_type
-        int target_id
-        int customer_number FK
-        text details
-        datetime timestamp
-        datetime date_created
-        datetime date_modified
-    }
+ management_logs {
+ int id PK
+ int staff_id FK
+ string action_type
+ string target_type
+ int target_id
+ int customer_number FK
+ text details
+ datetime timestamp
+ datetime date_created
+ datetime date_modified
+ }
 
-    app_config {
-        int id PK
-        string key UK
-        text value
-        datetime date_created
-        datetime date_modified
-    }
+ app_config {
+ int id PK
+ string key UK
+ text value
+ datetime date_created
+ datetime date_modified
+ }
 
-    payment_methods {
-        int id PK
-        string code UK
-        string label
-        string provider
-        string channel_code
-        numeric fee_percent
-        numeric fee_flat
-        numeric fee_minimum
-        numeric xendit_fee
-        bool is_active
-        int sort_order
-        datetime date_created
-    }
+ payment_methods {
+ int id PK
+ string code UK
+ string label
+ string provider
+ string channel_code
+ numeric fee_percent
+ numeric fee_flat
+ numeric fee_minimum
+ numeric xendit_fee
+ bool is_active
+ int sort_order
+ datetime date_created
+ }
 
-    xendit_transactions {
-        int id PK
-        int customer_number FK
-        string xendit_pr_id UK
-        string external_id UK
-        numeric amount
-        numeric base_amount
-        numeric fee_amount
-        numeric fee_rate
-        string payment_method
-        string status
-        string receipt_number
-        string billing_receipt
-        text error_message
-        datetime reversed_at
-        string xendit_payment_id
-        datetime date_created
-        datetime date_modified
-    }
+ xendit_transactions {
+ int id PK
+ int customer_number FK
+ string xendit_pr_id UK
+ string external_id UK
+ numeric amount
+ numeric base_amount
+ numeric fee_amount
+ numeric fee_rate
+ string payment_method
+ string status
+ string receipt_number
+ string billing_receipt
+ text error_message
+ datetime reversed_at
+ string xendit_payment_id
+ datetime date_created
+ datetime date_modified
+ }
 
-    background_tasks {
-        int id PK
-        string task_type
-        json params
-        string status
-        float progress
-        json messages
-        json result
-        string title
-        datetime scheduled_at
-        datetime started_at
-        datetime finished_at
-        datetime created_at
-        datetime updated_at
-    }
+ background_tasks {
+ int id PK
+ string task_type
+ json params
+ string status
+ float progress
+ json messages
+ json result
+ string title
+ datetime scheduled_at
+ datetime started_at
+ datetime finished_at
+ datetime created_at
+ datetime updated_at
+ }
 ```
 
 ## Model Details

@@ -6,7 +6,7 @@ Water billing platform for **Cotta Realty**: meter reading collection, billing c
 
 | Service | Container | Internal Port | Caddy Route | Network |
 |---|---|---|---|---|
-| **Caddy Gateway** | `caddy-gateway` | 7020 | — | `gatekeeper_dynamic`, cloudflared |
+| **Caddy Gateway** | `caddy-gateway` | 7020 | — | `gatekeeper` (GateKeeper-owned) |
 | **Landing Page** | `landing-page` | 8001 | `/*` (7020) | net-public |
 | **Customer Portal** | `customer-portal` | 8002 | `/customer/*` (7020) | public, api |
 | **Staff Portal** | `staff-portal` | 8003 | `/staff/*` (7020) | net-private, net-api |
@@ -18,87 +18,82 @@ Water billing platform for **Cotta Realty**: meter reading collection, billing c
 | **phpMyAdmin** | `phpmyadmin` | 80 | `/phpmyadmin/*` (7020) | net-private, net-data |
 | **MySQL 8.4** | `mysql-db` | 3306 | — | data |
 
-- Live Caddy is single-port **7020** on `gatekeeper_dynamic` (wildcard gate `gatekeeper_caddy:7000` → `gatekeeper_auth:8001`); `caddy-gateway/Caddyfile` live has 0 `forward_auth` per-app — see `compose.yaml` `127.0.0.1:7020:7020` + `Caddyfile`.
+- Live Caddy is single-port **7020** on the GateKeeper-owned `gatekeeper` network (gate `gatekeeper_caddy:7000` → `gatekeeper_auth:8001` verifies via DB routes, then proxies); `caddy-gateway/Caddyfile` live has 0 `GateKeeper gate` — see `compose.yaml` `127.0.0.1:7020:7020` + `Caddyfile`.
 - Every Python service — API, all portals, the webhook proxy, the documentation site, and the background worker — is a **FastAPI app run by granian** (ASGI, 1 worker each). The legacy WSGI stack is fully replaced.
 
 ## Architecture Diagram
 
 ```mermaid
 graph TB
-    subgraph "net-public"
-        LAND["Landing Page<br/>FastAPI/granian :8001"]
-        CP["Customer Portal<br/>FastAPI/granian :8002"]
-        WH["Webhook Container<br/>FastAPI/granian :8009"]
-    end
+ subgraph "net-public"
+ LAND["Landing Page<br/>FastAPI/granian :8001"]
+ CP["Customer Portal<br/>FastAPI/granian :8002"]
+ WH["Webhook Container<br/>FastAPI/granian :8009"]
+ end
 
-    subgraph "net-private"
-        SP["Staff Portal<br/>FastAPI/granian :8003"]
-        DP["Developer Portal<br/>FastAPI/granian :8004"]
-        DOC["Documentation<br/>FastAPI/granian :8005"]
-        PMA["phpMyAdmin<br/>:80"]
-    end
+ subgraph "net-private"
+ SP["Staff Portal<br/>FastAPI/granian :8003"]
+ DP["Developer Portal<br/>FastAPI/granian :8004"]
+ DOC["Documentation<br/>FastAPI/granian :8005"]
+ PMA["phpMyAdmin<br/>:80"]
+ end
 
-    subgraph "net-data internal"
-        DB[("MySQL 8.4<br/>:3306")]
-        WORKER["Background Worker<br/>FastAPI/granian :8006"]
-        API["API Container<br/>FastAPI/granian :8008"]
-    end
+ subgraph "net-data internal"
+ DB[("MySQL 8.4<br/>:3306")]
+ WORKER["Background Worker<br/>FastAPI/granian :8006"]
+ API["API Container<br/>FastAPI/granian :8008"]
+ end
 
-    subgraph "gatekeeper_dynamic (external wildcard)"
-        GK["GateKeeper wildcard<br/>gatekeeper_caddy:7000 → gatekeeper_auth:8001"]
-    end
+ subgraph "gatekeeper (external, GateKeeper-owned)"
+ GK["GateKeeper<br/>gatekeeper_caddy:7000 → gatekeeper_auth:8001"]
+ end
 
-    subgraph "cloudflared-tunnel (external)"
-        TUN["Cloudflare Tunnel"]
-    end
+ subgraph "Caddy Gateway :7020 (single-port)"
+ CAD["Caddy<br/>:7020 fan-out"]
+ end
 
-    subgraph "Caddy Gateway :7020 (single-port, wildcard)"
-        CAD["Caddy<br/>:7020 wildcard"]
-    end
+ CAD -->|"/ /*"| LAND
+ CAD -->|"/customer/*"| CP
+ CAD -->|"/webhook/*"| WH
+ CAD -->|"/staff/*"| SP
+ CAD -->|"/developer/*"| DP
+ CAD -->|"/documentation/*"| DOC
+ CAD -->|"/phpmyadmin/*"| PMA
 
-    CAD -->|"/ /*"| LAND
-    CAD -->|"/customer/*"| CP
-    CAD -->|"/webhook/*"| WH
-    CAD -->|"/staff/*"| SP
-    CAD -->|"/developer/*"| DP
-    CAD -->|"/documentation/*"| DOC
-    CAD -->|"/phpmyadmin/*"| PMA
+ CP -->|"internal API"| API
+ SP -->|"internal API"| API
+ DP -->|"internal API"| API
+ WH -->|"internal API"| API
 
-    CP -->|"internal API"| API
-    SP -->|"internal API"| API
-    DP -->|"internal API"| API
-    WH -->|"internal API"| API
+ API --> DB
+ WORKER --> DB
+ PMA --> DB
 
-    API --> DB
-    WORKER --> DB
-    PMA --> DB
-
-    CAD -->|"forward_auth"| GK
-    TUN --> CAD
+ CAD -->|"routed via GateKeeper"| GK
 ```
 
 ## Relationship Overview
 
 ```mermaid
 graph LR
-    subgraph "Field Operations"
-        MN["Meter Reader<br/>with Phone"]
-    end
-    subgraph "Office Operations"
-        SP_USER["Staff User<br/>at Desk"]
-        CUST_USER["Customer<br/>Portal User"]
-    end
+ subgraph "Field Operations"
+ MN["Meter Reader<br/>with Phone"]
+ end
+ subgraph "Office Operations"
+ SP_USER["Staff User<br/>at Desk"]
+ CUST_USER["Customer<br/>Portal User"]
+ end
 
-    subgraph "MeterReadingApp"
-        MOB["Mobile App<br/>React Native / Expo"]
-    end
+ subgraph "MeterReadingApp"
+ MOB["Mobile App<br/>React Native / Expo"]
+ end
 
-    MN -->|"NFC Scan / Manual"| MOB
-    MOB -->|"Bearer Auth<br/>CRDC-API Key"| API
-    SP_USER --> SP
-    CUST_USER --> CP
-    PUBLIC["Public Visitor"] --> LAND
-    XENDIT["Xendit<br/>Payment Gateway"] -->|"webhook callback"| WH
+ MN -->|"NFC Scan / Manual"| MOB
+ MOB -->|"Bearer Auth<br/>CRDC-API Key"| API
+ SP_USER --> SP
+ CUST_USER --> CP
+ PUBLIC["Public Visitor"] --> LAND
+ XENDIT["Xendit<br/>Payment Gateway"] -->|"webhook callback"| WH
 ```
 
 ## Quick Links
@@ -117,5 +112,5 @@ graph LR
 
 **Models**: Staff, Customer, MeterReading, Billing, ApiKey, NfcTag, ManagementLog, Config, PaymentMethod, XenditTransaction, BackgroundTask
 
-**Networks**: `net-public` (bridge), `net-private` (bridge), `net-api` (internal), `net-data` (internal), `gatekeeper_dynamic` (external wildcard), `cloudflared-tunnel` (external)
+**Networks**: `net-public` (`internal: true`), `net-private` (`internal: true`), `net-api` (internal), `net-data` (internal), `gatekeeper` (external, GateKeeper-owned)
 **Auth**: PyJWT HS256 via `shared/wbs_jwt.py` (ISS `wbs` AUD `waterbillingsystem` — 12h customer / 8h staff+dev); API RBAC via `require_staff(*perms)` OR-semantics with `X-Staff-ID` re-check (no internal-key blanket bypass); see Staff Portal / API Contract.

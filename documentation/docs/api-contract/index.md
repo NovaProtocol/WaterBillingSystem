@@ -163,8 +163,8 @@ NFC password secret for offline PWD_AUTH computation.
 **Response 200**:
 ```json
 {
-  "nfc_pwd_secret": "REDACTED_SET_VIA_NFC_PWD_SECRET_ENV",
-  "nfc_generation": 0
+ "nfc_pwd_secret": "REDACTED_SET_VIA_NFC_PWD_SECRET_ENV",
+ "nfc_generation": 0
 }
 ```
 
@@ -182,15 +182,15 @@ Pricing tiers. Cached 1 hour.
 **Response 200**:
 ```json
 {
-  "tiers": [
-    {"label": "First 10 m³", "from_unit": 0, "to_unit": 10, "rate": 150.0, "unit": "flat"},
-    {"label": "11 m³ to 20 m³", "from_unit": 10, "to_unit": 20, "rate": 25.0, "unit": "m³"},
-    {"label": "21 m³ to 30 m³", "from_unit": 20, "to_unit": 30, "rate": 30.0, "unit": "m³"},
-    {"label": "31 m³ to 40 m³", "from_unit": 30, "to_unit": 40, "rate": 35.0, "unit": "m³"},
-    {"label": "41 m³ and above", "from_unit": 40, "to_unit": 999999, "rate": 40.0, "unit": "m³"}
-  ],
-  "late_penalty": 15.0,
-  "due_days": 7
+ "tiers": [
+ {"label": "First 10 m³", "from_unit": 0, "to_unit": 10, "rate": 150.0, "unit": "flat"},
+ {"label": "11 m³ to 20 m³", "from_unit": 10, "to_unit": 20, "rate": 25.0, "unit": "m³"},
+ {"label": "21 m³ to 30 m³", "from_unit": 20, "to_unit": 30, "rate": 30.0, "unit": "m³"},
+ {"label": "31 m³ to 40 m³", "from_unit": 30, "to_unit": 40, "rate": 35.0, "unit": "m³"},
+ {"label": "41 m³ and above", "from_unit": 40, "to_unit": 999999, "rate": 40.0, "unit": "m³"}
+ ],
+ "late_penalty": 15.0,
+ "due_days": 7
 }
 ```
 
@@ -228,33 +228,33 @@ Paginated list of all customers with due amounts and NFC status.
 **Response 200**:
 ```json
 {
-  "data": [
-    {
-      "id": 1,
-      "customer_number": 1,
-      "name": "Juan Dela Cruz",
-      "address": "123 Rizal St.",
-      "meter_serial_number": "",
-      "contact_number": "09123456789",
-      "email": "juan@email.com",
-      "phase": "Phase 1",
-      "block": "Block A",
-      "street": "Rose St",
-      "x_coordinate": 14.6,
-      "y_coordinate": 120.95,
-      "cumulative_balance": 0.0,
-      "max_meter_value": 99999.0,
-      "total_due": 724.0,
-      "is_active": true,
-      "nfc_uid": "045A6BC2DEF180"
-    }
-  ],
-  "meta": {
-    "current_page": 1,
-    "page_size": 50,
-    "total_items": 150,
-    "total_pages": 3
-  }
+ "data": [
+ {
+ "id": 1,
+ "customer_number": 1,
+ "name": "Juan Dela Cruz",
+ "address": "123 Rizal St.",
+ "meter_serial_number": "",
+ "contact_number": "09123456789",
+ "email": "juan@email.com",
+ "phase": "Phase 1",
+ "block": "Block A",
+ "street": "Rose St",
+ "x_coordinate": 14.6,
+ "y_coordinate": 120.95,
+ "cumulative_balance": 0.0,
+ "max_meter_value": 99999.0,
+ "total_due": 724.0,
+ "is_active": true,
+ "nfc_uid": "045A6BC2DEF180"
+ }
+ ],
+ "meta": {
+ "current_page": 1,
+ "page_size": 50,
+ "total_items": 150,
+ "total_pages": 3
+ }
 }
 ```
 
@@ -271,42 +271,42 @@ Full billing profile — latest/previous readings, consumption, bill breakdown, 
 **Response 200**:
 ```json
 {
-  "customer_number": 1,
-  "name": "Juan Dela Cruz",
-  "address": "123 Rizal St., Brgy. San Jose",
-  "meter_serial_number": "",
-  "contact_number": "09123456789",
-  "email": "juan.delacruz1@email.com",
-  "phase": "Phase 1",
-  "block": "Block A",
-  "street": "Rose St",
-  "max_meter_value": 999999.0,
-  "latest_reading": {"id": 480, "reading_value": 250.6, "reader": "Juan Dela Cruz", "timestamp": 1778968800},
-  "last_reading": {"id": 479, "reading_value": 220.3, "reader": "Juan Dela Cruz", "timestamp": 1776376800},
-  "consumption": 30.3,
-  "bill_breakdown": [
-    {"label": "First 10 m³", "units": 10, "charge": 150.0},
-    {"label": "11 m³ to 20 m³", "units": 10, "charge": 250.0},
-    {"label": "21 m³ to 30 m³", "units": 10.3, "charge": 309.0}
-  ],
-  "pricing_tiers": [...],
-  "water_bill": 709.0,
-  "original_water_bill": 709.0,
-  "carryover": 0.0,
-  "cumulative_balance": 0.0,
-  "penalty": 15.0,
-  "total_due": 724.0,
-  "latest_unpaid": true,
-  "unpaid_bills": [{"month": "June 2026", "amount": 709.0, "penalty": 15.0, "timestamp": 1778968800}],
-  "total_unpaid": 709.0,
-  "total_penalties": 15.0,
-  "due_date": "07-01-2026",
-  "days_remaining": 9,
-  "billing_items": [...],
-  "recent_payments": [...],
-  "payment_methods": [
-    {"code": "gcash_ewallet", "label": "GCash E-Wallet", "sort_order": 1, "fee_percent": 3.0, "fee_flat": 0, "fee_minimum": 0, "xendit_fee": 11.0}
-  ]
+ "customer_number": 1,
+ "name": "Juan Dela Cruz",
+ "address": "123 Rizal St., Brgy. San Jose",
+ "meter_serial_number": "",
+ "contact_number": "09123456789",
+ "email": "juan.delacruz1@email.com",
+ "phase": "Phase 1",
+ "block": "Block A",
+ "street": "Rose St",
+ "max_meter_value": 999999.0,
+ "latest_reading": {"id": 480, "reading_value": 250.6, "reader": "Juan Dela Cruz", "timestamp": 1778968800},
+ "last_reading": {"id": 479, "reading_value": 220.3, "reader": "Juan Dela Cruz", "timestamp": 1776376800},
+ "consumption": 30.3,
+ "bill_breakdown": [
+ {"label": "First 10 m³", "units": 10, "charge": 150.0},
+ {"label": "11 m³ to 20 m³", "units": 10, "charge": 250.0},
+ {"label": "21 m³ to 30 m³", "units": 10.3, "charge": 309.0}
+ ],
+ "pricing_tiers": [...],
+ "water_bill": 709.0,
+ "original_water_bill": 709.0,
+ "carryover": 0.0,
+ "cumulative_balance": 0.0,
+ "penalty": 15.0,
+ "total_due": 724.0,
+ "latest_unpaid": true,
+ "unpaid_bills": [{"month": "June 2026", "amount": 709.0, "penalty": 15.0, "timestamp": 1778968800}],
+ "total_unpaid": 709.0,
+ "total_penalties": 15.0,
+ "due_date": "07-01-2026",
+ "days_remaining": 9,
+ "billing_items": [...],
+ "recent_payments": [...],
+ "payment_methods": [
+ {"code": "gcash_ewallet", "label": "GCash E-Wallet", "sort_order": 1, "fee_percent": 3.0, "fee_flat": 0, "fee_minimum": 0, "xendit_fee": 11.0}
+ ]
 }
 ```
 
@@ -325,24 +325,24 @@ Customer profile with recent reading history.
 **Response 200**:
 ```json
 {
-  "customer": {
-    "customer_number": 1,
-    "name": "Juan Dela Cruz",
-    "address": "123 Rizal St.",
-    "meter_serial_number": "",
-    "contact_number": "09123456789",
-    "email": "juan@email.com",
-    "phase": "Phase 1",
-    "block": "Block A",
-    "street": "Rose St",
-    "x_coordinate": 14.6,
-    "y_coordinate": 120.95,
-    "cumulative_balance": 0.0,
-    "max_meter_value": 99999.0
-  },
-  "readings": [
-    {"id": 480, "reading_value": 250.6, "reader": "Juan Dela Cruz", "timestamp": 1778968800}
-  ]
+ "customer": {
+ "customer_number": 1,
+ "name": "Juan Dela Cruz",
+ "address": "123 Rizal St.",
+ "meter_serial_number": "",
+ "contact_number": "09123456789",
+ "email": "juan@email.com",
+ "phase": "Phase 1",
+ "block": "Block A",
+ "street": "Rose St",
+ "x_coordinate": 14.6,
+ "y_coordinate": 120.95,
+ "cumulative_balance": 0.0,
+ "max_meter_value": 99999.0
+ },
+ "readings": [
+ {"id": 480, "reading_value": 250.6, "reader": "Juan Dela Cruz", "timestamp": 1778968800}
+ ]
 }
 ```
 
@@ -357,16 +357,16 @@ Create a new customer.
 **Request body**:
 ```json
 {
-  "customer_number": 99,
-  "name": "Maria Santos",
-  "address": "456 Oak St.",
-  "contact_number": "09987654321",
-  "email": "maria@email.com",
-  "phase": "Phase 2",
-  "block": "Block B",
-  "street": "Acacia St",
-  "x_coordinate": 14.7,
-  "y_coordinate": 121.0
+ "customer_number": 99,
+ "name": "Maria Santos",
+ "address": "456 Oak St.",
+ "contact_number": "09987654321",
+ "email": "maria@email.com",
+ "phase": "Phase 2",
+ "block": "Block B",
+ "street": "Acacia St",
+ "x_coordinate": 14.7,
+ "y_coordinate": 121.0
 }
 ```
 
@@ -420,26 +420,26 @@ Customer identity verification. Used by the customer portal.
 **Request body**:
 ```json
 {
-  "account_number": 1,
-  "registered_name": "Juan Dela Cruz",
-  "last_receipt": "RCP-1712345678-ABCD"
+ "account_number": 1,
+ "registered_name": "Juan Dela Cruz",
+ "last_receipt": "RCP-1712345678-ABCD"
 }
 ```
 
 **Response 200**:
 ```json
 {
-  "customer_number": 1,
-  "customer": {
-    "customer_number": 1,
-    "name": "Juan Dela Cruz",
-    "address": "123 Rizal St.",
-    "contact_number": "09123456789",
-    "email": "juan@email.com",
-    "meter_serial_number": "",
-    "x_coordinate": 14.6,
-    "y_coordinate": 120.95
-  }
+ "customer_number": 1,
+ "customer": {
+ "customer_number": 1,
+ "name": "Juan Dela Cruz",
+ "address": "123 Rizal St.",
+ "contact_number": "09123456789",
+ "email": "juan@email.com",
+ "meter_serial_number": "",
+ "x_coordinate": 14.6,
+ "y_coordinate": 120.95
+ }
 }
 ```
 
@@ -458,22 +458,22 @@ Create a Xendit payment session for online payment. The `xendit_fee` from the se
 **Request body**:
 ```json
 {
-  "amount": 724.0,
-  "payment_method": "gcash_ewallet",
-  "success_url": "https://example.com/success",
-  "cancel_url": "https://example.com/cancel"
+ "amount": 724.0,
+ "payment_method": "gcash_ewallet",
+ "success_url": "https://example.com/success",
+ "cancel_url": "https://example.com/cancel"
 }
 ```
 
 **Response 200**:
 ```json
 {
-  "redirect_url": "https://checkout.xendit.co/session/...",
-  "external_id": "wbs-1-1712345678-a1b2c3d4",
-  "id": "sess_123",
-  "base_amount": 724.0,
-  "fee_amount": 21.72,
-  "fee_rate": 3.0
+ "redirect_url": "https://checkout.xendit.co/session/...",
+ "external_id": "wbs-1-1712345678-a1b2c3d4",
+ "id": "sess_123",
+ "base_amount": 724.0,
+ "fee_amount": 21.72,
+ "fee_rate": 3.0
 }
 ```
 
@@ -495,9 +495,9 @@ Detects: customer profile modifications, new/edited readings, dropped readings.
 **Response 200**:
 ```json
 {
-  "customer_numbers": [1, 5],
-  "server_time": 1718841600,
-  "total_customers": 20
+ "customer_numbers": [1, 5],
+ "server_time": 1718841600,
+ "total_customers": 20
 }
 ```
 
@@ -516,10 +516,10 @@ Paginated readings for a customer.
 **Response 200**:
 ```json
 {
-  "data": [
-    {"id": 480, "reading_value": 250.6, "reader": "Juan Dela Cruz", "timestamp": 1778968800}
-  ],
-  "meta": {"current_page": 1, "page_size": 50, "total_items": 47, "total_pages": 1}
+ "data": [
+ {"id": 480, "reading_value": 250.6, "reader": "Juan Dela Cruz", "timestamp": 1778968800}
+ ],
+ "meta": {"current_page": 1, "page_size": 50, "total_items": 47, "total_pages": 1}
 }
 ```
 
@@ -539,12 +539,12 @@ Upload a single reading. Auto-creates billing record.
 **Response 201**:
 ```json
 {
-  "success": true,
-  "reading_id": 481,
-  "customer_number": 1,
-  "reading_value": 310.2,
-  "timestamp": 1779100000,
-  "reader": "Juan Dela Cruz"
+ "success": true,
+ "reading_id": 481,
+ "customer_number": 1,
+ "reading_value": 310.2,
+ "timestamp": 1779100000,
+ "reader": "Juan Dela Cruz"
 }
 ```
 
@@ -597,14 +597,14 @@ Paginated billing records.
 **Response 200**:
 ```json
 {
-  "data": [{
-    "id": 1, "reading_id": 480, "month": "June 2026",
-    "previous_reading": 220.3, "current_reading": 250.6,
-    "consumption": 30.3, "billed_amount": 709.0, "penalty": 15.0,
-    "paid_amount": 0, "is_paid": false, "receipt_number": null,
-    "cashier_id": null, "payment_timestamp": null, "date_paid": null, "created_at": 1718841600
-  }],
-  "meta": {"current_page": 1, "page_size": 50, "total_items": 24, "total_pages": 1}
+ "data": [{
+ "id": 1, "reading_id": 480, "month": "June 2026",
+ "previous_reading": 220.3, "current_reading": 250.6,
+ "consumption": 30.3, "billed_amount": 709.0, "penalty": 15.0,
+ "paid_amount": 0, "is_paid": false, "receipt_number": null,
+ "cashier_id": null, "payment_timestamp": null, "date_paid": null, "created_at": 1718841600
+ }],
+ "meta": {"current_page": 1, "page_size": 50, "total_items": 24, "total_pages": 1}
 }
 ```
 
@@ -624,10 +624,10 @@ Submit a payment. Uses waterfall model: oldest unpaid bill first, excess becomes
 **Response 201**:
 ```json
 {
-  "message": "Payment recorded — 1 bill(s) fully paid",
-  "receipt_number": "RCP-1712345678-A1B2",
-  "receipts": ["RCP-1712345678-A1B2"],
-  "amount": 724.0
+ "message": "Payment recorded — 1 bill(s) fully paid",
+ "receipt_number": "RCP-1712345678-A1B2",
+ "receipts": ["RCP-1712345678-A1B2"],
+ "amount": 724.0
 }
 ```
 
@@ -678,9 +678,9 @@ All registered NFC tags.
 **Response 200**:
 ```json
 {
-  "tags": [
-    {"uid": "045A6BC2DEF180", "customer_number": 1}
-  ]
+ "tags": [
+ {"uid": "045A6BC2DEF180", "customer_number": 1}
+ ]
 }
 ```
 
@@ -728,12 +728,12 @@ Staff authentication. Returns staff data including all permissions.
 **Response 200**:
 ```json
 {
-  "id": 1, "username": "superuser", "name": "Superuser",
-  "email": null, "contact_number": null, "is_active": true,
-  "can_read_meters": true, "can_accept_payment": true,
-  "can_enroll_customer": true, "can_drop_reading": true,
-  "can_drop_payment": true, "can_enroll_staff": true,
-  "can_manage_billing": true
+ "id": 1, "username": "superuser", "name": "Superuser",
+ "email": null, "contact_number": null, "is_active": true,
+ "can_read_meters": true, "can_accept_payment": true,
+ "can_enroll_customer": true, "can_drop_reading": true,
+ "can_drop_payment": true, "can_enroll_staff": true,
+ "can_manage_billing": true
 }
 ```
 
@@ -751,9 +751,9 @@ Get current authenticated staff info.
 **Response 200**:
 ```json
 {
-  "staff": {"id": 1, "username": "superuser", ...},
-  "auth_type": "api_key",
-  "api_key": {"id": 1, "label": "Meter Reader A", "is_active": true}
+ "staff": {"id": 1, "username": "superuser", ...},
+ "auth_type": "api_key",
+ "api_key": {"id": 1, "label": "Meter Reader A", "is_active": true}
 }
 ```
 
@@ -768,7 +768,7 @@ List all staff accounts.
 **Response 200**:
 ```json
 {
-  "staff": [{"id": 1, "username": "superuser", "name": "Superuser", ...}]
+ "staff": [{"id": 1, "username": "superuser", "name": "Superuser", ...}]
 }
 ```
 
@@ -793,18 +793,18 @@ Create staff account.
 **Request body**:
 ```json
 {
-  "username": "cashier1",
-  "password": "securepass",
-  "name": "Cashier One",
-  "email": "cashier1@example.com",
-  "contact_number": "09123456789",
-  "can_read_meters": false,
-  "can_accept_payment": true,
-  "can_enroll_customer": false,
-  "can_drop_reading": false,
-  "can_drop_payment": false,
-  "can_enroll_staff": false,
-  "can_manage_billing": false
+ "username": "cashier1",
+ "password": "securepass",
+ "name": "Cashier One",
+ "email": "cashier1@example.com",
+ "contact_number": "09123456789",
+ "can_read_meters": false,
+ "can_accept_payment": true,
+ "can_enroll_customer": false,
+ "can_drop_reading": false,
+ "can_drop_payment": false,
+ "can_enroll_staff": false,
+ "can_manage_billing": false
 }
 ```
 
@@ -844,15 +844,15 @@ Cashier tally report for a date range.
 **Response 200**:
 ```json
 {
-  "tally": [{"username": "Cashier One", "total": 5000.0}],
-  "use_matrix": false,
-  "nav_date": "2026-06-01",
-  "start_date": "2026-06-01",
-  "end_date": "2026-06-02",
-  "prev_date": "2026-05-31",
-  "next_date": "2026-06-02",
-  "is_today": false,
-  "period": "daily"
+ "tally": [{"username": "Cashier One", "total": 5000.0}],
+ "use_matrix": false,
+ "nav_date": "2026-06-01",
+ "start_date": "2026-06-01",
+ "end_date": "2026-06-02",
+ "prev_date": "2026-05-31",
+ "next_date": "2026-06-02",
+ "is_today": false,
+ "period": "daily"
 }
 ```
 
@@ -867,11 +867,11 @@ Audit logs for reading changes (last 50).
 **Response 200**:
 ```json
 {
-  "logs": [
-    {"id": 1, "staff_id": 1, "staff_name": "Superuser", "action_type": "drop",
-     "target_id": 480, "customer_number": 1,
-     "details": "Dropped reading #480 for C1.", "timestamp": 1778968800}
-  ]
+ "logs": [
+ {"id": 1, "staff_id": 1, "staff_name": "Superuser", "action_type": "drop",
+ "target_id": 480, "customer_number": 1,
+ "details": "Dropped reading #480 for C1.", "timestamp": 1778968800}
+ ]
 }
 ```
 
@@ -886,12 +886,12 @@ List all API keys with associated staff info.
 **Response 200**:
 ```json
 {
-  "keys": [
-    {"id": 1, "key": "CRDC-...", "label": "Meter Reader A", "is_active": true,
-     "staff_id": 1, "staff_name": "Superuser",
-     "staff": {"name": "Superuser", "username": "superuser"},
-     "date_created": "2026-06-20T10:32:04"}
-  ]
+ "keys": [
+ {"id": 1, "key": "CRDC-...", "label": "Meter Reader A", "is_active": true,
+ "staff_id": 1, "staff_name": "Superuser",
+ "staff": {"name": "Superuser", "username": "superuser"},
+ "date_created": "2026-06-20T10:32:04"}
+ ]
 }
 ```
 
@@ -939,9 +939,9 @@ Verify an API key is valid and active.
 **Response 200**:
 ```json
 {
-  "valid": true,
-  "api_key": {"id": 1, "label": "Meter Reader A", "staff_id": 1, "is_active": true},
-  "staff": {"id": 1, "username": "superuser", ...}
+ "valid": true,
+ "api_key": {"id": 1, "label": "Meter Reader A", "staff_id": 1, "is_active": true},
+ "staff": {"id": 1, "username": "superuser", ...}
 }
 ```
 
@@ -960,13 +960,13 @@ Returns record counts across all database tables.
 **Response 200**:
 ```json
 {
-  "customers": 150, "customers_total": 160,
-  "readings": 4800, "billings": 4800,
-  "unpaid_bills": 150, "paid_bills": 4650,
-  "staff": 5, "api_keys": 3,
-  "nfc_tags": 150, "management_logs": 25,
-  "xendit_transactions": 10, "payment_methods": 6,
-  "background_tasks": 42
+ "customers": 150, "customers_total": 160,
+ "readings": 4800, "billings": 4800,
+ "unpaid_bills": 150, "paid_bills": 4650,
+ "staff": 5, "api_keys": 3,
+ "nfc_tags": 150, "management_logs": 25,
+ "xendit_transactions": 10, "payment_methods": 6,
+ "background_tasks": 42
 }
 ```
 
@@ -1017,11 +1017,11 @@ Revert all paid current-month bills to unpaid.
 Full task queue status.
 ```json
 {
-  "current": {"id": "1", "task_type": "backup", "title": "Backup Database",
-              "status": "running", "progress": 42.5,
-              "messages": ["Backing up..."], "started_at": "...", "finished_at": null},
-  "queue_depth": 0,
-  "history": [...]
+ "current": {"id": "1", "task_type": "backup", "title": "Backup Database",
+ "status": "running", "progress": 42.5,
+ "messages": ["Backing up..."], "started_at": "...", "finished_at": null},
+ "queue_depth": 0,
+ "history": [...]
 }
 ```
 

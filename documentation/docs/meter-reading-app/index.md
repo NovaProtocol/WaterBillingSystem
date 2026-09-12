@@ -22,26 +22,26 @@ Mobile app for field meter readers. Offline meter reading collection via NFC tag
 
 ```mermaid
 graph TB
-    APP["App.tsx"] --> NAV["NativeStackNavigator"]
-    NAV --> HOME["HomeScreen"]
-    NAV --> READ["ReadingScreen"]
-    NAV --> CUST["CustomerDetailScreen"]
-    NAV --> MAP["MapScreen"]
-    NAV --> SETT["SettingsScreen"]
+ APP["App.tsx"] --> NAV["NativeStackNavigator"]
+ NAV --> HOME["HomeScreen"]
+ NAV --> READ["ReadingScreen"]
+ NAV --> CUST["CustomerDetailScreen"]
+ NAV --> MAP["MapScreen"]
+ NAV --> SETT["SettingsScreen"]
 
-    HOME -- "CustomerCountCard" --> DB
-    HOME -- "CustomerFilterBar" --> DB
-    HOME -- "UnreadListModal" --> DB
-    READ -- "NfcScanner" --> NFC_HW
-    READ -- "ReadingInput" --> DB
-    READ -- "BillEstimateCard" --> PRICING
-    SETT -- "QrScanner" --> CAM
-    MAP -- "Leaflet WebView" --> DB
+ HOME -- "CustomerCountCard" --> DB
+ HOME -- "CustomerFilterBar" --> DB
+ HOME -- "UnreadListModal" --> DB
+ READ -- "NfcScanner" --> NFC_HW
+ READ -- "ReadingInput" --> DB
+ READ -- "BillEstimateCard" --> PRICING
+ SETT -- "QrScanner" --> CAM
+ MAP -- "Leaflet WebView" --> DB
 
-    SYNC["useSync() Hook"] --> DB
-    SYNC --> BILL_SRV["BillServer API"]
+ SYNC["useSync() Hook"] --> DB
+ SYNC --> BILL_SRV["BillServer API"]
 
-    DB[("op-sqlite<br/>meterreading.db<br/>customers<br/>readings<br/>config")]
+ DB[("op-sqlite<br/>meterreading.db<br/>customers<br/>readings<br/>config")]
 ```
 
 ## Tech Stack
