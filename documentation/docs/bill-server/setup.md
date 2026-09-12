@@ -58,39 +58,39 @@ There is no `CACHE_TYPE`; the legacy runtime flags were removed with the old sta
 
 ```yaml
 api:
-  build:
-    context: .
-    dockerfile: api/Dockerfile
-  container_name: waterbillingsystem_api
-  restart: unless-stopped
-  networks:
-    - net-public
-    - net-api
-    - net-data
-  volumes:
-    - db_backups:/app/db_backups
-    - app_logs:/var/log/app
-  environment:
-    DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
-    SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
-    REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
-    SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
-    SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
-    DB_ENGINE: ${DB_ENGINE:?}
-    DB_HOST: ${DB_HOST:?}
-    DB_PORT: ${DB_PORT:?}
-    DB_NAME: ${DB_NAME:?}
-    DB_USERNAME: ${DB_USERNAME:?}
-    DB_PASS: ${DB_PASS:?}
-    SECRET_KEY: ${SECRET_KEY:?}
-    INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
-    NFC_PWD_SECRET: ${NFC_PWD_SECRET:?}
-    XENDIT_API_KEY: ${XENDIT_API_KEY:?}
-    XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN:?}
-    GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:?}
-  depends_on:
-    mysql-db:
-      condition: service_healthy
+ build:
+ context: .
+ dockerfile: api/Dockerfile
+ container_name: waterbillingsystem_api
+ restart: unless-stopped
+ networks:
+ - net-public
+ - net-api
+ - net-data
+ volumes:
+ - db_backups:/app/db_backups
+ - app_logs:/var/log/app
+ environment:
+ DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
+ SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
+ REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+ SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
+ SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
+ DB_ENGINE: ${DB_ENGINE:?}
+ DB_HOST: ${DB_HOST:?}
+ DB_PORT: ${DB_PORT:?}
+ DB_NAME: ${DB_NAME:?}
+ DB_USERNAME: ${DB_USERNAME:?}
+ DB_PASS: ${DB_PASS:?}
+ SECRET_KEY: ${SECRET_KEY:?}
+ INTERNAL_API_KEY: ${INTERNAL_API_KEY:?}
+ NFC_PWD_SECRET: ${NFC_PWD_SECRET:?}
+ XENDIT_API_KEY: ${XENDIT_API_KEY:?}
+ XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN:?}
+ GUEST_DB_PASSWORD: ${GUEST_DB_PASSWORD:?}
+ depends_on:
+ mysql-db:
+ condition: service_healthy
 ```
 
 ### Networks
@@ -123,7 +123,7 @@ api:
 docker compose up -d --build api
 
 # Verify health
-curl http://localhost:7020/api/health   # via gateway (`:7020` single-port)
+curl http://localhost:7020/api/health # via gateway (`:7020` single-port)
 # or directly from another container:
 docker exec waterbillingsystem_api curl http://localhost:8008/api/health
 ```

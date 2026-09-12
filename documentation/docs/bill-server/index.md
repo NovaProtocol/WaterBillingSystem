@@ -79,35 +79,35 @@ Service-to-service authentication via `X-Internal-API-Key` header. When valid th
 
 ```
 api/
-├── Dockerfile                    # python:3.14-slim base, shared module, granian
-├── app.py                        # FastAPI app: require_env, lifespan (init_db → preflight → seeders), routers, /health
-├── blueprint.py                  # APIRouter(prefix="/api")
-├── preflight.py                  # Startup DB preflight: safe auto-fixes, sys.exit(1) on risky drift
-├── utils.py                      # Auth helpers: resolve_api_key, require_staff, get_staff_id
-├── billing_service.py            # ensure_penalty
-├── customer_service.py           # Customer CRUD, due computation
-├── fee_service.py                # Payment method fees, seeding
-├── reading_service.py            # Reading sync, upload, CRUD
+├── Dockerfile # python:3.14-slim base, shared module, granian
+├── app.py # FastAPI app: require_env, lifespan (init_db → preflight → seeders), routers, /health
+├── blueprint.py # APIRouter(prefix="/api")
+├── preflight.py # Startup DB preflight: safe auto-fixes, sys.exit(1) on risky drift
+├── utils.py # Auth helpers: resolve_api_key, require_staff, get_staff_id
+├── billing_service.py # ensure_penalty
+├── customer_service.py # Customer CRUD, due computation
+├── fee_service.py # Payment method fees, seeding
+├── reading_service.py # Reading sync, upload, CRUD
 └── routes/
-    ├── customer.py               # Customer, reading, billing, NFC, invoice, changed endpoints
-    ├── staff.py                  # Staff login, CRUD, tally, API keys
-    ├── config.py                 # NFC secret, pricing
-    ├── system.py                 # Health check
-    ├── debug.py                  # Backup, restore, seed, monthly actions, tasks
-    └── webhooks.py               # Xendit webhook (separate router)
+ ├── customer.py # Customer, reading, billing, NFC, invoice, changed endpoints
+ ├── staff.py # Staff login, CRUD, tally, API keys
+ ├── config.py # NFC secret, pricing
+ ├── system.py # Health check
+ ├── debug.py # Backup, restore, seed, monthly actions, tasks
+ └── webhooks.py # Xendit webhook (separate router)
 
 shared/
-├── models.py                     # 11 SQLAlchemy models
-├── pricing.py                    # PRICING_TIERS, compute_water_bill, compute_penalty
-├── config.py                     # Strict env validation (FATAL on missing vars; SECRET_KEY>=32 for JWT)
-├── db_async.py                   # Async engine/session (aiomysql) + sync session factory
-├── wbs_jwt.py                    # PyJWT HS256 portal sessions (ISS=wbs AUD=waterbillingsystem 12h/8h)
-├── auth.py                       # itsdangerous shim (one-deploy fallback only — see wbs_jwt.py)
-├── passwords.py                  # Pure-stdlib pbkdf2-hmac-sha512 hashing
-├── logger.py                     # sqlite-backed request logging
+├── models.py # 11 SQLAlchemy models
+├── pricing.py # PRICING_TIERS, compute_water_bill, compute_penalty
+├── config.py # Strict env validation (FATAL on missing vars; SECRET_KEY>=32 for JWT)
+├── db_async.py # Async engine/session (aiomysql) + sync session factory
+├── wbs_jwt.py # PyJWT HS256 portal sessions (ISS=wbs AUD=waterbillingsystem 12h/8h)
+├── auth.py # itsdangerous shim (one-deploy fallback only — see wbs_jwt.py)
+├── passwords.py # Pure-stdlib pbkdf2-hmac-sha512 hashing
+├── logger.py # sqlite-backed request logging
 └── services/
-    ├── payment_service.py        # Payment waterfall, drop, tally, date math
-    ├── audit_service.py          # ManagementLog logging
-    ├── staff_seeder.py           # Superuser/xendit seed on startup
-    └── guest_seeder.py           # phpMyAdmin guest DB account on startup
+ ├── payment_service.py # Payment waterfall, drop, tally, date math
+ ├── audit_service.py # ManagementLog logging
+ ├── staff_seeder.py # Superuser/xendit seed on startup
+ └── guest_seeder.py # phpMyAdmin guest DB account on startup
 ```

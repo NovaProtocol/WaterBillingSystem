@@ -65,7 +65,7 @@ Only staff with `can_enroll_customer` permission see the "Enroll" button. Every 
 14. Final auth + read customer data to confirm lock works
 15. Save to local DB (nfc_cache + nfc_enrollments)
 16. Attempt immediate server sync via POST /api/nfc/sync
-    (falls back to background sync if offline)
+ (falls back to background sync if offline)
 ```
 
 ### Implementation Details
@@ -88,12 +88,12 @@ Only staff with `can_enroll_customer` permission see the "Enroll" button. Every 
 ```typescript
 // SHA-256-based derivation, 4-byte output as 8-char hex
 function nfcPasswordHash(key: string, identifier: string): string {
-  const hash = sha256(key + identifier);
-  return bytesToHex(hash.slice(0, 4));
+ const hash = sha256(key + identifier);
+ return bytesToHex(hash.slice(0, 4));
 }
 
 function computeTagPwd(nfcPwdSecret: string, uid: string): string {
-  return nfcPasswordHash(nfcPwdSecret, uid);
+ return nfcPasswordHash(nfcPwdSecret, uid);
 }
 ```
 
@@ -114,12 +114,12 @@ Configured in `app.json`:
 
 ```json
 {
-  "expo": {
-    "plugins": ["react-native-nfc-manager"],
-    "android": {
-      "permissions": ["android.permission.NFC"]
-    }
-  }
+ "expo": {
+ "plugins": ["react-native-nfc-manager"],
+ "android": {
+ "permissions": ["android.permission.NFC"]
+ }
+ }
 }
 ```
 
@@ -155,8 +155,8 @@ Uses `expo-camera`'s `CameraView` with barcode scanning mode. Requests camera pe
 
 ```mermaid
 graph LR
-    WEB["Staff Portal<br/>Generate API Key"] --> QRCODE["QR Code Displayed"]
-    QRCODE --> PHONE["Meter Reader<br/>scans with app"]
-    PHONE --> SETT["Settings Screen<br/>API key auto-filled"]
-    SETT --> HOME["Ready to sync"]
+ WEB["Staff Portal<br/>Generate API Key"] --> QRCODE["QR Code Displayed"]
+ QRCODE --> PHONE["Meter Reader<br/>scans with app"]
+ PHONE --> SETT["Settings Screen<br/>API key auto-filled"]
+ SETT --> HOME["Ready to sync"]
 ```

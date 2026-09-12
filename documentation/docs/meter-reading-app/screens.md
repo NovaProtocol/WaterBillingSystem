@@ -6,13 +6,13 @@
 
 ```typescript
 type RootStackParamList = {
-  Unauthenticated: undefined;
-  Home: undefined;
-  Settings: undefined;
-  Reading: undefined;
-  CustomerDetail: { customerNumber: string };
-  Map: undefined;
-  NfcEnroll: undefined;
+ Unauthenticated: undefined;
+ Home: undefined;
+ Settings: undefined;
+ Reading: undefined;
+ CustomerDetail: { customerNumber: string };
+ Map: undefined;
+ NfcEnroll: undefined;
 };
 ```
 
@@ -24,19 +24,19 @@ All screens have `headerShown: false` — custom headers throughout.
 
 ```mermaid
 graph TD
-    START(["App Launch"]) --> CHECK{serverUrl + apiKey set?}
-    CHECK -->|"No"| UNAUTH["UnauthenticatedScreen<br/>'Open Settings'"]
-    CHECK -->|"Yes"| HOME["HomeScreen"]
-    HOME -->|"gear icon"| SETT["SettingsScreen"]
-    HOME -->|"Start Reading"| READ["ReadingScreen"]
-    HOME -->|"Map View"| MAP["MapScreen"]
-    HOME -->|"customer press"| CUST["CustomerDetailScreen"]
-    HOME -->|"Enroll" button| NFC["NfcEnrollScreen"]
-    NFC --> HOME
-    READ -->|"customer press"| CUST
-    SETT -->|"save/reset"| HOME
-    MAP --> HOME
-    CUSTOM --> HOME
+ START(["App Launch"]) --> CHECK{serverUrl + apiKey set?}
+ CHECK -->|"No"| UNAUTH["UnauthenticatedScreen<br/>'Open Settings'"]
+ CHECK -->|"Yes"| HOME["HomeScreen"]
+ HOME -->|"gear icon"| SETT["SettingsScreen"]
+ HOME -->|"Start Reading"| READ["ReadingScreen"]
+ HOME -->|"Map View"| MAP["MapScreen"]
+ HOME -->|"customer press"| CUST["CustomerDetailScreen"]
+ HOME -->|"Enroll" button| NFC["NfcEnrollScreen"]
+ NFC --> HOME
+ READ -->|"customer press"| CUST
+ SETT -->|"save/reset"| HOME
+ MAP --> HOME
+ CUSTOM --> HOME
 ```
 
 ---

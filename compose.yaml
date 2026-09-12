@@ -11,8 +11,7 @@ services:
     networks:
       - net-public
       - net-private
-      - gatekeeper_dynamic
-      - cloudflared-tunnel
+      - gatekeeper
 
   landing-page:
     build:
@@ -37,7 +36,7 @@ services:
       CONTAINER_NAME: waterbillingsystem_landing
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
-      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX:-}
       SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
       SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
       SECRET_KEY: ${SECRET_KEY:?}
@@ -65,7 +64,7 @@ services:
       CONTAINER_NAME: waterbillingsystem_customerportal
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
-      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX:-}
       SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
       SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
       SECRET_KEY: ${SECRET_KEY:?}
@@ -99,7 +98,7 @@ services:
       CONTAINER_NAME: waterbillingsystem_staffportal
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
-      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX:-}
       SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
       SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
       SECRET_KEY: ${SECRET_KEY:?}
@@ -132,7 +131,7 @@ services:
       CONTAINER_NAME: waterbillingsystem_devportal
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
-      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX:-}
       SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
       SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
       SECRET_KEY: ${SECRET_KEY:?}
@@ -179,7 +178,6 @@ services:
       - "8008"
       - "50051"
     networks:
-      - net-public
       - net-api
       - net-data
     volumes:
@@ -188,7 +186,7 @@ services:
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
-      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX:-}
       SHARED_STATIC_DIR: ${SHARED_STATIC_DIR:?}
       SHARED_TEMPLATES_DIR: ${SHARED_TEMPLATES_DIR:?}
       DB_ENGINE: ${DB_ENGINE:?}
@@ -232,7 +230,7 @@ services:
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:?}
-      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX}
+      REVERSE_PROXY_PREFIX: ${REVERSE_PROXY_PREFIX:-}
       WORKER_JOB_CONCURRENCY: ${WORKER_JOB_CONCURRENCY:-8}
       DB_ENGINE: ${DB_ENGINE:?}
       DB_HOST: ${DB_HOST:?}
@@ -317,16 +315,13 @@ services:
       retries: 10
 
 networks:
-  net-public:   { driver: bridge }
-  net-private:  { driver: bridge }
+  net-public:   { driver: bridge, internal: true }
+  net-private:  { driver: bridge, internal: true }
   net-api:      { internal: true }
   net-data:     { internal: true }
-  gatekeeper_dynamic:
+  gatekeeper:
     external: true
-    name: gatekeeper_dynamic
-  cloudflared-tunnel:
-    external: true
-    name: cloudflared-tunnel_default
+    name: gatekeeper
 
 volumes:
   mysql_data:

@@ -159,18 +159,18 @@ Runs inside the API lifespan, after `init_db()` (`create_all`) and before the se
 
 ```mermaid
 graph TB
-    CUST["customer.py routes"] --> CUSTSVC["customer_service.py"]
-    CUST --> READING["reading_service.py"]
-    CUST --> PAYMENT["payment_service.py"]
+ CUST["customer.py routes"] --> CUSTSVC["customer_service.py"]
+ CUST --> READING["reading_service.py"]
+ CUST --> PAYMENT["payment_service.py"]
 
-    STAFF["staff.py routes"] --> CUSTSVC
-    STAFF --> READING
-    STAFF --> PAYMENT
+ STAFF["staff.py routes"] --> CUSTSVC
+ STAFF --> READING
+ STAFF --> PAYMENT
 
-    READING --> AUDIT["audit_service.py"]
-    PAYMENT --> AUDIT
-    PAYMENT --> BILLING["billing_service.py"]
-    READING --> BILLING
+ READING --> AUDIT["audit_service.py"]
+ PAYMENT --> AUDIT
+ PAYMENT --> BILLING["billing_service.py"]
+ READING --> BILLING
 
-    CUST --> FEE["fee_service.py"]
+ CUST --> FEE["fee_service.py"]
 ```
