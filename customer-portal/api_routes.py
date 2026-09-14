@@ -188,9 +188,14 @@ async def login(request: Request):
         return _relay_error(e)
     customer_number = result.get("customer_number")
     if not customer_number:
-        return JSONResponse({"error": "Verification failed"}, status_code=500)
+        logger.error("[CUS500] backend login succeeded without customer_number")
+        return JSONResponse({"error": "Verification failed", "error_code": "CUS500"}, status_code=500)
     customer = _clean_customer(result.get("customer", {}))
-    token = create_customer_token(customer_number, customer)
+    try:
+        token = create_customer_token(customer_number, customer)
+    except Exception:
+        logger.error("[CUS501] token creation failed", exc_info=True)
+        return JSONResponse({"error": "Verification failed", "error_code": "CUS501"}, status_code=500)
     resp = JSONResponse({"ok": True, "redirect": "/customer/", "customer": customer})
     resp.set_cookie(
         "billing_session",

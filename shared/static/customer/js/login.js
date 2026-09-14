@@ -58,8 +58,14 @@
           window.location.href = result.data.redirect;
           return;
         }
-        var msg = (result.data && (result.data.error || result.data.detail)) || 'Verification failed. Please try again.';
-        if (result.data && result.data.error_code) { msg += ' (' + result.data.error_code + ')'; }
+        var err = result.data && result.data.error;
+        var msg = (typeof err === 'string' && err)
+          || (err && err.message)
+          || (result.data && result.data.detail)
+          || 'Verification failed. Please try again.';
+        if (err && err.code) { msg += ' (' + err.code + ')'; }
+        else if (result.data && result.data.error_code) { msg += ' (' + result.data.error_code + ')'; }
+        if (err && err.request_id) { msg += ' [' + err.request_id + ']'; }
         showError(msg);
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-search mr-2"></i>View My Bill';

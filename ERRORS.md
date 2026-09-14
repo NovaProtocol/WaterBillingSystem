@@ -1,12 +1,14 @@
 # Error Codes Reference
 
-Customer-facing errors display a code like `ERR0001` rather than the technical error detail. Support staff can use this reference to diagnose the issue.
+Customer-facing errors display a code like `ERR0001` rather than the technical error detail. Frontend error text comes from the canonical `{error:{code,message,request_id}}` envelope message plus code, so a raw `[object Object]` in the UI means a renderer read the envelope object as text. Support staff can use this reference to diagnose the issue.
 
 ## Customer Portal (ERR1xxx)
 
 | Code | Meaning | Action |
 |------|---------|--------|
 | `ERR0001` | Generic verification failure | Check customer-portal and API logs for details |
+| `CUS500` | Backend login succeeded without a customer number | Check API login response contract and customer-portal logs |
+| `CUS501` | Session token creation failed after verification | Check portal `SECRET_KEY` length and signing logs |
 
 ## API Internal Endpoints (CUSxxx)
 
