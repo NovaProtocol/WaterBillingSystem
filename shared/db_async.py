@@ -22,7 +22,7 @@ def _async_url() -> str:
     services while the FastAPI side uses aiomysql; SQLite becomes aiosqlite."""
     from config import get_config
 
-    uri = get_config().SQLALCHEMY_DATABASE_URI
+    uri = get_config().database_uri
     if uri.startswith("sqlite"):
         return uri.replace("sqlite://", "sqlite+aiosqlite://", 1)
     return uri.replace("+pymysql", "+aiomysql")
@@ -36,7 +36,7 @@ def init_engine() -> None:
 
     _engine = create_async_engine(_async_url(), pool_pre_ping=True, pool_size=5)
     _sessionmaker = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
-    _sync_engine = create_engine(get_config().SQLALCHEMY_DATABASE_URI, pool_size=5)
+    _sync_engine = create_engine(get_config().database_uri, pool_size=5)
     _sync_sessionmaker = sessionmaker(_sync_engine, expire_on_commit=False)
 
 
