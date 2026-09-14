@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import os
 import uuid
 from typing import Any
 
@@ -18,8 +19,14 @@ def _now() -> dt.datetime:
 
 
 def _secret(secret: str | None = None) -> str:
+    # Portals only need the signing key — read it straight from the
+    # environment so containers without DB vars (portals) can sign
+    # and verify without constructing the full strict Settings.
     if secret:
         return secret
+    key = os.environ.get("SECRET_KEY", "")
+    if len(key) >= 32:
+        return key
     return get_config().SECRET_KEY
 
 
