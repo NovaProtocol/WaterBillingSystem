@@ -1,3 +1,7 @@
+# config (validated settings via BaseSettings)
+pydantic>=2,<3
+pydantic-settings>=2,<3
+
 # DB
 sqlalchemy>=2.0,<3
 pymysql>=1.1,<2
