@@ -18,8 +18,8 @@ _current_session: ContextVar[AsyncSession | None] = ContextVar("current_session"
 
 def _async_url() -> str:
     """Derive the async DB URL from the configured (sync) URI by swapping the
-    driver. Keeps DB_ENGINE=mysql+pymysql valid for the transitional Flask
-    services while the FastAPI side uses aiomysql; SQLite becomes aiosqlite."""
+    driver. Keeps DB_ENGINE=mysql+pymysql valid for sync services
+    while the FastAPI side uses aiomysql; SQLite becomes aiosqlite."""
     from config import get_config
 
     uri = get_config().database_uri
