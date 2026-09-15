@@ -50,6 +50,33 @@ async def get_staff_id(request: Request) -> int | None:
         return None
 
 
+def require_customer_self(customer_number: int, request: Request) -> dict | None:
+    """Verify portal-forwarded customer JWT for self-reads.
+
+    Returns the verified token payload when the ``X-Customer-Token`` header
+    carries a valid portal JWT whose ``customer_number`` matches the path
+    number. Returns None otherwise (anonymous, cross-number, expired)."""
+    try:
+        from shared.wbs_jwt import verify_customer_token
+    except Exception:
+        return None
+    token = request.headers.get("X-Customer-Token", "")
+    if not token:
+        return None
+    try:
+        data = verify_customer_token(token)
+    except Exception:
+        return None
+    if not data or not data.get("customer_number"):
+        return None
+    try:
+        if int(data["customer_number"]) != int(customer_number):
+            return None
+    except (ValueError, TypeError):
+        return None
+    return data
+
+
 def require_staff(*perms: str):
     """FastAPI dependency factory. Returns the ApiKey (or True for the
     internal key) on success; raises HTTPException on auth failure.

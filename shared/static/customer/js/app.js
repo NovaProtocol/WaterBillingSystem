@@ -472,6 +472,28 @@
   // Boot
   // ---------------------------------------------------------------------
 
+  function showContextError(msg) {
+    var box = document.getElementById('context-error');
+    var msgEl = document.getElementById('context-error-msg');
+    if (box && msgEl) {
+      msgEl.textContent = msg;
+      box.classList.remove('d-none');
+    }
+  }
+
+  function readEnvelopeError(data, status) {
+    if (!data) return 'Unable to load billing data (HTTP ' + status + ').';
+    var err = data.error;
+    var msg = (typeof err === 'string' && err)
+      || (err && err.message)
+      || data.detail
+      || 'Unable to load billing data.';
+    if (err && err.code) { msg += ' (' + err.code + ')'; }
+    else if (data.error_code) { msg += ' (' + data.error_code + ')'; }
+    if (err && err.request_id) { msg += ' [' + err.request_id + ']'; }
+    return msg;
+  }
+
   function boot() {
     fetch('/customer/api/context', { credentials: 'same-origin' })
       .then(function (resp) {
@@ -479,8 +501,12 @@
           window.location.href = '/customer/login';
           return null;
         }
-        if (!resp.ok) throw new Error('context failed');
-        return resp.json();
+        return resp.text().then(function (text) {
+          var data;
+          try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+          if (!resp.ok) throw new Error(readEnvelopeError(data, resp.status));
+          return data;
+        });
       })
       .then(function (data) {
         if (!data) return;
@@ -501,7 +527,7 @@
       })
       .catch(function (err) {
         console.error('Failed to load billing context:', err);
-        window.location.href = '/customer/login';
+        showContextError(err && err.message ? err.message : 'Unable to load billing data.');
       });
   }
 

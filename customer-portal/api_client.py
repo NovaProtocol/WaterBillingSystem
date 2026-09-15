@@ -34,11 +34,14 @@ async def customer_login(account_number: str, name: str = "", last_receipt: str 
     return r.json()
 
 
-async def get_billing(customer_number: int) -> dict:
+async def get_billing(customer_number: int, customer_token: str = "") -> dict:
     # HTTP is the exclusive transport for billing context — grpc GetCustomer
     # carries only core fields and would mask failures if used as fallback.
     # Fail loud on HTTP errors; do not silently try grpc.
-    r = await _get_client().get(f"/api/customer/{customer_number}")
+    # The portal-issued billing_session JWT is forwarded as X-Customer-Token
+    # so the API self-read guard can authorize the own-number context read.
+    headers = {"X-Customer-Token": customer_token} if customer_token else None
+    r = await _get_client().get(f"/api/customer/{customer_number}", headers=headers)
     r.raise_for_status()
     return r.json()
 

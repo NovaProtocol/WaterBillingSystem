@@ -59,7 +59,11 @@ Keys are tied to `Staff` accounts with granular boolean permissions (7 flags). F
 
 ### Internal API Key
 
-Service-to-service authentication via `X-Internal-API-Key` header. When valid the gateway re-derives staff from `X-Staff-ID` (set by `staff-portal/api_client.py`) and re-checks `require_staff(*perms)` — OR semantics, no blanket bypass. `GET /api/debug/*` requires `can_enroll_staff`; `GET /api/staff/{id}/audit-logs?page,size,action_type,target_type,staff_id,customer_number,date_from,date_to,q` requires `can_drop_reading || can_drop_payment || can_enroll_staff`. Portal `GET /staff/logs` forwards the same filters and `X-Staff-ID`.
+Service-to-service authentication via `X-Internal-API-Key` header. When valid the gateway re-derives staff from `X-Staff-ID` (set by `staff-portal/api_client.py`) and re-checks `require_staff(*perms)` — OR semantics, no blanket bypass.
+
+### Customer self-read
+
+`GET /api/customer/{customer_number}` additionally accepts the portal-issued `billing_session` JWT forwarded as `X-Customer-Token` when its `customer_number` matches the path number (`api/utils.py:require_customer_self`). The customer portal `context` handler forwards the cookie value through `customer-portal/api_client.py:get_billing`; cross-number, anonymous, and invalid tokens fall back to the unchanged staff path. The dashboard `boot()` in `shared/static/customer/js/app.js` redirects to login on 401 only and renders other context failures inline, so a backend error never loops back to login. `GET /api/debug/*` requires `can_enroll_staff`; `GET /api/staff/{id}/audit-logs?page,size,action_type,target_type,staff_id,customer_number,date_from,date_to,q` requires `can_drop_reading || can_drop_payment || can_enroll_staff`. Portal `GET /staff/logs` forwards the same filters and `X-Staff-ID`.
 
 ### Staff Session Login
 

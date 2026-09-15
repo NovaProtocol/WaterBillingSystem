@@ -18,7 +18,7 @@ from pricing import PRICING_TIERS
 from pydantic import BaseModel
 from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import joinedload, selectinload
-from utils import require_staff
+from utils import require_customer_self, require_staff
 
 from routes.customer.common import _run_sync
 
@@ -137,9 +137,20 @@ async def customer_all(
 async def customer_info(
     customer_number: int,
     request: Request,
-    api_key: ApiKey = Depends(require_staff("can_read_meters")),
 ):
-    """Get full billing details for a specific customer."""
+    """Get full billing details for a specific customer.
+
+    Staff callers authorize via ``require_staff`` exactly as before. The
+    customer portal additionally forwards the verified ``billing_session``
+    JWT as ``X-Customer-Token`` — a token whose ``customer_number`` matches
+    this path number authorizes the self-service context read, nothing
+    else."""
+
+    self_read = require_customer_self(customer_number, request)
+    if self_read is None:
+        # No matching customer session — fall back to the unchanged staff
+        # path, which raises 401/403 itself on failure.
+        await require_staff("can_read_meters")(request)
 
     result = await session().execute(
         select(Customer).where(Customer.customer_number == customer_number)
