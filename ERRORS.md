@@ -25,7 +25,7 @@ Staff portal errors surface from `api_client.py` calls. The underlying HTTP stat
 | HTTP Status | Meaning | Action |
 |-------------|---------|--------|
 | 401 | Internal API key mismatch | Check `INTERNAL_API_KEY` env var matches between containers |
-| 403 | Staff lacks required permission flag | Check staff account permissions in the dashboard |
+| 403 | Staff lacks required permission flag, or customer context read without matching session (token/number mismatch, missing staff context) | Check staff account permissions in the dashboard; for customer context, re-login so a fresh `billing_session` is forwarded as `X-Customer-Token` |
 | 404 | Resource not found | The requested record was deleted or doesn't exist |
 | 409 | Conflict (duplicate entry) | The record already exists |
 

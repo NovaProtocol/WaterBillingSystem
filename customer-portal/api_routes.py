@@ -215,7 +215,10 @@ async def context(request: Request):
     if err:
         return err
     try:
-        billing = await api_client.get_billing(data["customer_number"])
+        billing = await api_client.get_billing(
+            data["customer_number"],
+            customer_token=request.cookies.get("billing_session", ""),
+        )
     except Exception as e:
         return _relay_error(e)
     return _no_cache(

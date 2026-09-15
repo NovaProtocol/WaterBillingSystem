@@ -19,11 +19,19 @@ Service-to-service calls:
 ```
 X-Internal-API-Key: <INTERNAL_API_KEY>
 ```
-Valid key bypasses permission checks. Use `X-Staff-ID` header to specify acting staff.
+A valid key re-derives staff from the `X-Staff-ID` header and re-checks `require_staff(*perms)` — no blanket bypass; without staff context the call is rejected (403). Use `X-Staff-ID` header to specify acting staff.
+
+### Customer self-read
+
+Self-service billing reads authorize by portal session in addition to staff RBAC:
+```
+X-Customer-Token: <billing_session JWT>
+```
+`GET /api/customer/{customer_number}` accepts the portal-issued `billing_session` JWT (PyJWT HS256 `ISS=wbs AUD=waterbillingsystem`) when its `customer_number` matches the path number. The customer portal `context` handler forwards the verified cookie value through `api_client.get_billing`. Cross-number, anonymous, and invalid tokens fall back to the unchanged staff path (`can_read_meters`).
 
 ### Key Resolution Order
 
-1. `X-Internal-API-Key` header (checked first; bypasses permissions)
+1. `X-Internal-API-Key` header (checked first; staff re-derived from `X-Staff-ID` and perms re-checked — no blanket bypass)
 2. `Authorization: Bearer <key>` header
 3. `?api_key=<key>` query parameter
 
@@ -65,7 +73,7 @@ Returns `{tiers, late_penalty, due_days}`.
 - Query: `?page=1&size=50&q=search&sort_by=customer_number&sort_dir=asc`
 - Response: `{data: [...], meta: {current_page, page_size, total_items, total_pages}}`
 
-**GET /api/customer/{customer_number}** — Full billing profile. Auth: can_read_meters or session.
+**GET /api/customer/{customer_number}** — Full billing profile. Auth: customer self-read (own-number `X-Customer-Token`) or `can_read_meters` staff.
 - Query: `?staff_id=N&token_id=N`
 - Returns: customer info, latest/last reading, consumption, bill breakdown, pricing tiers, unpaid bills, payment methods, recent payments.
 - Triggers `recalc_total_due()` and `recalc_cumulative_balance()` on access.
