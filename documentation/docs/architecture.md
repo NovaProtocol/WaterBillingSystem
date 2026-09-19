@@ -59,7 +59,7 @@ graph TB
 
 ## Network Topology
 
-Five networks: two `internal: true` app tiers (`net-public`, `net-private`), two internal (`net-api`, `net-data`), one external (`gatekeeper`, GateKeeper-owned). Live Caddy joins `gatekeeper`; `caddy-gateway/Caddyfile` has 0 `GateKeeper gate` — gate is in GateKeeper routes plus rules per `reference/gatekeeper/caddy-setup.md`.
+Five networks: two `internal: true` app tiers (`net-public`, `net-private`), two internal (`net-api`, `net-data`), one external (`gatekeeper`, GateKeeper-owned). Live Caddy joins `gatekeeper`; `caddy-gateway/Caddyfile` has 0 `GateKeeper gate` — the gate is in GateKeeper's routes plus rules.
 
 ```mermaid
 graph TB
