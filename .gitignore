@@ -45,16 +45,7 @@ from_bg.json
 .coverage
 htmlcov/
 
-# === AI agent / IDE ===
-.agents/
-.superpowers/
-.opencode/
-.claude/
-.cursor/
-.continue/
-AGENTS.md
-CLAUDE.md
-GEMINI.md
+# === local scratch ===
 scratch/
 *.tmp
 *.bak
@@ -96,10 +87,6 @@ MeterReadingApp/ios/
 
 # === documentation-specific ===
 documentation/site/
-
-# === AI-generated docs (not part of project source) ===
-/docs/
-docs/
 
 # === Windows alternate data streams ===
 *:Zone.Identifier
