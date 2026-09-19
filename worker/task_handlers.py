@@ -1421,7 +1421,6 @@ async def handle_xendit_reconcile(
 
     succeeded = 0
     failed = 0
-    expired = 0
     reversed_txns = 0
     errored = 0
     done = 0

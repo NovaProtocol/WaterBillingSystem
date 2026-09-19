@@ -6,7 +6,6 @@ import sys
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from shared.config import shared_static_dir
 from shared.errors import install_error_handlers

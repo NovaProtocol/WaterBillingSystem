@@ -113,7 +113,7 @@ async def customer_search_sort(
         data = await list_customers_via_grpc(  # type: ignore[misc]
             q=q, page=page, size=per_page, sort_by=sort_by, sort_dir=sort_dir
         )
-    except _grpc.aio.AioRpcError as e:
+    except _grpc.aio.AioRpcError:
         # Fail loud — do not fall back to HTTP, surface as 503 at caller
         raise
     if data is None:

@@ -5,7 +5,6 @@ Staff path via require_staff is unchanged.
 """
 import os
 
-import pytest
 from fastapi import Request
 
 LONG_SECRET = "test-secret-32-chars-long-enough-0123456789abcdef"
