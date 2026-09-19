@@ -22,7 +22,7 @@
 
 ### Caddy Gateway Routing
 
-Gate is in GateKeeper (`gatekeeper_caddy:7000 → gatekeeper_auth:8001` verifies via DB routes, then proxies to `:7020`); live `caddy-gateway/Caddyfile` fans out without per-app `GateKeeper gate` (see `reference/gatekeeper/caddy-setup.md`). `/webhook/*` + `/health` + themed `404` (served by `landing-page:8001`) are public by GateKeeper rule.
+Gate is in GateKeeper (`gatekeeper_caddy:7000 → gatekeeper_auth:8001` verifies via DB routes, then proxies to `:7020`); live `caddy-gateway/Caddyfile` fans out without a per-app `GateKeeper gate`. `/webhook/*` + `/health` + themed `404` (served by `landing-page:8001`) are public by GateKeeper rule.
 
 | Path | Target | Gate |
 |------|--------|------|
