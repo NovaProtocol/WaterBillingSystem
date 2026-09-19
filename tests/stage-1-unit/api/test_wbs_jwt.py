@@ -1,7 +1,6 @@
 import datetime as dt
 
 import jwt
-import pytest
 
 from shared.wbs_jwt import (
     ALG,

@@ -79,7 +79,6 @@ def get_config() -> Settings:
 
 
 def validate() -> None:
-    missing = []
     try:
         get_config()
     except Exception as exc:

@@ -8,7 +8,6 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader, select_autoescape
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from shared.config import shared_static_dir, shared_templates_dir
 from shared.errors import install_error_handlers
