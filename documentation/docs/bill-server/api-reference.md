@@ -27,7 +27,7 @@ Self-service billing reads authorize by portal session in addition to staff RBAC
 ```
 X-Customer-Token: <billing_session JWT>
 ```
-`GET /api/customer/{customer_number}` accepts the portal-issued `billing_session` JWT (PyJWT HS256 `ISS=wbs AUD=waterbillingsystem`) when its `customer_number` matches the path number. The customer portal `context` handler forwards the verified cookie value through `api_client.get_billing`. Cross-number, anonymous, and invalid tokens fall back to the unchanged staff path (`can_read_meters`).
+`GET /api/customer/{customer_number}` and `GET /api/customer/{customer_number}/billing` accept the portal-issued `billing_session` JWT (PyJWT HS256 `ISS=wbs AUD=waterbillingsystem`) when its `customer_number` matches the path number. The customer portal `context` and `payments` handlers forward the verified cookie value through `api_client.get_billing` / `api_client.get_payments`. Cross-number, anonymous, and invalid tokens fall back to the unchanged staff path (`can_read_meters`).
 
 ### Key Resolution Order
 
@@ -126,7 +126,7 @@ Returns `{tiers, late_penalty, due_days}`.
 
 ### Billing & Payments
 
-**GET /api/customer/{customer_number}/billing** — Paginated billing records. Auth: can_read_meters.
+**GET /api/customer/{customer_number}/billing** — Paginated billing records. Auth: customer self-read (own-number `X-Customer-Token`) or `can_read_meters` staff.
 
 **POST /api/customer/{customer_number}/billing/new** — Submit payment. Auth: can_accept_payment.
 - Body: `{amount}`
