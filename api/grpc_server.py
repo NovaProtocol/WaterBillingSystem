@@ -42,8 +42,8 @@ async def _check_internal_auth(context: grpc.aio.ServicerContext) -> bool:
     expected = os.environ.get("INTERNAL_API_KEY", "")
     # Use constant-time compare; empty expected means misconfigured
     if not expected or not api_key or not secrets.compare_digest(api_key, expected):
-        await context.set_code(grpc.StatusCode.PERMISSION_DENIED)
-        await context.set_details("Invalid internal key")
+        context.set_code(grpc.StatusCode.PERMISSION_DENIED)
+        context.set_details("Invalid internal key")
         return False
     return True
 
@@ -76,8 +76,8 @@ class BillingServicer(billing_pb2_grpc.BillingServiceServicer):
                 )
                 customer = result.scalar_one_or_none()
                 if customer is None:
-                    await context.set_code(grpc.StatusCode.NOT_FOUND)
-                    await context.set_details("Customer not found")
+                    context.set_code(grpc.StatusCode.NOT_FOUND)
+                    context.set_details("Customer not found")
                     return billing_pb2.GetCustomerResponse()
                 return billing_pb2.GetCustomerResponse(
                     customer_number=customer.customer_number,
@@ -92,8 +92,8 @@ class BillingServicer(billing_pb2_grpc.BillingServiceServicer):
                 )
         except Exception as e:
             logger.exception("GetCustomer failed")
-            await context.set_code(grpc.StatusCode.INTERNAL)
-            await context.set_details(str(e))
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
             return billing_pb2.GetCustomerResponse()
 
     async def ListCustomers(self, request, context):  # type: ignore[no-untyped-def]
@@ -155,8 +155,8 @@ class BillingServicer(billing_pb2_grpc.BillingServiceServicer):
             )
         except Exception as e:
             logger.exception("ListCustomers failed")
-            await context.set_code(grpc.StatusCode.INTERNAL)
-            await context.set_details(str(e))
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
             return billing_pb2.ListCustomersResponse()
 
     async def CreateCustomer(self, request, context):  # type: ignore[no-untyped-def]
@@ -188,18 +188,18 @@ class BillingServicer(billing_pb2_grpc.BillingServiceServicer):
 
             cn, err = await run_in_threadpool(_create)
             if err:
-                await context.set_code(
+                context.set_code(
                     grpc.StatusCode.ALREADY_EXISTS
                     if "already exists" in err
                     else grpc.StatusCode.INVALID_ARGUMENT
                 )
-                await context.set_details(err)
+                context.set_details(err)
                 return billing_pb2.CreateCustomerResponse()
             return billing_pb2.CreateCustomerResponse(customer_number=cn or 0, name=request.name)
         except Exception as e:
             logger.exception("CreateCustomer failed")
-            await context.set_code(grpc.StatusCode.INTERNAL)
-            await context.set_details(str(e))
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
             return billing_pb2.CreateCustomerResponse()
 
     async def GetBillingHistory(self, request, context):  # type: ignore[no-untyped-def]
@@ -255,8 +255,8 @@ class BillingServicer(billing_pb2_grpc.BillingServiceServicer):
                 )
         except Exception as e:
             logger.exception("GetBillingHistory failed")
-            await context.set_code(grpc.StatusCode.INTERNAL)
-            await context.set_details(str(e))
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
             return billing_pb2.GetBillingHistoryResponse()
 
     async def SubmitPayment(self, request, context):  # type: ignore[no-untyped-def]
@@ -281,14 +281,14 @@ class BillingServicer(billing_pb2_grpc.BillingServiceServicer):
 
             success, msg, bid = await run_in_threadpool(_pay)
             if not success:
-                await context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                await context.set_details(msg)
+                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                context.set_details(msg)
                 return billing_pb2.SubmitPaymentResponse(success=False, message=msg)
             return billing_pb2.SubmitPaymentResponse(success=True, message=msg, billing_id=bid)
         except Exception as e:
             logger.exception("SubmitPayment failed")
-            await context.set_code(grpc.StatusCode.INTERNAL)
-            await context.set_details(str(e))
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
             return billing_pb2.SubmitPaymentResponse(success=False, message=str(e))
 
     async def GetReadings(self, request, context):  # type: ignore[no-untyped-def]
@@ -333,8 +333,8 @@ class BillingServicer(billing_pb2_grpc.BillingServiceServicer):
                 )
         except Exception as e:
             logger.exception("GetReadings failed")
-            await context.set_code(grpc.StatusCode.INTERNAL)
-            await context.set_details(str(e))
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
             return billing_pb2.GetReadingsResponse()
 
     async def HealthCheck(self, request, context):  # type: ignore[no-untyped-def]
@@ -347,8 +347,8 @@ class BillingServicer(billing_pb2_grpc.BillingServiceServicer):
                 await s.execute(text("SELECT 1"))
                 return billing_pb2.HealthCheckResponse(status="ok", db="connected")
         except Exception as e:
-            await context.set_code(grpc.StatusCode.UNAVAILABLE)
-            await context.set_details(str(e))
+            context.set_code(grpc.StatusCode.UNAVAILABLE)
+            context.set_details(str(e))
             return billing_pb2.HealthCheckResponse(status="degraded", db=str(e))
 
 

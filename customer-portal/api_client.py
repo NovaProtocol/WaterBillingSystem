@@ -66,9 +66,10 @@ async def get_readings(customer_number: int, page: int = 1) -> dict:
     }
 
 
-async def get_payments(customer_number: int, page: int = 1) -> dict:
+async def get_payments(customer_number: int, page: int = 1, customer_token: str = "") -> dict:
+    headers = {"X-Customer-Token": customer_token} if customer_token else None
     r = await _get_client().get(
-        f"/api/customer/{customer_number}/billing", params={"page": page, "size": 10}
+        f"/api/customer/{customer_number}/billing", params={"page": page, "size": 10}, headers=headers
     )
     r.raise_for_status()
     data = r.json()

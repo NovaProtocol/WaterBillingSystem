@@ -14,7 +14,7 @@ from services.payment_service import (
 )
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import selectinload
-from utils import require_staff
+from utils import require_customer_self, require_staff
 
 from routes.customer.common import _run_sync
 
@@ -36,8 +36,10 @@ class BillingDropPayload(BaseModel):
 async def customer_billing(
     customer_number: int,
     request: Request,
-    api_key: ApiKey = Depends(require_staff("can_read_meters")),
 ):
+    self_read = require_customer_self(customer_number, request)
+    if self_read is None:
+        await require_staff("can_read_meters")(request)
     try:
         page = int(request.query_params.get("page", "1"))
     except (ValueError, TypeError):
