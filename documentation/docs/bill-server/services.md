@@ -75,6 +75,14 @@ Seeds 22 payment methods: GCash, Maya, GrabPay, ShopeePay, cards (domestic/inter
 **`ensure_penalty(billing)`** → `float` (async)
 Checks if an unpaid bill is past its due date (7 days after reading). If overdue and no penalty yet applied, writes ₱15.00 penalty to DB.
 
+The due date is derived from `billing.reading.timestamp`, falling back to
+`date_created` when a bill has no reading. That relationship is `lazy="selectin"`
+(`shared/models.py`), so it loads with every `Billing` query rather than on first
+access: an async session cannot perform lazy I/O outside the greenlet, and the
+resulting `MissingGreenlet` surfaced as a `502` on the customer portal History tab.
+Any new query whose rows reach `.reading` is already covered by the relationship
+strategy; an explicit `selectinload(Billing.reading)` is redundant but harmless.
+
 ## Shared Services
 
 ### payment_service.py (`shared/services/payment_service.py`)
