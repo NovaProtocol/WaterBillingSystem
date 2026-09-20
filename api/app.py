@@ -13,7 +13,7 @@ from sqlalchemy import text
 
 from shared.errors import install_error_handlers
 from shared.logger import attach_sqlite_logging
-from shared.middleware import RequestIDMiddleware
+from shared.middleware import CacheControlMiddleware, RequestIDMiddleware
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("api")
@@ -89,7 +89,9 @@ def create_app() -> FastAPI:
         require_env("DB_ENGINE", "DB_HOST", "DB_PORT", "DB_NAME", "DB_USERNAME", "DB_PASS")
 
     app = FastAPI(title="Water Billing API", lifespan=lifespan)
+    _debug_deploy = os.environ.get("DEPLOYMENT_TYPE", "").lower() in ("debug", "development")
     app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(CacheControlMiddleware, is_debug=_debug_deploy)
     install_error_handlers(app)
 
     from routes.config import router as config_router

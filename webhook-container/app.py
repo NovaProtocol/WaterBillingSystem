@@ -23,8 +23,9 @@ def require_env(*names):
 require_env("SECRET_KEY", "INTERNAL_API_KEY", "API_BASE_URL", "DEPLOYMENT_TYPE")
 
 app = FastAPI(title="Water Billing Webhook")
+_DEBUG_DEPLOY = os.environ.get("DEPLOYMENT_TYPE", "").lower() in ("debug", "development")
 app.add_middleware(RequestIDMiddleware)
-app.add_middleware(CacheControlMiddleware, is_debug=DEBUG)
+app.add_middleware(CacheControlMiddleware, is_debug=_DEBUG_DEPLOY)
 
 import routes
 
