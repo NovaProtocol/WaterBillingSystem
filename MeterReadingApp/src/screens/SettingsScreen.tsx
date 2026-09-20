@@ -98,7 +98,7 @@ export default function SettingsScreen() {
       <Text style={styles.label}>Server IP</Text>
       <TextInput
         style={styles.textInput}
-        placeholder="192.168.18.52"
+        placeholder="192.168.1.100"
         placeholderTextColor="#999"
         value={serverIp}
         onChangeText={setServerIp}
