@@ -257,7 +257,7 @@ async def payments(request: Request):
     except (ValueError, TypeError):
         page = 1
     try:
-        result = await api_client.get_payments(data["customer_number"], page=page)
+        result = await api_client.get_payments(data["customer_number"], page=page, customer_token=request.cookies.get("billing_session", ""))
     except Exception as e:
         return _relay_error(e)
     return _no_cache(JSONResponse(_clean_payments_page(result)))

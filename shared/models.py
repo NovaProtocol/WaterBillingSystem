@@ -139,7 +139,7 @@ class Billing(Base):
     date_modified: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     customer = relationship("Customer", backref=backref("billings", lazy=True))
-    reading = relationship("MeterReading", backref=backref("billings", lazy=True))
+    reading = relationship("MeterReading", backref=backref("billings", lazy=True), lazy="selectin")
     cashier = relationship("Staff", backref=backref("billings", lazy=True))
 
     def __repr__(self) -> str:
