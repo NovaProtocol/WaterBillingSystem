@@ -1,82 +1,40 @@
 # Cotta Realty Water Billing System
 
-A water billing management system for Cotta Realty & Development Corporation. 11 Docker containers behind a Caddy reverse proxy gateway.
+A complete billing system for a small water utility, from the meter to the receipt.
 
-**Stack:** Python 3.14 free-threaded, FastAPI + granian, SQLAlchemy 2.0, MySQL 8.4
-**Mobile:** React Native / Expo MeterReadingApp for field staff
-**Docs:** MkDocs documentation site at `documentation/`
+A reader walks up to a meter with a phone, taps it against an NFC tag, and the reading is recorded.
+From there the system computes the bill, applies the tariff, tracks who has paid, and lets the
+customer check their own account. It replaces months of hand-written ledger work with something a
+clerk can actually run.
 
-## How it works
+## What it does
 
-```text
-Browser → GateKeeper (wildcard) → Caddy :7020
-                                   ├─ /                → landing-page:8001
-                                   ├─ /customer/*      → customer-portal:8002
-                                   ├─ /staff/*         → staff-portal:8003
-                                   ├─ /developer/*     → developer-portal:8004
-                                   ├─ /webhook/*       → webhook-container:8009
-                                   ├─ /phpmyadmin/*    → phpmyadmin:80
-                                   └─ /documentation/* → documentation:8005
+- **Readings without a network.** The meter-reading app computes its password on the device, so a
+  reading can be taken in a place with no signal and uploaded later. Readings are never lost because
+  a connection was not there.
+- **Progressive tariff billing.** Consumption is priced in tiers, so the rate rises the more water is
+  used, the way a real utility charges. Late bills accrue a penalty automatically.
+- **Payments that behave like a ledger.** A payment is applied to the oldest unpaid bill first, and
+  any excess becomes credit on the account instead of disappearing.
+- **Every role sees only what it should.** Customers see their own account. Staff see the routes
+  they are responsible for. The customer-facing site cannot read another customer's data.
+- **A paper trail.** Every edit to a reading or a payment is recorded with who made it and when, so a
+  dispute can be resolved from the record rather than from memory.
+- **Reports and a dashboard.** Collections, arrears, and consumption over a period, for the people
+  who have to explain the numbers.
 
-portals ──HTTP /api/*──► api:8008 ──├─► MySQL 8.4 (mysql-db:3306)
-portals ──gRPC :50051──►             └─► background-worker:8006
-```
-
-Eleven containers on five networks: four `internal: true` app tiers plus the GateKeeper-owned `gatekeeper` network. Only Caddy publishes a host port; the portals, API, worker and database are reachable solely across those internal networks. The mobile MeterReadingApp talks to the API with a bearer key, and Xendit calls back through the public webhook route.
-
-## Auth
-
-Gate is at the **wildcard** (`gatekeeper_caddy:7000` → `gatekeeper_auth:8001` on `gatekeeper_dynamic`) — live `caddy-gateway/Caddyfile` proxies without a per-app `forward_auth`, so every path is decided by GateKeeper rules before Caddy sees it. Live ingress is a single port, `:7020` (`127.0.0.1:7020:7020`), which is what `compose.yaml` and the live `Caddyfile` publish. Portals enforce their own session auth: `shared/wbs_jwt.py` PyJWT HS256 (`ISS=wbs AUD=waterbillingsystem` — `billing_session` 12h `Path /customer/` `HttpOnly SameSite=Lax Secure`, staff `session` 8h, dev `session` 8h; `shared/auth.py` one-deploy fallback); API RBAC uses `api/utils.py:require_staff(*perms)` OR-semantics where `X-Internal-API-Key` is re-checked against `X-Staff-ID` (no blanket bypass) and debug is gated to `can_enroll_staff`. Self-service billing reads add a customer path alongside staff RBAC: `GET /api/customer/{n}` accepts the portal-issued `billing_session` JWT forwarded as `X-Customer-Token` when its `customer_number` matches the path number (`require_customer_self`); cross-number, anonymous, and invalid tokens fall back to the unchanged staff path. The portal `context` handler forwards the cookie value through `api_client.get_billing`, and the dashboard `boot()` redirects to login on 401 only, rendering other context failures inline.
-
-## Quick Start
+## Running it
 
 ```bash
-git clone https://github.com/NovaProtocol/WaterBillingSystem.git
-cd WaterBillingSystem
-
-# There is no .env file. `.env.example` documents every variable; compose
-# interpolation reads them from your shell, so export them (or set them in
-# your deployment tool) before starting the stack:
-export DEPLOYMENT_TYPE=PRODUCTION
-export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-export DB_PASS=... INTERNAL_API_KEY=... NFC_PWD_SECRET=... GUEST_DB_PASSWORD=...
-
-docker compose up -d --build
+cp .env.example .env
+# .env.example documents every variable the stack reads; fill it in, then start
+docker compose up -d
 ```
 
-## Port Overview (live)
+`.env.example` lists every variable the stack reads. The customer portal is at `/customer/`, the
+staff panel at `/staff/`, and the admin panel at `/developer/`.
 
-Live Caddy is single-port `:7020` (`127.0.0.1:7020:7020` on `gatekeeper_dynamic`); all routes below are via `:7020` (`caddy-gateway/Caddyfile` live).
+## Documentation
 
-| Port | Access | Services |
-|------|--------|----------|
-| `7020` | Public (tunnel, `gatekeeper_dynamic`) | Landing, customer, staff, developer, documentation, phpMyAdmin, `/health`, `/webhook/*` |
-
-| Service | URL |
-|---------|-----|
-| Landing Page | `http://host:7020` |
-| Customer Portal | `http://host:7020/customer/` |
-| Staff Portal | `http://host:7020/staff/` |
-| Developer Portal | `http://host:7020/developer/` |
-| Documentation | `http://host:7020/documentation/` |
-| phpMyAdmin | `http://host:7020/phpmyadmin/` |
-
-## Environment
-
-`.env.example` is the source of truth for variables and defaults. A complete
-inventory of every variable read by code or `compose.yaml` lives in
-`.env.example`.
-
-## Development
-
-Use `docker compose up -d --build` for the full stack. No need to run individual services manually.
-
-## Tests
-
-```bash
-bash tests/run_tests.sh
-```
-
-The harness runs stages 1 and 2 — per-service unit tests (API, portals, worker, shared helpers) and page-render tests — against a throwaway database in `tests/.venv`. Stage 3 is a deployment check against a running stack and is opt-in: `bash tests/run_tests.sh 3`.
-
-Full documentation at `documentation/`.
+Full documentation is served by the stack at `/documentation/`, and the sources are in
+[`documentation/docs`](documentation/docs).

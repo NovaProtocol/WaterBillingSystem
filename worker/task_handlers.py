@@ -645,7 +645,7 @@ async def _seed_data(
             now_ts = _time.time()
             if pct >= next_pct or now_ts - last_print >= 5:
                 print(
-                    f"  > {ci + 1:>7,}/{n_customers:<7,} ({pct}%) — {(ci + 1) * n_readings:>7,} readings, {(ci + 1) * max(0, n_readings - 1):>7,} bills",
+                    f"  > {ci + 1:>7,}/{n_customers:<7,} ({pct}%), {(ci + 1) * n_readings:>7,} readings, {(ci + 1) * max(0, n_readings - 1):>7,} bills",
                     flush=True,
                 )
                 next_pct = int(pct) + 1
@@ -680,7 +680,7 @@ async def handle_backup(params, report):
         print("  > Counting customers...", flush=True)
         customer_count = (await s.execute(select(func.count(Customer.id)))).scalar() or 0
         print(
-            f"  > Database: {db_name} on {db_host}:{db_port} — {customer_count} customers",
+            f"  > Database: {db_name} on {db_host}:{db_port}, {customer_count} customers",
             flush=True,
         )
 
@@ -1016,7 +1016,7 @@ async def handle_read_this_month(
             done += 1
             if done >= next_log:
                 print(
-                    f"  > {done}/{total} — {created} created, {skipped} skipped",
+                    f"  > {done}/{total}, {created} created, {skipped} skipped",
                     flush=True,
                 )
                 next_log += 50
@@ -1260,7 +1260,7 @@ async def handle_xendit_reconcile(
 
     key = os.environ["XENDIT_API_KEY"]
     if not key or key == "your-xendit-secret-api-key":
-        print("  > XENDIT_API_KEY not set or is placeholder — skipping", flush=True)
+        print("  > XENDIT_API_KEY not set or is placeholder, skipping", flush=True)
         report(100, "Reconciliation skipped: Xendit not configured")
         return
 
@@ -1292,7 +1292,7 @@ async def handle_xendit_reconcile(
 
     if not pending_ids:
         print(
-            "  > No pending transactions to reconcile — queueing next run in 5m",
+            "  > No pending transactions to reconcile, queueing next run in 5m",
             flush=True,
         )
         report(100, "No pending transactions to reconcile")
@@ -1350,7 +1350,7 @@ async def handle_xendit_reconcile(
                             return ("errored", label)
                         elif status in ("EXPIRED", "CANCELED"):
                             print(
-                                f"    → Session {status.lower()} — marking as failed",
+                                f"    → Session {status.lower()}, marking as failed",
                                 flush=True,
                             )
                             txn.status = "FAILED"
@@ -1359,7 +1359,7 @@ async def handle_xendit_reconcile(
                             return ("failed", label)
                         else:
                             print(
-                                f"    → Unknown Session status: {status} — skipping",
+                                f"    → Unknown Session status: {status}, skipping",
                                 flush=True,
                             )
                             return ("skipped", label)
@@ -1368,7 +1368,7 @@ async def handle_xendit_reconcile(
                         status = response.get("status", "")
                         if status in ("SUCCEEDED", "PAID", "SETTLED"):
                             print(
-                                f"    → Xendit status: {status} — processing payment...",
+                                f"    → Xendit status: {status}, processing payment...",
                                 flush=True,
                             )
                             payment_id = response.get("id", "")
@@ -1389,7 +1389,7 @@ async def handle_xendit_reconcile(
                             return ("errored", label)
                         elif status in ("FAILED", "EXPIRED"):
                             print(
-                                f"    → Xendit status: {status} — marking as failed",
+                                f"    → Xendit status: {status}, marking as failed",
                                 flush=True,
                             )
                             txn.status = "FAILED"
@@ -1398,7 +1398,7 @@ async def handle_xendit_reconcile(
                             return ("failed", label)
                         elif status == "REVERSED":
                             print(
-                                "    → Xendit status: REVERSED — reversing payment...",
+                                "    → Xendit status: REVERSED, reversing payment...",
                                 flush=True,
                             )
                             ss = sync_session()
@@ -1410,7 +1410,7 @@ async def handle_xendit_reconcile(
                             return ("reversed", label)
                         else:
                             print(
-                                f"    → Unknown Xendit status: {status} — skipping",
+                                f"    → Unknown Xendit status: {status}, skipping",
                                 flush=True,
                             )
                             return ("skipped", label)

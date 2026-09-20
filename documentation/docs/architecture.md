@@ -1,6 +1,6 @@
 # System Architecture
 
-**Stack**: FastAPI + granian. Every Python service — API, all portals, the webhook proxy, the documentation site, and the background worker — is a FastAPI app run by granian (ASGI, 1 worker each). There is no Flask and no Gunicorn; migration CLIs are gone.
+**Stack**: FastAPI + granian. Every Python service, API, all portals, the webhook proxy, the documentation site, and the background worker, is a FastAPI app run by granian (ASGI, 1 worker each). There is no Flask and no Gunicorn; migration CLIs are gone.
 
 ## High-Level Container Diagram
 
@@ -59,7 +59,7 @@ graph TB
 
 ## Network Topology
 
-Five networks: two `internal: true` app tiers (`net-public`, `net-private`), two internal (`net-api`, `net-data`), one external (`gatekeeper`, GateKeeper-owned). Live Caddy joins `gatekeeper`; `caddy-gateway/Caddyfile` has 0 `GateKeeper gate` — the gate is in GateKeeper's routes plus rules.
+Five networks: two `internal: true` app tiers (`net-public`, `net-private`), two internal (`net-api`, `net-data`), one external (`gatekeeper`, GateKeeper-owned). Live Caddy joins `gatekeeper`; `caddy-gateway/Caddyfile` has 0 `GateKeeper gate`, the gate is in GateKeeper's routes plus rules.
 
 ```mermaid
 graph TB
@@ -113,9 +113,9 @@ graph TB
 
 ## Runtime & Data Access
 
-- **Async SQLAlchemy**: API, portals, webhook, and worker use `shared/db_async.py` — an async engine (`mysql+pymysql` from `DB_ENGINE` is swapped to `aiomysql`) with an `AsyncSession` per request via contextvar. Legacy sync shared services (payment, audit, seeding) run via `asyncio.to_thread` / `run_in_threadpool` with a separate sync session.
-- **Strict env validation**: `shared/config.py` validates required env vars at import time and `sys.exit(1)`s with a `FATAL` list when anything is missing. `compose.yaml` uses `${VAR:?}` everywhere — `docker compose up` also refuses to start on missing vars. `REVERSE_PROXY_PREFIX` is the only variable allowed to be blank.
-- **Password hashing**: pure stdlib (`shared/passwords.py`) — new hashes use a custom pbkdf2-hmac-sha512 scheme (100k iterations, 64-hex salt); legacy werkzeug `sha256$` / `pbkdf2:` / scrypt formats are still verifiable. No werkzeug dependency.
+- **Async SQLAlchemy**: API, portals, webhook, and worker use `shared/db_async.py`, an async engine (`mysql+pymysql` from `DB_ENGINE` is swapped to `aiomysql`) with an `AsyncSession` per request via contextvar. Legacy sync shared services (payment, audit, seeding) run via `asyncio.to_thread` / `run_in_threadpool` with a separate sync session.
+- **Strict env validation**: `shared/config.py` validates required env vars at import time and `sys.exit(1)`s with a `FATAL` list when anything is missing. `compose.yaml` uses `${VAR:?}` everywhere, `docker compose up` also refuses to start on missing vars. `REVERSE_PROXY_PREFIX` is the only variable allowed to be blank.
+- **Password hashing**: pure stdlib (`shared/passwords.py`), new hashes use a custom pbkdf2-hmac-sha512 scheme (100k iterations, 64-hex salt); legacy werkzeug `sha256$` / `pbkdf2:` / scrypt formats are still verifiable. No werkzeug dependency.
 
 ---
 
@@ -224,7 +224,7 @@ Progressive tier calculation: consumption is applied to each tier bracket sequen
 | **API Key (Bearer)** | `Authorization: Bearer CRDC-<32hex>` | MeterReadingApp sync, mobile API calls |
 | **API Key (query)** | `?api_key=CRDC-<32hex>` | Browser fallback for API key auth |
 | **Internal API Key** | `X-Internal-API-Key` + `X-Staff-ID` (re-derived staff, OR perm; `GET /api/debug/*` requires `can_enroll_staff`) | Container-to-container API calls |
-| **JWT Session Cookie** | `PyJWT HS256 ISS=wbs AUD=waterbillingsystem` — `billing_session` 12h `Path /customer/` `HttpOnly SameSite=Lax Secure`, `session` 8h staff+dev (`shared/wbs_jwt.py`; `shared/auth.py` one-deploy fallback) | Staff portal, customer billing, developer portal |
+| **JWT Session Cookie** | `PyJWT HS256 ISS=wbs AUD=waterbillingsystem`, `billing_session` 12h `Path /customer/` `HttpOnly SameSite=Lax Secure`, `session` 8h staff+dev (`shared/wbs_jwt.py`; `shared/auth.py` one-deploy fallback) | Staff portal, customer billing, developer portal |
 | **Webhook Token** | `X-Callback-Token` value matching `XENDIT_WEBHOOK_TOKEN` or `INTERNAL_API_KEY` | Xendit webhook callback |
 | **GateKeeper gate** | GateKeeper-owned `gatekeeper` (`gatekeeper_caddy:7000 → gatekeeper_auth:8001` verifies via DB routes, then proxies); Caddy `:7020` has 0 per-app `GateKeeper gate` | All web surfaces via single-port `:7020` |
 
@@ -260,7 +260,7 @@ Proto definitions live in `shared/proto/billing.proto` (`package api.v1; service
 
 On every boot, the API container (`api/preflight.py`) compares the live schema against the SQLAlchemy models before serving traffic:
 
-- **Auto-fixes** (safe — cannot invalidate existing data): missing tables (`create_all`), missing indexes (a 14-entry audit manifest plus model-derived indexes), widening column drift (`ALTER MODIFY` preserving the `DEFAULT`), loosening `NOT NULL` → `NULL`, and dropping redundant (non-unique left-prefix) indexes.
+- **Auto-fixes** (safe, cannot invalidate existing data): missing tables (`create_all`), missing indexes (a 14-entry audit manifest plus model-derived indexes), widening column drift (`ALTER MODIFY` preserving the `DEFAULT`), loosening `NOT NULL` → `NULL`, and dropping redundant (non-unique left-prefix) indexes.
 - **Fatal** (crash-loop with `sys.exit(1)` and printed findings + suggested `ALTER`/`DROP` commands): missing columns, incompatible type changes, time-named columns that aren't `DATETIME`, and index name/definition conflicts.
 - Logs `preflight: OK` and only then runs the seeders (payment methods, prerequisite staff, phpMyAdmin guest DB account).
 
@@ -268,7 +268,7 @@ On every boot, the API container (`api/preflight.py`) compares the live schema a
 
 ## Background Worker
 
-The background worker is a **FastAPI app run by granian `--workers 1`** — exactly one process, one async claim loop. It polls the `background_tasks` table (the `BackgroundTask` model) and processes **one job at a time**:
+The background worker is a **FastAPI app run by granian `--workers 1`**: exactly one process, one async claim loop. It polls the `background_tasks` table (the `BackgroundTask` model) and processes **one job at a time**:
 
 - **Claim**: `SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1` for the oldest queued task (`scheduled_at <= now`); stale tasks stuck `running` for more than 5 minutes are marked `failed`.
 - **In-job concurrency**: month-batch handlers and Xendit reconciliation bound their internal fan-out with an `asyncio.Semaphore(WORKER_JOB_CONCURRENCY)` (default **8**).

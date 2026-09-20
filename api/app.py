@@ -56,7 +56,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Guest seeder failed: {e}")
 
-    # gRPC internal server on :50051 (api:50051) — internal-only, not via Caddy
+    # gRPC internal server on :50051 (api:50051), internal-only, not via Caddy
     grpc_server = None
     try:
         from grpc_server import start_grpc_server  # noqa: E402

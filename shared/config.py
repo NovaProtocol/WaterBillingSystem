@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     SHARED_STATIC_DIR: str = ""
     SHARED_TEMPLATES_DIR: str = ""
 
-    # Security (deployment reality — HTTPS tunnel everywhere)
+    # Security (deployment reality, HTTPS tunnel everywhere)
     SESSION_COOKIE_HTTPONLY: bool = True
     SESSION_COOKIE_SECURE: bool = True
     SESSION_COOKIE_SAMESITE: str = "Lax"

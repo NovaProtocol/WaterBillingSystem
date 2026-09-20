@@ -67,7 +67,7 @@ function buildCustomerInfoCard(data) {
   if (data.phase) h += '<div class="col"><div style="font-size:0.7rem;color:#adb5bd;text-transform:uppercase;letter-spacing:0.3px;">Phase</div><div style="font-weight:600;font-size:0.9rem;color:#1a1a2e;">' + $('<span>').text(data.phase).html() + '</div></div>';
   if (data.block) h += '<div class="col"><div style="font-size:0.7rem;color:#adb5bd;text-transform:uppercase;letter-spacing:0.3px;">Block</div><div style="font-weight:600;font-size:0.9rem;color:#1a1a2e;">' + $('<span>').text(data.block).html() + '</div></div>';
   if (data.street) h += '<div class="col"><div style="font-size:0.7rem;color:#adb5bd;text-transform:uppercase;letter-spacing:0.3px;">Street</div><div style="font-weight:600;font-size:0.9rem;color:#1a1a2e;">' + $('<span>').text(data.street).html() + '</div></div>';
-  h += '<div class="col"><div style="font-size:0.7rem;color:#adb5bd;text-transform:uppercase;letter-spacing:0.3px;">Contact</div><div style="font-weight:600;font-size:0.9rem;color:#1a1a2e;">' + ($('<span>').text(data.contact_number || '—').html()) + '</div></div>';
+  h += '<div class="col"><div style="font-size:0.7rem;color:#adb5bd;text-transform:uppercase;letter-spacing:0.3px;">Contact</div><div style="font-weight:600;font-size:0.9rem;color:#1a1a2e;">' + ($('<span>').text(data.contact_number || ' - ').html()) + '</div></div>';
   h += '</div></div>';
   if (data.address) h += '<div class="col-12 mt-2"><div style="font-size:0.78rem;color:#6c757d;background:#f8f9fa;border-radius:8px;padding:6px 10px;"><i class="fas fa-map-pin mr-1" style="color:#e94560;"></i>' + $('<span>').text(data.address).html() + '</div></div>';
   h += '</div></div></div>';

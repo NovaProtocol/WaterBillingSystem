@@ -278,8 +278,7 @@ def compare(db_spec: TypeSpec, model_spec: TypeSpec) -> str:
         # Data-safe rule: capacity per dimension, int = precision - scale.
         # "widen" only when the model covers the DB's existing capacity in
         # BOTH dimensions and needs more in at least one; "warn" when the DB
-        # has capacity (integer or fractional) the model would not cover —
-        # altering would round/truncate existing data.
+        # has capacity (integer or fractional) the model would not cover, # altering would round/truncate existing data.
         db_int = db_spec.precision - (db_spec.scale or 0)
         db_frac = db_spec.scale or 0
         model_int = model_spec.precision - (model_spec.scale or 0)
@@ -359,7 +358,7 @@ def decide(inspector, metadata, manifest) -> list[Finding]:
                     Finding(
                         "fatal",
                         f"time-named column {name}.{col.name} has model type "
-                        f"{model_spec.type_sql()} — must be DateTime",
+                        f"{model_spec.type_sql()}, must be DateTime",
                     )
                 )
                 continue
@@ -388,7 +387,7 @@ def decide(inspector, metadata, manifest) -> list[Finding]:
                     Finding(
                         "warning",
                         f"{name}.{col.name}: db type {db_col['type']} is wider than "
-                        f"model {model_spec.type_sql()} — left alone (shrinking "
+                        f"model {model_spec.type_sql()}, left alone (shrinking "
                         f"could truncate data)",
                     )
                 )
@@ -405,7 +404,7 @@ def decide(inspector, metadata, manifest) -> list[Finding]:
                     Finding(
                         "warning",
                         f"{name}.{col.name}: db is nullable but model declares "
-                        f"NOT NULL — left alone (enforcing could reject data)",
+                        f"NOT NULL, left alone (enforcing could reject data)",
                     )
                 )
 
@@ -482,7 +481,7 @@ def decide(inspector, metadata, manifest) -> list[Finding]:
 
 async def apply(findings: list[Finding], eng) -> None:
     """Execute DDL for safe findings. Only MySQL executes; other dialects
-    (e.g. SQLite in tests) log a skip warning — they are not the deployment
+    (e.g. SQLite in tests) log a skip warning, they are not the deployment
     target and their DDL syntax differs."""
     ddl_list = [f.ddl for f in findings if f.ddl]
     if not ddl_list:
@@ -506,7 +505,7 @@ def run_preflight() -> list:
     if errs:
         for err in errs:
             print(f"FATAL: {err}", file=sys.stderr)
-        logger.error("preflight FATAL: %d manifest error(s) — refusing to start", len(errs))
+        logger.error("preflight FATAL: %d manifest error(s), refusing to start", len(errs))
         sys.exit(1)
     findings = decide(sa_inspect(sync_engine()), Base.metadata, MANIFEST)
     fatals = [f for f in findings if f.kind == "fatal"]
@@ -521,7 +520,7 @@ def run_preflight() -> list:
             print(f"  - {f.message}", file=sys.stderr)
             if f.ddl:
                 print(f"    suggested command: {f.ddl}", file=sys.stderr)
-        logger.error("preflight FATAL: %d issue(s) — refusing to start", len(fatals))
+        logger.error("preflight FATAL: %d issue(s), refusing to start", len(fatals))
         sys.exit(1)
     for f in findings:
         if f.kind == "created_index" or f.kind == "dropped_index" or f.kind == "modified_column":
@@ -529,7 +528,7 @@ def run_preflight() -> list:
         elif f.kind == "warning":
             logger.warning("preflight: %s", f.message)
     if not findings:
-        logger.info("preflight: OK — schema matches models (no changes needed)")
+        logger.info("preflight: OK, schema matches models (no changes needed)")
     else:
-        logger.info("preflight: OK — %d change(s) will be applied", len(findings))
+        logger.info("preflight: OK, %d change(s) will be applied", len(findings))
     return findings

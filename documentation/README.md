@@ -22,4 +22,4 @@ mkdocs serve    # preview at http://localhost:8000
 ./launch.sh     # alternative: serves via mkdocs dev server on :8005
 ```
 
-In Docker the site is pre-built in `documentation/Dockerfile` (`mkdocs build`) and served by `app.py` (FastAPI + granian on `8005`) — see `compose.yaml` `documentation` service and `caddy-gateway/Caddyfile` `handle_path /documentation/*`.
+In Docker the site is pre-built in `documentation/Dockerfile` (`mkdocs build`) and served by `app.py` (FastAPI + granian on `8005`), see `compose.yaml` `documentation` service and `caddy-gateway/Caddyfile` `handle_path /documentation/*`.

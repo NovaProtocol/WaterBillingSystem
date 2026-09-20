@@ -22,7 +22,7 @@ async def xendit_webhook(request: Request):
     except Exception:
         body = {}
     # Xendit webhook is HTTP-exclusive (api:8008 via API_BASE_URL).
-    # No gRPC fallback or health probe — fail loud via HTTP status/logs.
+    # No gRPC fallback or health probe, fail loud via HTTP status/logs.
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(

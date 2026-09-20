@@ -121,10 +121,10 @@
                     {% for c in customers %}
                     <tr>
                         <td class="font-weight-bold">{{ c.customer_number }}</td>
-                        <td>{{ c.name or '—' }}</td>
-                        <td>{{ c.address or '—' }}</td>
-                        <td>{{ c.contact_number or '—' }}</td>
-                        <td>{{ c.email or '—' }}</td>
+                        <td>{{ c.name or ' - ' }}</td>
+                        <td>{{ c.address or ' - ' }}</td>
+                        <td>{{ c.contact_number or ' - ' }}</td>
+                        <td>{{ c.email or ' - ' }}</td>
                         <td class="text-right {% if c.cumulative_balance > 0 %}text-success{% elif c.cumulative_balance < 0 %}text-danger{% endif %}">
                             &#x20B1;{{ "%.2f" | format(c.cumulative_balance or 0) }}
                         </td>

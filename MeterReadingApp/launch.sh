@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-echo "==> MeterReadingApp — Expo"
+echo "==> MeterReadingApp, Expo"
 
 if [ ! -d node_modules ]; then
     echo "==> Installing Node dependencies..."

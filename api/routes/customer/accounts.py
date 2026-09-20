@@ -142,13 +142,13 @@ async def customer_info(
 
     Staff callers authorize via ``require_staff`` exactly as before. The
     customer portal additionally forwards the verified ``billing_session``
-    JWT as ``X-Customer-Token`` — a token whose ``customer_number`` matches
+    JWT as ``X-Customer-Token``, a token whose ``customer_number`` matches
     this path number authorizes the self-service context read, nothing
     else."""
 
     self_read = require_customer_self(customer_number, request)
     if self_read is None:
-        # No matching customer session — fall back to the unchanged staff
+        # No matching customer session, fall back to the unchanged staff
         # path, which raises 401/403 itself on failure.
         await require_staff("can_read_meters")(request)
 

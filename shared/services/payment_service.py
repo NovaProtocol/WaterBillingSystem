@@ -153,7 +153,7 @@ def submit_payment(
 
     return (
         {
-            "message": f"Payment recorded — {bills_paid} bill(s) fully paid",
+            "message": f"Payment recorded, {bills_paid} bill(s) fully paid",
             "receipt_number": receipt if bills_paid > 0 else None,
             "receipts": [receipt] if bills_paid > 0 else [],
             "amount": amount,
@@ -214,7 +214,7 @@ def drop_payment(
     _recalc_total_due(customer_number, session)
     session.commit()
 
-    return {"message": f"Payment group ({receipt}) undone — {len(group)} bill(s) reverted"}
+    return {"message": f"Payment group ({receipt}) undone, {len(group)} bill(s) reverted"}
 
 
 def parse_date_range(

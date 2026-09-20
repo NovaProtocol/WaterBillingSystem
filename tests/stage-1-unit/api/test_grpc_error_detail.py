@@ -4,7 +4,7 @@
 methods returning ``None``.  Awaiting them raised
 ``TypeError: object NoneType can't be used in 'await' expression`` *inside* the
 ``except`` block, so the client received that TypeError text instead of the real
-failure — which is why the live log showed nonsense rather than the underlying
+failure, which is why the live log showed nonsense rather than the underlying
 ``MissingGreenlet``.
 
 This test drives the real servicer through an in-process ``grpc.aio`` server.  On

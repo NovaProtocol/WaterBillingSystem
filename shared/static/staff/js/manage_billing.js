@@ -13,18 +13,18 @@ $(function() {
 
       $('#custNumLabel').text('#' + custNum);
       $('#infoCustNum').text(data.customer_number);
-      $('#infoName').text(data.name || '—');
-      $('#infoAddress').text(data.address || '—');
-      $('#infoContact').text(data.contact_number || '—');
-      $('#infoEmail').text(data.email || '—');
+      $('#infoName').text(data.name || ' - ');
+      $('#infoAddress').text(data.address || ' - ');
+      $('#infoContact').text(data.contact_number || ' - ');
+      $('#infoEmail').text(data.email || ' - ');
 
       if (data.latest_reading) {
         $('#currentReading').text(data.latest_reading.reading_value + ' m\u00B3');
-        $('#currentReader').text(data.latest_reading.reader || '—');
+        $('#currentReader').text(data.latest_reading.reader || ' - ');
         var cd = new Date(data.latest_reading.timestamp * 1000);
         $('#currentDate').text(cd.toLocaleDateString() + ' ' + cd.toLocaleTimeString());
       } else {
-        $('#currentReading').text('—');
+        $('#currentReading').text(' - ');
         $('#currentReader').text('');
         $('#currentDate').text('');
       }
@@ -34,7 +34,7 @@ $(function() {
         var pd = new Date(data.last_reading.timestamp * 1000);
         $('#prevDate').text(pd.toLocaleDateString() + ' ' + pd.toLocaleTimeString());
       } else {
-        $('#prevReading').text('—');
+        $('#prevReading').text(' - ');
         $('#prevReader').text('No previous reading');
         $('#prevDate').text('');
       }
@@ -91,7 +91,7 @@ $(function() {
         var pd = new Date(p.timestamp * 1000);
         var _pa = (p.paid_amount!=null&&isFinite(p.paid_amount))?Number(p.paid_amount):0;
         phb.append(
-          '<tr><td>' + (p.receipt_number || 'N/A') + '</td><td>₱' + _pa.toFixed(2) + '</td><td>' + pd.toLocaleDateString() + '</td><td>' + (p.cashier || '—') + '</td></tr>'
+          '<tr><td>' + (p.receipt_number || 'N/A') + '</td><td>₱' + _pa.toFixed(2) + '</td><td>' + pd.toLocaleDateString() + '</td><td>' + (p.cashier || ' - ') + '</td></tr>'
         );
       });
 
@@ -137,7 +137,7 @@ $(function() {
   ? (_co2 < 0
     ? '<span style="color:#dc3545;">−₱' + Math.abs(_co2).toFixed(2) + '</span>'
     : '₱' + _co2.toFixed(2))
-  : '—') + '</td>' +
+  : ' - ') + '</td>' +
           '<td>' + statusBadge + '</td>' +
           '<td>' + actions + '</td>' +
         '</tr>'

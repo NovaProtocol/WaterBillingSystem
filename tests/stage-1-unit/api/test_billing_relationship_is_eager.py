@@ -41,7 +41,7 @@ class TestBillingReadingEager:
             maker = async_sessionmaker(engine, expire_on_commit=False)
             async with maker() as s:
                 rows = (await s.execute(select(Billing))).scalars().all()
-                # Empty result is fine — the assertion is that the attribute
+                # Empty result is fine, the assertion is that the attribute
                 # machinery is eager, so touching it cannot raise MissingGreenlet.
                 for b in rows:
                     _ = b.reading

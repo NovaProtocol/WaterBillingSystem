@@ -6,7 +6,7 @@ NTAG215 clones attached to each water meter, **password-protected** using NTAG21
 
 ### Security Model
 
-NTAG215 tags have a **factory-burned read-only UID** (unclonable) and support **PWD_AUTH** — a 4-byte password that protects all user memory. The password is derived locally from `NFC_PWD_SECRET` + tag UID.
+NTAG215 tags have a **factory-burned read-only UID** (unclonable) and support **PWD_AUTH**: a 4-byte password that protects all user memory. The password is derived locally from `NFC_PWD_SECRET` + tag UID.
 
 | Threat | Mitigation |
 |--------|-----------|
@@ -135,12 +135,12 @@ Configured in `app.json`:
 
 ## QR Code Scanning
 
-QR codes configure the API key — faster and less error-prone than manual entry.
+QR codes configure the API key, faster and less error-prone than manual entry.
 
 ### How It Works
 
 1. Staff generates an API key from the web portal (`/staff/meter-reading`)
-2. Staff member displays the QR code (or prints it) — the QR code contains the API key string
+2. Staff member displays the QR code (or prints it), the QR code contains the API key string
 3. Meter reader opens **Settings** → taps QR icon
 4. Camera opens, scans the QR code
 5. API key field is automatically populated

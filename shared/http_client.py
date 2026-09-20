@@ -19,7 +19,7 @@ def make_client(
     internal-key auth keeps working unchanged. When ``staff_id`` is
     supplied the caller forwards the authenticated staff identity so
     audit-sensitive routes (debug, audit-logs) don't collapse to a
-    blanket internal-key bypass — the API's ``require_staff(*perms)``
+    blanket internal-key bypass, the API's ``require_staff(*perms)``
     re-derives that staff and re-checks perms."""
     headers: dict[str, str] = {
         "User-Agent": "portal/1.0",

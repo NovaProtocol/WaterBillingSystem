@@ -107,8 +107,8 @@ def require_staff(*perms: str):
                     if any(getattr(st, perm, False) for perm in perms):
                         return True
                     raise HTTPException(status_code=403, detail={"error": "Permission denied"})
-            # No staff context forwarded — fall through to require explicit staff header
-            raise HTTPException(status_code=403, detail={"error": "Permission denied — staff context required"})
+            # No staff context forwarded, fall through to require explicit staff header
+            raise HTTPException(status_code=403, detail={"error": "Permission denied, staff context required"})
 
         api_key = await resolve_api_key(request)
         if not api_key:

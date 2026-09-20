@@ -29,7 +29,7 @@ export default function SubmitSummary({
       <Text style={styles.summaryIcon}>{'\u2705'}</Text>
       <Text style={styles.summaryTitle}>Reading Submitted!</Text>
       {savedOffline && (
-        <Text style={styles.offlineNote}>Saved offline — will sync later</Text>
+        <Text style={styles.offlineNote}>Saved offline, will sync later</Text>
       )}
 
       <View style={styles.summaryCard}>

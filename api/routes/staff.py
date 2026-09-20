@@ -357,7 +357,7 @@ async def staff_audit_logs(
 
 async def _can_manage_keys(staff_id: int, api_key: ApiKey | bool) -> None:
     """Self-service for the key owner; can_enroll_staff for everyone else."""
-    if api_key is True:  # internal key — master access
+    if api_key is True:  # internal key, master access
         return
     if api_key.staff_id == staff_id or api_key.staff.can_enroll_staff:
         return

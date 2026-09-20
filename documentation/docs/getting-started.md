@@ -25,21 +25,21 @@ Key variables (full list in `.env.example`, the source of truth):
 |---|---|---|
 | `DEPLOYMENT_TYPE` | `PRODUCTION` | `DEBUG` or `PRODUCTION` |
 | `DEBUG` | `false` | `true` bypasses receipt verification in the customer portal |
-| `SECRET_KEY` | — | Signing key for portal JWTs (`PyJWT HS256 ISS=wbs AUD=waterbillingsystem` `>=32` chars, `billing_session` 12h / staff+dev `session` 8h `HttpOnly SameSite=Lax Secure`). Generate: `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `INTERNAL_API_KEY` | — | API-to-API auth between containers (`X-Internal-API-Key` and `x-internal-api-key` gRPC metadata) |
+| `SECRET_KEY` | n/a | Signing key for portal JWTs (`PyJWT HS256 ISS=wbs AUD=waterbillingsystem` `>=32` chars, `billing_session` 12h / staff+dev `session` 8h `HttpOnly SameSite=Lax Secure`). Generate: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `INTERNAL_API_KEY` | n/a | API-to-API auth between containers (`X-Internal-API-Key` and `x-internal-api-key` gRPC metadata) |
 | `API_BASE_URL` | `http://api:8008` | Internal API endpoint (legacy alias for `API_INTERNAL_URL`) |
 | `API_INTERNAL_URL` | `http://api:8008` | Internal HTTP API (Caddy bypass, Docker DNS) |
-| `API_GRPC_ADDR` | `api:50051` | Internal gRPC address (`grpc.aio.insecure_channel`) — preferred for portal → api |
-| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASS` | — | MySQL connection |
-| `NFC_PWD_SECRET` | — | NFC tag password derivation |
-| `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN` | — | Xendit payment gateway API key + webhook token |
+| `API_GRPC_ADDR` | `api:50051` | Internal gRPC address (`grpc.aio.insecure_channel`), preferred for portal → api |
+| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASS` | n/a | MySQL connection |
+| `NFC_PWD_SECRET` | n/a | NFC tag password derivation |
+| `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN` | n/a | Xendit payment gateway API key + webhook token |
 | `SESSION_COOKIE_SECURE` | `true` | Secure cookie flag (use `false` on plain http dev) |
 | `REVERSE_PROXY_PREFIX` | (blank) | Reverse-proxy path prefix; the only variable allowed to be blank |
 | `SHARED_STATIC_DIR`, `SHARED_TEMPLATES_DIR` | `/app/shared/...` | Shared static/template dirs (container defaults) |
-| `PMA_CONFIG_BASE64`, `PMA_HOST`, `PMA_PORT`, `PMA_ARBITRARY`, `UPLOAD_LIMIT` | — | phpMyAdmin config + guest DB account |
-| `GUEST_DB_PASSWORD` | — | Guest MySQL account password (provisioned by the API at startup) |
+| `PMA_CONFIG_BASE64`, `PMA_HOST`, `PMA_PORT`, `PMA_ARBITRARY`, `UPLOAD_LIMIT` | n/a | phpMyAdmin config + guest DB account |
+| `GUEST_DB_PASSWORD` | n/a | Guest MySQL account password (provisioned by the API at startup) |
 
-> **Every variable is required.** `compose.yaml` uses `${VAR:?}` for every variable — missing or blank = `docker compose up` refuses to start. Containers read env strictly and crash at boot on missing values.
+> **Every variable is required.** `compose.yaml` uses `${VAR:?}` for every variable, missing or blank = `docker compose up` refuses to start. Containers read env strictly and crash at boot on missing values.
 
 ---
 
@@ -59,13 +59,13 @@ Starts all 11 containers. First-time build takes several minutes.
 
 | URL | Service |
 |---|---|
-| `http://localhost:7020/` | Landing page (house models) — gate-protected |
-| `http://localhost:7020/customer/` | Customer portal (bill lookup) — gate-protected |
+| `http://localhost:7020/` | Landing page (house models), gate-protected |
+| `http://localhost:7020/customer/` | Customer portal (bill lookup), gate-protected |
 | `http://localhost:7020/webhook/` | Xendit webhook proxy (public callback) |
 | `http://localhost:7020/health` | Health check (public) |
 | `http://localhost:7020/404` | Themed 404 page (public) |
 
-### Staff / Admin Routes (port 7020 — single domain)
+### Staff / Admin Routes (port 7020: single domain)
 
 All routes are on the consolidated host `https://water-billing-system.projectnova.download` via `:7020`:
 

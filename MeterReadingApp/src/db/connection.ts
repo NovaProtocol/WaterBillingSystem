@@ -84,7 +84,7 @@ export function closeAndResetDb(): void {
   }
 }
 
-/** Run a DB operation sequentially — waits for previous operations to finish first. */
+/** Run a DB operation sequentially, waits for previous operations to finish first. */
 export async function withDb<T>(fn: (d: DB) => Promise<T>): Promise<T> {
   const prev = opQueue;
   let nextResolve!: () => void;
