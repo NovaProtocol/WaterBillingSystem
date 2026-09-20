@@ -1,5 +1,5 @@
 site_name: Water Billing System
-site_description: Documentation for the water billing platform: meter reading, billing, payments, customer management
+site_description: "Documentation for the water billing platform: meter reading, billing, payments, customer management"
 site_author: NovaProtocol
 repo_url: https://github.com/NovaProtocol/WaterBillingSystem
 repo_name: NovaProtocol/WaterBillingSystem
