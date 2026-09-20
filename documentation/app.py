@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from shared.logger import attach_sqlite_logging
+from shared.middleware import CacheControlMiddleware
 
 
 def require_env(*names):
@@ -22,6 +23,8 @@ require_env("SECRET_KEY", "DEPLOYMENT_TYPE")
 SITE_DIR = Path(__file__).resolve().parent / "site"
 
 app = FastAPI(title="Water Billing Docs")
+_DEBUG_DEPLOY = os.environ.get("DEPLOYMENT_TYPE", "").lower() in ("debug", "development")
+app.add_middleware(CacheControlMiddleware, is_debug=_DEBUG_DEPLOY)
 
 
 @app.get("/health")
