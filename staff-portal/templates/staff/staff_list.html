@@ -123,8 +123,8 @@
                     <tr class="{{ 'text-muted' if not s.is_active }}">
                         <td class="font-weight-bold">{{ s.name or s.username }}</td>
                         <td>{{ s.username }}</td>
-                        <td>{{ s.email or '—' }}</td>
-                        <td>{{ s.contact_number or '—' }}</td>
+                        <td>{{ s.email or ' - ' }}</td>
+                        <td>{{ s.contact_number or ' - ' }}</td>
                         <td>
                             {% if s.is_active %}
                             <span class="badge badge-success">Active</span>

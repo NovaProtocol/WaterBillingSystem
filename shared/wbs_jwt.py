@@ -19,7 +19,7 @@ def _now() -> dt.datetime:
 
 
 def _secret(secret: str | None = None) -> str:
-    # Portals only need the signing key — read it straight from the
+    # Portals only need the signing key, read it straight from the
     # environment so containers without DB vars (portals) can sign
     # and verify without constructing the full strict Settings.
     if secret:

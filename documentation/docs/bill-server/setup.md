@@ -29,7 +29,7 @@ Key points:
 
 ### Environment Variables
 
-All from `.env` (`.env.example` is the source of truth). Every one is **required** — `compose.yaml` uses `${VAR:?}` so missing values refuse to start; the app's `require_env()` / `shared/config.py` crash the container on boot if anything is unset.
+All from `.env` (`.env.example` is the source of truth). Every one is **required**: `compose.yaml` uses `${VAR:?}` so missing values refuse to start; the app's `require_env()` / `shared/config.py` crash the container on boot if anything is unset.
 
 | Variable | Description |
 |----------|-------------|
@@ -105,15 +105,15 @@ api:
 
 ## App Startup (`api/app.py`)
 
-`app = FastAPI(title=..., lifespan=lifespan)` — startup sequence:
+`app = FastAPI(title=..., lifespan=lifespan)`, startup sequence:
 
-1. **`require_env()`** at import time — missing `SECRET_KEY`, `NFC_PWD_SECRET`, `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN`, `DEPLOYMENT_TYPE` (plus `DB_*` unless `SQLALCHEMY_DATABASE_URI` is set) prints `FATAL` and exits.
-2. **`init_engine()`** — builds the async engine (aiomysql) + sync session factory.
-3. **`init_db()`** — `create_all()`: missing tables are auto-created.
-4. **`run_preflight()`** (`api/preflight.py`) — schema vs models audit; safe findings applied via `apply()`. Risky findings (missing columns, incompatible types, time-named non-`DATETIME` columns, index conflicts) print every finding plus suggested `ALTER`/`DROP` commands and **`sys.exit(1)`** — the container crash-loops until fixed.
-5. **`seed_payment_methods()`** — 22 payment methods.
-6. **`ensure_prereq_staff()`** — superuser + xendit system user (in a thread, sync session).
-7. **`ensure_guest_user()`** — phpMyAdmin guest MySQL account (in a thread, sync session).
+1. **`require_env()`** at import time, missing `SECRET_KEY`, `NFC_PWD_SECRET`, `XENDIT_API_KEY`, `XENDIT_WEBHOOK_TOKEN`, `DEPLOYMENT_TYPE` (plus `DB_*` unless `SQLALCHEMY_DATABASE_URI` is set) prints `FATAL` and exits.
+2. **`init_engine()`**: builds the async engine (aiomysql) + sync session factory.
+3. **`init_db()`**: `create_all()`: missing tables are auto-created.
+4. **`run_preflight()`** (`api/preflight.py`), schema vs models audit; safe findings applied via `apply()`. Risky findings (missing columns, incompatible types, time-named non-`DATETIME` columns, index conflicts) print every finding plus suggested `ALTER`/`DROP` commands and **`sys.exit(1)`**: the container crash-loops until fixed.
+5. **`seed_payment_methods()`**: 22 payment methods.
+6. **`ensure_prereq_staff()`**: superuser + xendit system user (in a thread, sync session).
+7. **`ensure_guest_user()`**: phpMyAdmin guest MySQL account (in a thread, sync session).
 8. Serves `GET /health` (liveness, no prefix) and all `/api/*` routers.
 
 ## Startup
@@ -128,4 +128,4 @@ curl http://localhost:7020/api/health # via gateway (`:7020` single-port)
 docker exec waterbillingsystem_api curl http://localhost:8008/api/health
 ```
 
-Expected boot log markers: `preflight: OK — ...` (or the crash listing), then seeder activity. `docker compose up` fails before anything starts if a `.env` variable is missing (`${VAR:?}`).
+Expected boot log markers: `preflight: OK, ...` (or the crash listing), then seeder activity. `docker compose up` fails before anything starts if a `.env` variable is missing (`${VAR:?}`).

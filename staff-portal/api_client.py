@@ -6,7 +6,7 @@ from shared.grpc_client import list_customers_via_grpc
 from shared.http_client import make_client
 
 # Staff billing detail (get_customer with consumption/bill_breakdown) must use
-# HTTP — gRPC GetCustomer is only core fields (see api_client comment).
+# HTTP: gRPC GetCustomer is only core fields (see api_client comment).
 # Search/list is gRPC-only with no HTTP fallback (fail loud).
 
 get_customer_via_grpc = None  # type: ignore  # disabled: staff billing needs full HTTP payload
@@ -106,7 +106,7 @@ async def customer_search_sort(
     page: int = 1,
     per_page: int = 50,
 ) -> dict:
-    """Search, sort, paginate customers — gRPC is the exclusive transport, no HTTP fallback."""
+    """Search, sort, paginate customers, gRPC is the exclusive transport, no HTTP fallback."""
     import grpc as _grpc  # local import so missing grpc surfaces as hard error, not silent
 
     try:
@@ -114,7 +114,7 @@ async def customer_search_sort(
             q=q, page=page, size=per_page, sort_by=sort_by, sort_dir=sort_dir
         )
     except _grpc.aio.AioRpcError:
-        # Fail loud — do not fall back to HTTP, surface as 503 at caller
+        # Fail loud, do not fall back to HTTP, surface as 503 at caller
         raise
     if data is None:
         raise RuntimeError("grpc ListCustomers returned no data")

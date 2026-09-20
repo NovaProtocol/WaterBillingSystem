@@ -65,17 +65,17 @@ graph LR
 ```typescript
 const {
  syncStatus, // 'idle' | 'syncing' | 'synced' | 'error'
- triggerSync, // () => void — manual sync trigger
+ triggerSync, // () => void, manual sync trigger
  lastError, // string | null
  lastSyncCount, // number
  resetSyncState, // () => void
- pendingCount, // number — unsynced readings
- serverTotal, // number — total customers on server
+ pendingCount, // number, unsynced readings
+ serverTotal, // number, total customers on server
  lastSyncTime, // string | null
- localCount, // number — customers in local DB
- resyncNfc, // () => Promise<void> — force re-download NFC cache
- resyncReadings, // () => Promise<void> — clear local data and re-download all
- resyncing, // boolean — true during resync operation
+ localCount, // number, customers in local DB
+ resyncNfc, // () => Promise<void>, force re-download NFC cache
+ resyncReadings, // () => Promise<void>, clear local data and re-download all
+ resyncing, // boolean, true during resync operation
 } = useSync();
 ```
 
@@ -90,14 +90,14 @@ const {
 
 ### Sync Flow (detailed)
 
-1. **Fetch permissions** — `GET /api/key/info`. Validates API key, caches staff permissions (`can_enroll_customer`, `can_read_meters`, etc.) in local config.
-2. **Fetch NFC config** — `GET /api/nfc/config`. Retrieves `nfc_pwd_secret` (offline password computation) and `nfc_generation` (cache invalidation counter). Clears local NFC cache if generation changed.
-3. **Upload NFC enrollments** — unsynced enrollments from local `nfc_enrollments` → `POST /api/nfc/sync`. Mark synced on success.
-4. **Upload readings** — unsynced readings (`synced=0 AND rejected=0`) → `POST /api/readings/sync`. Mark synced (with server ID) or rejected (if duplicate).
-5. **Check for changes** — `GET /api/customers/changed?since=<lastSyncTime>`. Returns changed customer numbers + server timestamp.
-6. **Download** — pipelined batches of up to 500 customer numbers via `GET /api/readings/bulk`. Per batch: fetch next batch in background while processing current one; upsert `nfc_cache` from `nfc_uid` fields (PWD via `computeTagPwd(nfc_pwd_secret, uid)`); call `replaceCustomerData()` per customer with individual commits; drop old readings and insert fresh data.
-7. **Update timestamp** — save `server_time` as `lastSyncTime`.
-8. **Cleanup** — delete synced NFC enrollment records.
+1. **Fetch permissions**: `GET /api/key/info`. Validates API key, caches staff permissions (`can_enroll_customer`, `can_read_meters`, etc.) in local config.
+2. **Fetch NFC config**: `GET /api/nfc/config`. Retrieves `nfc_pwd_secret` (offline password computation) and `nfc_generation` (cache invalidation counter). Clears local NFC cache if generation changed.
+3. **Upload NFC enrollments**: unsynced enrollments from local `nfc_enrollments` → `POST /api/nfc/sync`. Mark synced on success.
+4. **Upload readings**: unsynced readings (`synced=0 AND rejected=0`) → `POST /api/readings/sync`. Mark synced (with server ID) or rejected (if duplicate).
+5. **Check for changes**: `GET /api/customers/changed?since=<lastSyncTime>`. Returns changed customer numbers + server timestamp.
+6. **Download**: pipelined batches of up to 500 customer numbers via `GET /api/readings/bulk`. Per batch: fetch next batch in background while processing current one; upsert `nfc_cache` from `nfc_uid` fields (PWD via `computeTagPwd(nfc_pwd_secret, uid)`); call `replaceCustomerData()` per customer with individual commits; drop old readings and insert fresh data.
+7. **Update timestamp**: save `server_time` as `lastSyncTime`.
+8. **Cleanup**: delete synced NFC enrollment records.
 
 ### Concurrency
 

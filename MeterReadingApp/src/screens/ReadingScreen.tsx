@@ -209,7 +209,7 @@ export default function ReadingScreen({}: Props) {
           <Text style={styles.backText}>{'\u2190'} Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {scanState === 'summary' ? 'Reading Complete' : duplicateWarning ? 'Duplicate — Already Read' : 'Meter Reading'}
+          {scanState === 'summary' ? 'Reading Complete' : duplicateWarning ? 'Duplicate, Already Read' : 'Meter Reading'}
         </Text>
         <View style={styles.backButton} />
       </View>
@@ -309,7 +309,7 @@ export default function ReadingScreen({}: Props) {
               {submitting ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : duplicateWarning ? (
-                <Text style={styles.submitButtonText}>Already Read — Submit Blocked</Text>
+                <Text style={styles.submitButtonText}>Already Read, Submit Blocked</Text>
               ) : (
                 <Text style={styles.submitButtonText}>Submit Reading</Text>
               )}

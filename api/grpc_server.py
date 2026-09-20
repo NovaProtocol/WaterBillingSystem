@@ -8,7 +8,7 @@ goes via Caddy ``handle /api/* -> api:8008`` (HTTP); internal callers
 pass ``x-internal-api-key`` metadata.
 
 Servicers delegate to the same ``*_service.py`` modules that HTTP routes
-use — no duplicated business logic.
+use, no duplicated business logic.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def _db_sync_session():
 
 
 class BillingServicer(billing_pb2_grpc.BillingServiceServicer):
-    """gRPC servicer — delegates to the same service layer as HTTP routes."""
+    """gRPC servicer, delegates to the same service layer as HTTP routes."""
 
     async def GetCustomer(self, request, context):  # type: ignore[no-untyped-def]
         if not await _check_internal_auth(context):
@@ -353,7 +353,7 @@ class BillingServicer(billing_pb2_grpc.BillingServiceServicer):
 
 
 class CustomerServicer(billing_pb2_grpc.CustomerServiceServicer):
-    """Thin alias — same logic as BillingServicer for CustomerService."""
+    """Thin alias, same logic as BillingServicer for CustomerService."""
 
     async def GetCustomer(self, request, context):  # type: ignore[no-untyped-def]
         return await BillingServicer().GetCustomer(request, context)

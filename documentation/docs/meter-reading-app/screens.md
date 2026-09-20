@@ -20,7 +20,7 @@ Initial route is dynamic:
 - `serverUrl` and `apiKey` configured → `'Home'`
 - Otherwise → `'Unauthenticated'`
 
-All screens have `headerShown: false` — custom headers throughout.
+All screens have `headerShown: false`, custom headers throughout.
 
 ```mermaid
 graph TD
@@ -53,7 +53,7 @@ Main dashboard: customer counts, filters, navigation actions.
 - Unread this month count badge
 - Phase / Block / Street filter chips
 - "Map View" → `Map`; "Start Reading" → `Reading`; gear icon → `Settings`
-- **Hidden "Enroll" button** (green chip) — visible only when API key has `can_enroll_customer`
+- **Hidden "Enroll" button** (green chip), visible only when API key has `can_enroll_customer`
 - Pull-to-refresh refreshes counts and dropdowns
 
 ### NfcEnrollScreen
@@ -61,13 +61,13 @@ Main dashboard: customer counts, filters, navigation actions.
 NFC tag enrollment. Only accessible to staff with `can_enroll_customer`.
 
 **Phases**:
-1. **`search`** — Type customer number (auto-suggest from local DB, limit 15 results). "Disenroll Tag" button.
-2. **`verify`** — Selected customer details (name, number, address, phase/block)
-3. **`programming`** — Holds phone near NFC tag, programs the account number
-4. **`done`** — Success confirmation, option to enroll another or return home
-5. **`error`** — Error display with retry
-6. **`disenrolling`** — Erases a programmed tag, restores factory defaults
-7. **`disenroll_done`** — Success confirmation after disenrollment
+1. **`search`**: Type customer number (auto-suggest from local DB, limit 15 results). "Disenroll Tag" button.
+2. **`verify`**: Selected customer details (name, number, address, phase/block)
+3. **`programming`**: Holds phone near NFC tag, programs the account number
+4. **`done`**: Success confirmation, option to enroll another or return home
+5. **`error`**: Error display with retry
+6. **`disenrolling`**: Erases a programmed tag, restores factory defaults
+7. **`disenroll_done`**: Success confirmation after disenrollment
 
 **Programming steps**:
 1. Read tag UID
@@ -92,13 +92,13 @@ Core meter reading workflow. Accepts a customer number from NFC scan or manual e
 **Components used**: `NfcScanner`, `CustomerInfoCard`, `ReadingHistoryPill`, `ReadingInput`, `BillEstimateCard`, `SubmitSummary`
 
 Workflow states:
-1. **`waiting`** — Waiting for NFC tag or manual number entry
-2. **`found`** — Customer found: info card, reading history, input
-3. **`summary`** — Confirmation with `SubmitSummary` (checkmark, value, consumption, bill estimate, "Print Receipt" button, "Back to Scan")
-4. **`error`** — Error message with retry
+1. **`waiting`**: Waiting for NFC tag or manual number entry
+2. **`found`**: Customer found: info card, reading history, input
+3. **`summary`**: Confirmation with `SubmitSummary` (checkmark, value, consumption, bill estimate, "Print Receipt" button, "Back to Scan")
+4. **`error`**: Error message with retry
 
-- NFC listener active in `waiting` state — uses **PWD_AUTH** to authenticate and read protected tags
-- Reading exists for this customer in current month → input disabled, "Already Read — Submit Blocked"
+- NFC listener active in `waiting` state, uses **PWD_AUTH** to authenticate and read protected tags
+- Reading exists for this customer in current month → input disabled, "Already Read, Submit Blocked"
 - Bill estimate recalculates as the user types
 - After submit: confirmation + "Back to Scan"
 

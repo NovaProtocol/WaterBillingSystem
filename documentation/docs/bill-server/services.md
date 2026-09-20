@@ -56,7 +56,7 @@ Batch due computation using single query for all customers.
 
 **`get_customer_by_number(customer_number)`** → `Customer | None`
 
-**`recalc_total_due(customer_number)`** → `float` — recomputes and persists the `total_due` column (called on customer profile access and payment changes).
+**`recalc_total_due(customer_number)`** → `float`, recomputes and persists the `total_due` column (called on customer profile access and payment changes).
 
 ### fee_service.py (`api/fee_service.py`)
 
@@ -129,13 +129,13 @@ Creates the phpMyAdmin guest MySQL account (`GUEST_DB_PASSWORD`, restricted to `
 
 A FastAPI app run by granian `--workers 1` (one process, one async claim loop).
 
-- **`background_worker.py`** — claim loop, `TaskState` progress tracking, `/health` endpoint.
-- **`task_handlers.py`** — per-task-type handlers, `HANDLERS` registry.
+- **`background_worker.py`**: claim loop, `TaskState` progress tracking, `/health` endpoint.
+- **`task_handlers.py`**: per-task-type handlers, `HANDLERS` registry.
 
 ### Claim Loop
 
 1. **Enqueue**: routes call `BackgroundTask.enqueue(task_type, params, title, scheduled_at)` (or `enqueue_unique` for the periodic Xendit reconcile).
-2. **Claim**: `SELECT ... WHERE status='queued' AND (scheduled_at IS NULL OR scheduled_at <= NOW) ORDER BY created_at ASC ... FOR UPDATE SKIP LOCKED LIMIT 1` — **exactly one job at a time**. Stale tasks stuck `running` for >5 minutes are marked `failed` first.
+2. **Claim**: `SELECT ... WHERE status='queued' AND (scheduled_at IS NULL OR scheduled_at <= NOW) ORDER BY created_at ASC ... FOR UPDATE SKIP LOCKED LIMIT 1`, **exactly one job at a time**. Stale tasks stuck `running` for >5 minutes are marked `failed` first.
 3. **Execute**: sets `running` + `started_at`, awaits the handler with a `_report(pct, msg)` callback.
 4. **Complete**: sets `completed`/`failed`, progress 100, stores final messages; progress is persisted to the DB every 0.5s by a background persister task.
 5. **Health**: `GET /health` → `{status, mode: idle|working, current_task, progress, last_message}`.
@@ -161,7 +161,7 @@ Runs inside the API lifespan, after `init_db()` (`create_all`) and before the se
 - **Manifest**: a 14-entry canonical index manifest (from the 2026-08-06 query audit) plus model-derived indexes (`index=True`, unique columns/constraints). Missing indexes → auto-created.
 - **Safe DDL** (applied on MySQL only): missing tables, missing indexes, widening `ALTER MODIFY` (preserving `DEFAULT`), `NOT NULL` → `NULL` loosening, drop redundant non-unique left-prefix indexes.
 - **Fatal** (`sys.exit(1)` + printed findings + suggested commands): manifest errors, missing columns, incompatible type changes, time-named columns (`timestamp|date_|_at$|created|updated|scheduled|started|finished|reversed|modified`) that are not `DATETIME`, index name/definition conflicts.
-- Logs `preflight: OK — ...` on success; container crash-loops on fatal findings.
+- Logs `preflight: OK, ...` on success; container crash-loops on fatal findings.
 
 ## Service Dependency Graph
 

@@ -32,9 +32,9 @@ API keys are generated and revoked from the staff dashboard (`/staff/meter-readi
 GET /api/key/info
 ```
 
-**Auth:** API key — `Authorization: Bearer <key>` header or `?api_key=<key>` query param
+**Auth:** API key, `Authorization: Bearer <key>` header or `?api_key=<key>` query param
 
-**Response** `200` — valid key:
+**Response** `200`, valid key:
 ```json
 {
   "api_key": {
@@ -58,19 +58,19 @@ GET /api/key/info
 }
 ```
 
-**Response** `401` — missing or invalid API key:
+**Response** `401`, missing or invalid API key:
 ```json
 {"error": "Authentication required"}
 ```
 
-**Response** `403` — revoked key:
+**Response** `403`, revoked key:
 ```json
 {"error": "API key has been revoked"}
 ```
 
 ---
 
-### 2. Customer — Full Billing Details
+### 2. Customer: Full Billing Details
 
 ```
 GET /api/customer/<customer_number>
@@ -78,7 +78,7 @@ GET /api/customer/<customer_number>
 
 **Auth:** API key (`Authorization: Bearer <key>` header or `?api_key=<key>` query param) **or** staff session (Flask-Login cookie)
 
-**Response** `200` — found:
+**Response** `200`, found:
 ```json
 {
   "customer_number": "C1",
@@ -159,29 +159,29 @@ GET /api/customer/<customer_number>
 }
 ```
 
-**Response** `401` — missing or invalid auth:
+**Response** `401`, missing or invalid auth:
 ```json
 {"error": "Authentication required"}
 ```
 
-**Response** `404` — customer not found:
+**Response** `404`, customer not found:
 ```json
 {"error": "Customer CUST-999 not found"}
 ```
 
 ---
 
-### 3. Customer — Profile with Reading History
+### 3. Customer: Profile with Reading History
 
 ```
 GET /api/customer/<customer_number>/details?history=N
 ```
 
-**Auth:** API key — `Authorization: Bearer <key>` header or `?api_key=<key>` query param (session auth NOT accepted)
+**Auth:** API key, `Authorization: Bearer <key>` header or `?api_key=<key>` query param (session auth NOT accepted)
 
 **Query params:** `history` (int, default `5`, number of recent readings)
 
-**Response** `200` — success:
+**Response** `200`, success:
 ```json
 {
   "customer": {
@@ -204,19 +204,19 @@ GET /api/customer/<customer_number>/details?history=N
 }
 ```
 
-**Response** `401` — missing or invalid API key:
+**Response** `401`, missing or invalid API key:
 ```json
 {"error": "Authentication required"}
 ```
 
-**Response** `404` — customer not found:
+**Response** `404`, customer not found:
 ```json
 {"error": "Customer CUST-999 not found"}
 ```
 
 ---
 
-### 4. Customer — Reference (Single + Latest Reading)
+### 4. Customer: Reference (Single + Latest Reading)
 
 ```
 GET /api/readings/customer/<customer_number>
@@ -224,7 +224,7 @@ GET /api/readings/customer/<customer_number>
 
 **Auth:** API key + `can_read_meters` permission
 
-**Response** `200` — success:
+**Response** `200`, success:
 ```json
 {
   "customer_number": "C1",
@@ -242,24 +242,24 @@ GET /api/readings/customer/<customer_number>
 }
 ```
 
-**Response** `401` — missing or invalid API key:
+**Response** `401`, missing or invalid API key:
 ```json
 {"error": "Authentication required"}
 ```
 
-**Response** `403` — missing `can_read_meters` permission:
+**Response** `403`, missing `can_read_meters` permission:
 ```json
 {"error": "Forbidden"}
 ```
 
-**Response** `404` — customer not found:
+**Response** `404`, customer not found:
 ```json
 {"error": "Customer CUST-999 not found"}
 ```
 
 ---
 
-### 5. Readings — Bulk Sync
+### 5. Readings: Bulk Sync
 
 ```
 POST /api/readings/sync
@@ -280,15 +280,15 @@ POST /api/readings/sync
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `customer_number` | string | yes | — | Must exist in DB |
-| `reading_value` | number | yes | — | Meter reading in m³ |
+| `customer_number` | string | yes | n/a | Must exist in DB |
+| `reading_value` | number | yes | n/a | Meter reading in m³ |
 | `timestamp` | int | no | current time | Unix timestamp |
 
 The reader is automatically set to the staff member associated with the API key.
 
 **Monthly duplicate check:** If a reading already exists for the same customer in the same calendar month, it is rejected and logged to `ManagementLog`.
 
-**Response** `200` — partial success (some accepted, some rejected):
+**Response** `200`, partial success (some accepted, some rejected):
 ```json
 {
   "synced": 1,
@@ -302,7 +302,7 @@ The reader is automatically set to the staff member associated with the API key.
 }
 ```
 
-**Response** `200` — all accepted:
+**Response** `200`, all accepted:
 ```json
 {
   "synced": 2,
@@ -315,19 +315,19 @@ The reader is automatically set to the staff member associated with the API key.
 }
 ```
 
-**Response** `400` — missing required field:
+**Response** `400`, missing required field:
 ```json
 {"error": "readings field is required"}
 ```
 
-**Response** `401` — missing or invalid API key:
+**Response** `401`, missing or invalid API key:
 ```json
 {"error": "Authentication required"}
 ```
 
 ---
 
-### 6. Readings — Upload Single
+### 6. Readings: Upload Single
 
 ```
 POST /api/readings/upload
@@ -347,11 +347,11 @@ POST /api/readings/upload
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `customer_number` | string | yes | — | Must exist in DB |
-| `reading_value` | number | yes | — | Meter reading in m³ |
+| `customer_number` | string | yes | n/a | Must exist in DB |
+| `reading_value` | number | yes | n/a | Meter reading in m³ |
 | `timestamp` | int | no | current time | Unix timestamp |
 
-**Response** `201` — created:
+**Response** `201`, created:
 ```json
 {
   "success": true,
@@ -363,29 +363,29 @@ POST /api/readings/upload
 }
 ```
 
-**Response** `400` — missing required field:
+**Response** `400`, missing required field:
 ```json
 {"error": "customer_number is required"}
 ```
 
-**Response** `401` — missing or invalid API key:
+**Response** `401`, missing or invalid API key:
 ```json
 {"error": "Authentication required"}
 ```
 
-**Response** `404` — customer not found:
+**Response** `404`, customer not found:
 ```json
 {"error": "Customer C1 not found"}
 ```
 
-**Response** `409` — duplicate month:
+**Response** `409`, duplicate month:
 ```json
 {"error": "This meter has already been read this month"}
 ```
 
 ---
 
-### 7. API — Change Detection
+### 7. API: Change Detection
 
 ```
 GET /api/customers/changed?since=<timestamp>
@@ -393,11 +393,11 @@ GET /api/customers/changed?since=<timestamp>
 
 **Auth:** API key + `can_read_meters` permission
 
-**Query params:** `since` (int, required) — Unix timestamp
+**Query params:** `since` (int, required), Unix timestamp
 
 Detects: customer profile edits, new/edited readings, dropped readings (via ManagementLog).
 
-**Response** `200` — changes found:
+**Response** `200`, changes found:
 ```json
 {
   "customer_numbers": ["C1", "C5"],
@@ -406,7 +406,7 @@ Detects: customer profile edits, new/edited readings, dropped readings (via Mana
 }
 ```
 
-**Response** `200` — no changes:
+**Response** `200`, no changes:
 ```json
 {
   "customer_numbers": [],
@@ -415,19 +415,19 @@ Detects: customer profile edits, new/edited readings, dropped readings (via Mana
 }
 ```
 
-**Response** `400` — missing `since` parameter:
+**Response** `400`, missing `since` parameter:
 ```json
 {"error": "since parameter is required"}
 ```
 
-**Response** `401` — missing or invalid API key:
+**Response** `401`, missing or invalid API key:
 ```json
 {"error": "Authentication required"}
 ```
 
 ---
 
-### 8. API — Bulk Customer + Readings Data
+### 8. API: Bulk Customer + Readings Data
 
 ```
 GET /api/readings/bulk?customer_numbers=C1,C2&limit=5
@@ -442,7 +442,7 @@ GET /api/readings/bulk?customer_numbers=C1,C2&limit=5
 | `customer_numbers` | string | required | Comma-separated list of customer numbers |
 | `limit` | int | `0` (no limit) | Max readings per customer |
 
-**Response** `200` — success:
+**Response** `200`, success:
 ```json
 {
   "customers": {
@@ -467,12 +467,12 @@ GET /api/readings/bulk?customer_numbers=C1,C2&limit=5
 }
 ```
 
-**Response** `400` — missing `customer_numbers` parameter:
+**Response** `400`, missing `customer_numbers` parameter:
 ```json
 {"error": "customer_numbers parameter is required"}
 ```
 
-**Response** `401` — missing or invalid API key:
+**Response** `401`, missing or invalid API key:
 ```json
 {"error": "Authentication required"}
 ```
@@ -487,7 +487,7 @@ GET /api/pricing
 
 **Auth:** API key + `can_read_meters` permission
 
-**Response** `200` — success:
+**Response** `200`, success:
 ```json
 {
   "tiers": [
@@ -502,7 +502,7 @@ GET /api/pricing
 }
 ```
 
-**Response** `401` — missing or invalid API key:
+**Response** `401`, missing or invalid API key:
 ```json
 {"error": "Authentication required"}
 ```
@@ -517,7 +517,7 @@ GET /api/nfc/config
 
 **Auth:** API key + `can_read_meters` permission
 
-**Response** `200` — success:
+**Response** `200`, success:
 ```json
 {
   "nfc_pwd_secret": "REDACTED_SET_VIA_NFC_PWD_SECRET_ENV",
@@ -525,14 +525,14 @@ GET /api/nfc/config
 }
 ```
 
-**Response** `401` — missing or invalid API key:
+**Response** `401`, missing or invalid API key:
 ```json
 {"error": "Authentication required"}
 ```
 
 ---
 
-### 11. NFC — Download Tags
+### 11. NFC: Download Tags
 
 ```
 GET /api/nfc/tags
@@ -540,7 +540,7 @@ GET /api/nfc/tags
 
 **Auth:** API key + `can_read_meters` permission
 
-**Response** `200` — success:
+**Response** `200`, success:
 ```json
 {
   "tags": [
@@ -550,21 +550,21 @@ GET /api/nfc/tags
 }
 ```
 
-**Response** `200` — no tags enrolled:
+**Response** `200`, no tags enrolled:
 ```json
 {
   "tags": []
 }
 ```
 
-**Response** `401` — missing or invalid API key:
+**Response** `401`, missing or invalid API key:
 ```json
 {"error": "Authentication required"}
 ```
 
 ---
 
-### 12. NFC — Sync Enrollments
+### 12. NFC: Sync Enrollments
 
 ```
 POST /api/nfc/sync
@@ -583,7 +583,7 @@ POST /api/nfc/sync
 }
 ```
 
-**Response** `200` — all synced:
+**Response** `200`, all synced:
 ```json
 {
   "synced": 2,
@@ -594,17 +594,17 @@ POST /api/nfc/sync
 }
 ```
 
-**Response** `400` — missing `enrollments` field:
+**Response** `400`, missing `enrollments` field:
 ```json
 {"error": "enrollments field is required"}
 ```
 
-**Response** `401` — missing or invalid API key:
+**Response** `401`, missing or invalid API key:
 ```json
 {"error": "Authentication required"}
 ```
 
-**Response** `403` — missing `can_enroll_customer` permission:
+**Response** `403`, missing `can_enroll_customer` permission:
 ```json
 {"error": "Forbidden"}
 ```

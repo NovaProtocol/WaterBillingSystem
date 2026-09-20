@@ -14,11 +14,11 @@ Customer-facing errors display a code like `ERR0001` rather than the technical e
 
 | Code | Meaning | Action |
 |------|---------|--------|
-| `CUS400` | API request missing required field (account_number) | This is a bug in the calling code — check customer-portal logs |
+| `CUS400` | API request missing required field (account_number) | This is a bug in the calling code, check customer-portal logs |
 | `CUS404` | Customer number not found in database | Verify the customer number is correct. Customer may be inactive or not yet enrolled |
 | `CUS403` | Registered name doesn't match database record | Customer may be using a different name than what's on file. Verify spelling |
 
-## Staff Portal — API Client Errors
+## Staff Portal: API Client Errors
 
 Staff portal errors surface from `api_client.py` calls. The underlying HTTP status code determines the issue:
 

@@ -21,7 +21,7 @@ def _get_client():
 
 
 async def customer_login(account_number: str, name: str = "", last_receipt: str = "") -> dict:
-    # HTTP is the exclusive transport for login — no grpc fallback.
+    # HTTP is the exclusive transport for login, no grpc fallback.
     r = await _get_client().post(
         "/api/customer/login",
         json={
@@ -35,7 +35,7 @@ async def customer_login(account_number: str, name: str = "", last_receipt: str 
 
 
 async def get_billing(customer_number: int, customer_token: str = "") -> dict:
-    # HTTP is the exclusive transport for billing context — grpc GetCustomer
+    # HTTP is the exclusive transport for billing context, grpc GetCustomer
     # carries only core fields and would mask failures if used as fallback.
     # Fail loud on HTTP errors; do not silently try grpc.
     # The portal-issued billing_session JWT is forwarded as X-Customer-Token
@@ -47,7 +47,7 @@ async def get_billing(customer_number: int, customer_token: str = "") -> dict:
 
 
 async def get_readings(customer_number: int, page: int = 1) -> dict:
-    # gRPC is the exclusive transport for readings — no HTTP fallback.
+    # gRPC is the exclusive transport for readings, no HTTP fallback.
     # Any AioRpcError surfaces as 503 at the caller, never masked.
     try:
         data = await get_readings_via_grpc(customer_number, page=page, size=12)  # type: ignore[misc]
@@ -89,7 +89,7 @@ async def get_payments(customer_number: int, page: int = 1, customer_token: str 
 
 
 async def get_billing_history(customer_number: int, page: int = 1) -> dict:
-    # gRPC is the exclusive transport for billing history — no HTTP fallback.
+    # gRPC is the exclusive transport for billing history, no HTTP fallback.
     try:
         data = await get_billing_history_via_grpc(customer_number, page=page, size=12)  # type: ignore[misc]
     except _grpc.aio.AioRpcError as e:

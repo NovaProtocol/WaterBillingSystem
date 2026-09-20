@@ -47,7 +47,7 @@ async def handle_http_exception(request: Request, exc: StarletteHTTPException):
     code_map = {400: "BAD_REQUEST", 401: "UNAUTHORIZED", 403: "FORBIDDEN", 404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED", 429: "TOO_MANY_REQUESTS"}
     code = code_map.get(exc.status_code, "HTTP_ERROR")
     msg = str(exc.detail) if exc.detail else "Error"
-    # never leak internals — keep detail short
+    # never leak internals, keep detail short
     if exc.status_code >= 500:
         _log("error", "http_exception", request, status_code=exc.status_code, error_code=code, exc_info=True)
     else:

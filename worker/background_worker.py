@@ -1,7 +1,7 @@
 """
 Dedicated background worker process.
 
-A FastAPI app run by granian (--workers 1 — exactly one claim loop).
+A FastAPI app run by granian (--workers 1, exactly one claim loop).
 Polls the background_tasks table for queued tasks, executes handlers,
 and updates progress in the DB. Claims exactly ONE job at a time;
 concurrency happens only inside a job (bounded by WORKER_JOB_CONCURRENCY).
@@ -114,7 +114,7 @@ async def _mark_stale_failed() -> None:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         for t in stale:
             logger.warning(
-                "[background_worker] Found stale running task #%s (%s) — marking as failed",
+                "[background_worker] Found stale running task #%s (%s), marking as failed",
                 t.id,
                 t.task_type,
             )
@@ -222,7 +222,7 @@ async def claim_loop() -> None:
                 persist_task.cancel()
                 await asyncio.gather(persist_task, return_exceptions=True)
         except Exception:
-            logger.exception("[background_worker] claim loop error — continuing")
+            logger.exception("[background_worker] claim loop error, continuing")
             await asyncio.sleep(POLL_INTERVAL)
 
 

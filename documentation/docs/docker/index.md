@@ -4,7 +4,7 @@
 
 All services run as containers in a single `compose.yaml` at the project root. **11 services on 5 networks.**
 
-Every variable in `compose.yaml` is interpolated with `${VAR:?}` — a missing or blank value makes `docker compose up` fail immediately.
+Every variable in `compose.yaml` is interpolated with `${VAR:?}`, a missing or blank value makes `docker compose up` fail immediately.
 
 ## MySQL 8.4
 
@@ -52,10 +52,10 @@ Database administration UI. Internal network only.
 | Internal port | `80` |
 | Connection target | `PMA_HOST=mysql-db`, `PMA_PORT=3306` |
 | Config | `PMA_CONFIG_BASE64` (base64 of `config.inc.php`; when set it replaces the generated config entirely) |
-| Guest account | `GUEST_DB_PASSWORD` — the guest MySQL user (instant login, `only_db` = `DB_NAME`) is provisioned automatically by the API at startup (`shared/services/guest_seeder.py`) |
+| Guest account | `GUEST_DB_PASSWORD`, the guest MySQL user (instant login, `only_db` = `DB_NAME`) is provisioned automatically by the API at startup (`shared/services/guest_seeder.py`) |
 | Upload limit | `UPLOAD_LIMIT` via compose interpolation |
 
-Networks: `net-private` (internal app tier), `net-data` (DB access) — Caddy publishes single `:7020` on the GateKeeper-owned `gatekeeper` network.
+Networks: `net-private` (internal app tier), `net-data` (DB access), Caddy publishes single `:7020` on the GateKeeper-owned `gatekeeper` network.
 
 Access via Caddy gateway at `https://water-billing-system.projectnova.download/phpmyadmin/` (single domain `:7020`).
 
@@ -69,7 +69,7 @@ Serves the pre-built MkDocs static site (`documentation/site/`, built in the Doc
 | Container name | `waterbillingsystem_documentation` |
 | Internal port | `8005` |
 | Command | `granian --interface asgi --host 0.0.0.0 --port 8005 --workers 1 app:app` |
-| Serving | FastAPI (not `mkdocs serve`) — pre-built HTML in `site/` directory |
+| Serving | FastAPI (not `mkdocs serve`), pre-built HTML in `site/` directory |
 
 Networks: `net-private` (Caddy gateway access). Auth is handled by the GateKeeper gate (routes plus rules), not the app. Unknown paths render the themed `/404` page (public, served by the landing page).
 
@@ -120,20 +120,20 @@ A **FastAPI app run by granian `--workers 1`** (exactly one async claim loop) th
 | Internal port | `8006` (EXPOSE only) |
 | Base image | `python:3.14-slim` (+ `default-mysql-client` for mysqldump/mysql) |
 
-Networks: `net-data` (DB access only — no API or public network).
+Networks: `net-data` (DB access only, no API or public network).
 
 Volumes: `db_backups:/app/db_backups` (shared with API container for backup files), `app_logs:/var/log/app`.
 
 **Task types handled:**
-- `backup` — `mysqldump` of all tables to `.sql` file (via `asyncio.create_subprocess_exec`)
-- `restore` — `mysql` restore from `.sql` file
-- `seed` — generate test customers/readings/bills
-- `clear` — truncate all tables, preserve system users
-- `read-this-month` — bulk create current month readings
-- `unread-this-month` — remove unpaid current month readings
-- `pay-this-month` — mark all unpaid current month bills as paid
-- `remove-payment-this-month` — revert paid current month bills
-- `xendit_reconcile` — auto-enqueued every 5 minutes (`enqueue_unique`), checks PENDING Xendit transactions against the Xendit API over `httpx`
+- `backup`, `mysqldump` of all tables to `.sql` file (via `asyncio.create_subprocess_exec`)
+- `restore`, `mysql` restore from `.sql` file
+- `seed`, generate test customers/readings/bills
+- `clear`, truncate all tables, preserve system users
+- `read-this-month`, bulk create current month readings
+- `unread-this-month`, remove unpaid current month readings
+- `pay-this-month`, mark all unpaid current month bills as paid
+- `remove-payment-this-month`, revert paid current month bills
+- `xendit_reconcile`, auto-enqueued every 5 minutes (`enqueue_unique`), checks PENDING Xendit transactions against the Xendit API over `httpx`
 
 ```yaml
 background-worker:
@@ -176,10 +176,10 @@ background-worker:
 | `gatekeeper` | external (`name: gatekeeper`, GateKeeper-owned) | GateKeeper gate (routes plus rules; gateway is the sole member here) | caddy-gateway |
 
 - **`net-api`** (internal): portal→API communication. No external access.
-- **`net-data`** (internal): API's home group — API and worker access MySQL. No external access.
+- **`net-data`** (internal): API's home group, API and worker access MySQL. No external access.
 - **`net-public`** (`internal: true`): public-facing app tier (landing page, customer portal, webhook receiver, gateway).
 - **`net-private`** (`internal: true`): admin-facing app tier (staff portal, developer portal, phpMyAdmin, docs, gateway).
-- **`gatekeeper`** (external, GateKeeper-owned): GateKeeper verifies via DB routes then proxies to the gateway on `:7020` — gateway has 0 per-app `GateKeeper gate`. Only the gateway is attached; no project container joins the tunnel.
+- **`gatekeeper`** (external, GateKeeper-owned): GateKeeper verifies via DB routes then proxies to the gateway on `:7020`, gateway has 0 per-app `GateKeeper gate`. Only the gateway is attached; no project container joins the tunnel.
 
 ## External Networks
 

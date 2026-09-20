@@ -19,7 +19,7 @@ Service-to-service calls:
 ```
 X-Internal-API-Key: <INTERNAL_API_KEY>
 ```
-A valid key re-derives staff from the `X-Staff-ID` header and re-checks `require_staff(*perms)` — no blanket bypass; without staff context the call is rejected (403). Use `X-Staff-ID` header to specify acting staff.
+A valid key re-derives staff from the `X-Staff-ID` header and re-checks `require_staff(*perms)`, no blanket bypass; without staff context the call is rejected (403). Use `X-Staff-ID` header to specify acting staff.
 
 ### Customer self-read
 
@@ -31,7 +31,7 @@ X-Customer-Token: <billing_session JWT>
 
 ### Key Resolution Order
 
-1. `X-Internal-API-Key` header (checked first; staff re-derived from `X-Staff-ID` and perms re-checked — no blanket bypass)
+1. `X-Internal-API-Key` header (checked first; staff re-derived from `X-Staff-ID` and perms re-checked, no blanket bypass)
 2. `Authorization: Bearer <key>` header
 3. `?api_key=<key>` query parameter
 
@@ -41,13 +41,13 @@ X-Customer-Token: <billing_session JWT>
 
 ### System
 
-**GET /health** — App liveness, no prefix. Auth: None.
+**GET /health**: App liveness, no prefix. Auth: None.
 ```json
 {"status": "ok", "db": "connected"}
 ```
 503 + `{"status": "degraded", "db": "<error>"}` when the DB ping fails.
 
-**GET /api/health** — DB connectivity check. Auth: None.
+**GET /api/health**: DB connectivity check. Auth: None.
 ```json
 {"status": "ok", "db": true}
 ```
@@ -57,48 +57,48 @@ On DB failure returns HTTP 200 with `{"status": "degraded", "db": false}`.
 
 ### Config
 
-**GET /api/config/nfc_secret** — Auth: API key (can_read_meters / can_enroll_customer).
+**GET /api/config/nfc_secret**: Auth: API key (can_read_meters / can_enroll_customer).
 Returns `{nfc_pwd_secret, nfc_generation}`.
 
-**GET /api/config/pricing** — Auth: API key (can_read_meters).
+**GET /api/config/pricing**: Auth: API key (can_read_meters).
 Returns `{tiers, late_penalty, due_days}`.
 
 ---
 
 ### Customers
 
-**GET /api/customer/count** — Active customer count. Auth: can_read_meters.
+**GET /api/customer/count**: Active customer count. Auth: can_read_meters.
 
-**GET /api/customer/all** — Paginated list with due amounts, NFC status. Auth: can_read_meters.
+**GET /api/customer/all**: Paginated list with due amounts, NFC status. Auth: can_read_meters.
 - Query: `?page=1&size=50&q=search&sort_by=customer_number&sort_dir=asc`
 - Response: `{data: [...], meta: {current_page, page_size, total_items, total_pages}}`
 
-**GET /api/customer/{customer_number}** — Full billing profile. Auth: customer self-read (own-number `X-Customer-Token`) or `can_read_meters` staff.
+**GET /api/customer/{customer_number}**: Full billing profile. Auth: customer self-read (own-number `X-Customer-Token`) or `can_read_meters` staff.
 - Query: `?staff_id=N&token_id=N`
 - Returns: customer info, latest/last reading, consumption, bill breakdown, pricing tiers, unpaid bills, payment methods, recent payments.
 - Triggers `recalc_total_due()` and `recalc_cumulative_balance()` on access.
 
-**GET /api/customer/{customer_number}/details** — Profile + reading history. Auth: can_read_meters.
+**GET /api/customer/{customer_number}/details**: Profile + reading history. Auth: can_read_meters.
 - Query: `?history=5` (default)
 
-**POST /api/customer/new** — Create customer. Auth: can_enroll_customer.
+**POST /api/customer/new**: Create customer. Auth: can_enroll_customer.
 
-**PUT /api/customer/update/{customer_number}** — Partial update. Auth: can_enroll_customer.
+**PUT /api/customer/update/{customer_number}**: Partial update. Auth: can_enroll_customer.
 
-**DELETE /api/customer/delete/{customer_number}** — Toggle active/inactive. Auth: can_enroll_customer.
+**DELETE /api/customer/delete/{customer_number}**: Toggle active/inactive. Auth: can_enroll_customer.
 
-**POST /api/customer/login** — Customer identity verification (portal auth). Auth: None.
+**POST /api/customer/login**: Customer identity verification (portal auth). Auth: None.
 - Body: `{account_number, registered_name?, last_receipt?}`
 - Verifies the active customer and, when given, the name; used by the customer portal.
 - Error codes: `CUS400` (missing number), `CUS404` (not found), `CUS403` (name mismatch).
 
-**POST /api/customer/{customer_number}/invoice** — Create Xendit payment session. Auth: None (internal use).
+**POST /api/customer/{customer_number}/invoice**: Create Xendit payment session. Auth: None (internal use).
 - Body: `{amount, payment_method, success_url?, cancel_url?}`
 - `xendit_fee` from the PaymentMethod is included in the `total_amount` sent to Xendit.
 - `success_url` and `cancel_url` are forwarded from the request through to the Xendit API.
 - Returns `{redirect_url, external_id, id, base_amount, fee_amount, fee_rate}`.
 
-**GET /api/customers/changed** — Change detection (mobile app sync). Auth: can_read_meters.
+**GET /api/customers/changed**: Change detection (mobile app sync). Auth: can_read_meters.
 - Query: `?since=<unix_timestamp>` (required)
 - Returns `{customer_numbers: [...], server_time, total_customers}`; includes customers with new/modified readings and drop/edit audit log entries.
 
@@ -106,19 +106,19 @@ Returns `{tiers, late_penalty, due_days}`.
 
 ### Readings
 
-**GET /api/customer/{customer_number}/reading** — Paginated readings. Auth: can_read_meters.
+**GET /api/customer/{customer_number}/reading**: Paginated readings. Auth: can_read_meters.
 - Query: `?page=1&size=50`
 
-**POST /api/customer/{customer_number}/reading/new** — Upload reading. Auth: can_read_meters.
+**POST /api/customer/{customer_number}/reading/new**: Upload reading. Auth: can_read_meters.
 - Body: `{reading_value, timestamp?}`
 - Auto-creates billing record.
 - Monthly duplicate check → 409.
 
-**POST /api/customer/{customer_number}/reading/drop** — Delete reading. Auth: can_drop_reading.
+**POST /api/customer/{customer_number}/reading/drop**: Delete reading. Auth: can_drop_reading.
 - Body: `{reading_id, reason}`
 - Current month only, unpaid only.
 
-**POST /api/customer/{customer_number}/reading/edit** — Edit reading. Auth: can_manage_billing.
+**POST /api/customer/{customer_number}/reading/edit**: Edit reading. Auth: can_manage_billing.
 - Body: `{reading_id, reading_value}`
 - Recomputes billing.
 
@@ -126,61 +126,61 @@ Returns `{tiers, late_penalty, due_days}`.
 
 ### Billing & Payments
 
-**GET /api/customer/{customer_number}/billing** — Paginated billing records. Auth: customer self-read (own-number `X-Customer-Token`) or `can_read_meters` staff.
+**GET /api/customer/{customer_number}/billing**: Paginated billing records. Auth: customer self-read (own-number `X-Customer-Token`) or `can_read_meters` staff.
 
-**POST /api/customer/{customer_number}/billing/new** — Submit payment. Auth: can_accept_payment.
+**POST /api/customer/{customer_number}/billing/new**: Submit payment. Auth: can_accept_payment.
 - Body: `{amount}`
 - Waterfall model: oldest unpaid bill first, excess → carryover credit.
 
-**POST /api/customer/{customer_number}/billing/drop** — Undo payment. Auth: can_drop_payment.
+**POST /api/customer/{customer_number}/billing/drop**: Undo payment. Auth: can_drop_payment.
 - Body: `{billing_id, reason}`
 
 ---
 
 ### NFC
 
-**GET /api/customer/{customer_number}/nfc** — Get NFC tag. Auth: can_read_meters.
+**GET /api/customer/{customer_number}/nfc**: Get NFC tag. Auth: can_read_meters.
 
-**GET /api/customer/all/nfc** — All NFC tags. Auth: can_read_meters.
+**GET /api/customer/all/nfc**: All NFC tags. Auth: can_read_meters.
 
-**POST /api/customer/{customer_number}/nfc/create** — Assign tag. Auth: can_enroll_customer.
+**POST /api/customer/{customer_number}/nfc/create**: Assign tag. Auth: can_enroll_customer.
 - Body: `{uid}`
 
-**POST /api/customer/{customer_number}/nfc/delete** — Remove tag. Auth: can_enroll_customer.
+**POST /api/customer/{customer_number}/nfc/delete**: Remove tag. Auth: can_enroll_customer.
 - Increments NFC generation counter.
 
 ---
 
 ### Staff
 
-**POST /api/staff/login** — Staff authentication. Auth: None.
+**POST /api/staff/login**: Staff authentication. Auth: None.
 - Body: `{username, password}`
 - Returns full staff object with 7 permissions.
 - Password hashes are pure-stdlib pbkdf2-hmac-sha512 (legacy werkzeug hashes still verifiable).
 
-**GET /api/staff/info** — Current staff info. Auth: API key or internal.
+**GET /api/staff/info**: Current staff info. Auth: API key or internal.
 - With internal key, requires `X-Staff-ID` header or `staff_id` in body.
 
-**GET /api/staff/all** — List all staff. Auth: can_enroll_staff.
+**GET /api/staff/all**: List all staff. Auth: can_enroll_staff.
 
-**GET /api/staff/{id}** — Single staff. Auth: can_enroll_staff.
+**GET /api/staff/{id}**: Single staff. Auth: can_enroll_staff.
 
-**POST /api/staff/new** — Create staff. Auth: can_enroll_staff.
+**POST /api/staff/new**: Create staff. Auth: can_enroll_staff.
 
-**POST /api/staff/{id}/edit** — Edit staff. Auth: can_enroll_staff.
+**POST /api/staff/{id}/edit**: Edit staff. Auth: can_enroll_staff.
 
-**GET /api/staff/{id}/cashier-tally** — Cashier report. Auth: can_accept_payment.
+**GET /api/staff/{id}/cashier-tally**: Cashier report. Auth: can_accept_payment.
 - Query: `?period=daily&start_date=&end_date=&group_days=1&cashier_id=`
 
-**GET /api/staff/{id}/reading-logs** — Audit logs. Auth: can_drop_reading. Last 50 entries.
+**GET /api/staff/{id}/reading-logs**: Audit logs. Auth: can_drop_reading. Last 50 entries.
 
-**GET /api/staff/{id}/api-keys** — List all API keys. Auth: API key.
+**GET /api/staff/{id}/api-keys**: List all API keys. Auth: API key.
 
-**POST /api/staff/{id}/api-key/generate** — Generate key. Auth: can_read_meters.
+**POST /api/staff/{id}/api-key/generate**: Generate key. Auth: can_read_meters.
 
-**POST /api/staff/{id}/api-key/{key_id}/revoke** — Revoke key. Auth: can_read_meters.
+**POST /api/staff/{id}/api-key/{key_id}/revoke**: Revoke key. Auth: can_read_meters.
 
-**POST /api/staff/{staff_id}/api-key/verify** — Verify key validity. Auth: API key.
+**POST /api/staff/{staff_id}/api-key/verify**: Verify key validity. Auth: API key.
 - Body: `{api_key}`
 - Returns `{valid, api_key, staff}` or 404 for invalid/revoked keys.
 
@@ -188,7 +188,7 @@ Returns `{tiers, late_penalty, due_days}`.
 
 ### Debug
 
-Debug endpoints have **no API-level auth** — access is restricted by network isolation (`net-api` is internal; the developer portal is the intended client). All operations enqueue tasks via the `BackgroundTask` DB table, processed one at a time by the worker container.
+Debug endpoints have **no API-level auth**: access is restricted by network isolation (`net-api` is internal; the developer portal is the intended client). All operations enqueue tasks via the `BackgroundTask` DB table, processed one at a time by the worker container.
 
 | Method | Endpoint | Action |
 |--------|----------|--------|
@@ -210,7 +210,7 @@ Debug endpoints have **no API-level auth** — access is restricted by network i
 
 ### Webhook
 
-**POST /api/webhook/xendit-payment** — Xendit payment callback. Auth: `X-Callback-Token` header whose value matches `XENDIT_WEBHOOK_TOKEN` or `INTERNAL_API_KEY`. Separate router (not the `/api` blueprint's dependency chain).
+**POST /api/webhook/xendit-payment**: Xendit payment callback. Auth: `X-Callback-Token` header whose value matches `XENDIT_WEBHOOK_TOKEN` or `INTERNAL_API_KEY`. Separate router (not the `/api` blueprint's dependency chain).
 - Accepts `PAID`, `COMPLETED`, and `SUCCEEDED` status values.
 - Uses `tx.base_amount` (not `tx.amount`) when submitting payment to avoid overpayment carryover.
 - Detailed logging of callback data and transaction lookup results.

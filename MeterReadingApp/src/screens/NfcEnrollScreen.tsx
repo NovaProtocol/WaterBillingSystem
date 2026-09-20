@@ -150,7 +150,7 @@ export default function NfcEnrollScreen() {
       }
 
       if (!authed) {
-        throw new Error('Could not authenticate with tag — cannot write');
+        throw new Error('Could not authenticate with tag, cannot write');
       }
 
       setProgress(30);
@@ -691,7 +691,7 @@ export default function NfcEnrollScreen() {
             ) : null}
             {selectedCustomer && (
               <Text style={styles.programmingCustomer}>
-                Customer: {selectedCustomer.customer_number} — {selectedCustomer.name}
+                Customer: {selectedCustomer.customer_number}, {selectedCustomer.name}
               </Text>
             )}
           </View>
@@ -722,7 +722,7 @@ export default function NfcEnrollScreen() {
             <Text style={styles.doneIcon}>{'\u2705'}</Text>
             <Text style={styles.doneTitle}>Enrollment Complete</Text>
             <Text style={styles.doneSubtitle}>
-              {selectedCustomer?.customer_number} — {selectedCustomer?.name}
+              {selectedCustomer?.customer_number}, {selectedCustomer?.name}
             </Text>
             <Text style={styles.doneHint}>The tag has been programmed successfully.</Text>
             <TouchableOpacity

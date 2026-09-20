@@ -51,7 +51,7 @@
                                     </div>
                                 </div>
                             </td>
-                            <td>{{ k.label or '—' }}</td>
+                            <td>{{ k.label or ' - ' }}</td>
                             <td>
                                 {% if k.is_active %}
                                 <span class="badge badge-success">Active</span>
@@ -59,7 +59,7 @@
                                 <span class="badge badge-secondary">Revoked</span>
                                 {% endif %}
                             </td>
-                            <td>{{ k.date_created[:16] if k.date_created else '—' }}</td>
+                            <td>{{ k.date_created[:16] if k.date_created else ' - ' }}</td>
                             <td>
                                 {% if k.is_active %}
                                 <button class="btn btn-outline-sm revoke-key" data-id="{{ k.id }}" title="Revoke">

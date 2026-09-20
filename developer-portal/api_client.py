@@ -5,7 +5,7 @@ import os
 from shared.http_client import make_client
 
 # Debug routes are HTTP-only (BackgroundTasks, not in BillingService proto).
-# No gRPC — fail loud on HTTP errors.
+# No gRPC: fail loud on HTTP errors.
 
 
 _client = None

@@ -27,7 +27,7 @@ $(function() {
 
     $(document).on('click', '#customerDropdown .item', function() {
         selectedCustomer = $(this).data('number');
-        $('#customerSearch').val(selectedCustomer + ' — ' + $(this).data('name'));
+        $('#customerSearch').val(selectedCustomer + ', ' + $(this).data('name'));
         $('#customerDropdown').hide();
         loadCustomer(selectedCustomer);
     });
@@ -52,29 +52,29 @@ $(function() {
                 selectedCustomer = custNum;
                 $('#custNumLabel').text('(' + data.customer_number + ')');
                 $('#infoCustNum').text(data.customer_number);
-                $('#infoName').text(data.name || '—');
-                $('#infoAddress').text(data.address || '—');
-                $('#infoContact').text(data.contact_number || '—');
-                $('#infoEmail').text(data.email || '—');
+                $('#infoName').text(data.name || ' - ');
+                $('#infoAddress').text(data.address || ' - ');
+                $('#infoContact').text(data.contact_number || ' - ');
+                $('#infoEmail').text(data.email || ' - ');
 
                 if (data.latest_reading) {
-                    $('#currentReading').text(data.latest_reading.reading_value != null ? data.latest_reading.reading_value : '—');
-                    $('#currentReader').text('Recorded by: ' + (data.latest_reading.reader || data.latest_reading.reader_id || '—'));
+                    $('#currentReading').text(data.latest_reading.reading_value != null ? data.latest_reading.reading_value : ' - ');
+                    $('#currentReader').text('Recorded by: ' + (data.latest_reading.reader || data.latest_reading.reader_id || ' - '));
                     var d = new Date((data.latest_reading.timestamp||0) * 1000);
                     $('#currentDate').text(d.toLocaleDateString() + ' ' + d.toLocaleTimeString());
                 } else {
-                    $('#currentReading').text('—');
+                    $('#currentReading').text(' - ');
                     $('#currentReader').text('No readings available');
                     $('#currentDate').text('');
                 }
 
                 if (data.last_reading) {
-                    $('#prevReading').text(data.last_reading.reading_value != null ? data.last_reading.reading_value : '—');
-                    $('#prevReader').text('Recorded by: ' + (data.last_reading.reader || data.last_reading.reader_id || '—'));
+                    $('#prevReading').text(data.last_reading.reading_value != null ? data.last_reading.reading_value : ' - ');
+                    $('#prevReader').text('Recorded by: ' + (data.last_reading.reader || data.last_reading.reader_id || ' - '));
                     var d2 = new Date((data.last_reading.timestamp||0) * 1000);
                     $('#prevDate').text(d2.toLocaleDateString() + ' ' + d2.toLocaleTimeString());
                 } else {
-                    $('#prevReading').text('—');
+                    $('#prevReading').text(' - ');
                     $('#prevReader').text('No previous reading');
                     $('#prevDate').text('');
                 }

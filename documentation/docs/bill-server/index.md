@@ -8,8 +8,8 @@ Part of the original monolithic BillServer. Business logic is extracted into ser
 
 | Router | Prefix | Routes |
 |--------|--------|--------|
-| `blueprint` (`api/blueprint.py`) | `/api/*` | 49 endpoints — customer, staff, config, system, debug |
-| `webhook_router` (`routes/webhooks.py`) | `/api/webhook/*` | 1 endpoint — Xendit callback |
+| `blueprint` (`api/blueprint.py`) | `/api/*` | 49 endpoints, customer, staff, config, system, debug |
+| `webhook_router` (`routes/webhooks.py`) | `/api/webhook/*` | 1 endpoint, Xendit callback |
 
 Plus an app-level `GET /health` (no prefix).
 
@@ -59,7 +59,7 @@ Keys are tied to `Staff` accounts with granular boolean permissions (7 flags). F
 
 ### Internal API Key
 
-Service-to-service authentication via `X-Internal-API-Key` header. When valid the gateway re-derives staff from `X-Staff-ID` (set by `staff-portal/api_client.py`) and re-checks `require_staff(*perms)` — OR semantics, no blanket bypass.
+Service-to-service authentication via `X-Internal-API-Key` header. When valid the gateway re-derives staff from `X-Staff-ID` (set by `staff-portal/api_client.py`) and re-checks `require_staff(*perms)`, OR semantics, no blanket bypass.
 
 ### Customer self-read
 
@@ -67,7 +67,7 @@ Service-to-service authentication via `X-Internal-API-Key` header. When valid th
 
 ### Staff Session Login
 
-`POST /api/staff/login` — validates credentials (pure-stdlib pbkdf2-hmac-sha512 hashes; legacy werkzeug formats still verifiable), returns staff data with permissions. Portals sign sessions with `PyJWT HS256` (`shared/wbs_jwt.py` `ISS=wbs AUD=waterbillingsystem` — customer `billing_session` 12h `Path /customer/` `HttpOnly SameSite=Lax Secure`, staff `session` 8h, dev `session` 8h). `shared/auth.py` `URLSafeTimedSerializer` is a one-deploy fallback only.
+`POST /api/staff/login`, validates credentials (pure-stdlib pbkdf2-hmac-sha512 hashes; legacy werkzeug formats still verifiable), returns staff data with permissions. Portals sign sessions with `PyJWT HS256` (`shared/wbs_jwt.py` `ISS=wbs AUD=waterbillingsystem`, customer `billing_session` 12h `Path /customer/` `HttpOnly SameSite=Lax Secure`, staff `session` 8h, dev `session` 8h). `shared/auth.py` `URLSafeTimedSerializer` is a one-deploy fallback only.
 
 ## Key Design Decisions
 
@@ -106,7 +106,7 @@ shared/
 ├── config.py # Strict env validation (FATAL on missing vars; SECRET_KEY>=32 for JWT)
 ├── db_async.py # Async engine/session (aiomysql) + sync session factory
 ├── wbs_jwt.py # PyJWT HS256 portal sessions (ISS=wbs AUD=waterbillingsystem 12h/8h)
-├── auth.py # itsdangerous shim (one-deploy fallback only — see wbs_jwt.py)
+├── auth.py # itsdangerous shim (one-deploy fallback only, see wbs_jwt.py)
 ├── passwords.py # Pure-stdlib pbkdf2-hmac-sha512 hashing
 ├── logger.py # sqlite-backed request logging
 └── services/

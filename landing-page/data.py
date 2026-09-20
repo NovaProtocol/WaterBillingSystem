@@ -8,7 +8,7 @@ MODELS: dict[str, dict] = {
         "features": ["Kitchen Area", "Living Area", "Dining Area", "Family Area"],
         "image": "catherine/1.jpg",
         "locations": ["Lucena City", "Sariaya"],
-        "description": "A spacious two-storey home with four bedrooms and a family area — perfect for families.",
+        "description": "A spacious two-storey home with four bedrooms and a family area, perfect for families.",
     },
     "bernice-4": {
         "name": "Model Bernice 4",
@@ -19,7 +19,7 @@ MODELS: dict[str, dict] = {
         "features": ["Kitchen Area", "Living Area", "Dining Area", "Family Area"],
         "image": "bernice/1.jpg",
         "locations": ["Lucena City", "Sariaya"],
-        "description": "A two-storey home with four bedrooms and a family area — ideal for families who value space.",
+        "description": "A two-storey home with four bedrooms and a family area, ideal for families who value space.",
     },
     "tristen": {
         "name": "Model Tristen",
@@ -30,7 +30,7 @@ MODELS: dict[str, dict] = {
         "features": ["Kitchen Area", "Living Area", "Dining Area", "Laundry Area"],
         "image": "tristen/1.jpg",
         "locations": ["Lucena City"],
-        "description": "A bungalow with three bedrooms and a laundry area — single-level living at its finest.",
+        "description": "A bungalow with three bedrooms and a laundry area, single-level living at its finest.",
     },
     "sophia": {
         "name": "Model Sophia",
@@ -52,7 +52,7 @@ MODELS: dict[str, dict] = {
         "features": ["Living Area", "Dining Area", "Kitchen Area", "Porch Area"],
         "image": "margarette/1.jpg",
         "locations": ["Lucena City", "Sariaya"],
-        "description": "Affordable two-bedroom socialized housing with a porch — perfect for starting families.",
+        "description": "Affordable two-bedroom socialized housing with a porch, perfect for starting families.",
     },
     "claire-2": {
         "name": "Model Claire 2",
@@ -63,7 +63,7 @@ MODELS: dict[str, dict] = {
         "features": ["Living Area", "Dining Area", "Kitchen Area", "Porch Area"],
         "image": "claire/1.jpg",
         "locations": ["Sariaya"],
-        "description": "Cozy two-bedroom socialized housing with a porch — affordable living for new homeowners.",
+        "description": "Cozy two-bedroom socialized housing with a porch, affordable living for new homeowners.",
     },
     "amelia-3": {
         "name": "Model Amelia 3",
@@ -86,7 +86,7 @@ MODELS: dict[str, dict] = {
         "image": "scarlet/1.jpg",
         "locations": ["Lucena City"],
         "size": "102 sqm",
-        "description": "The Scarlet model at Village of St. Jude Lucena City (BLK. 20 LOT 2 — 102 sqm).",
+        "description": "The Scarlet model at Village of St. Jude Lucena City (BLK. 20 LOT 2, 102 sqm).",
     },
     "lucia": {
         "name": "Model Lucia",

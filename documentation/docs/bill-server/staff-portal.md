@@ -9,14 +9,14 @@ FastAPI web dashboard served by the Caddy gateway at `:7020` (single domain `htt
 Proxy-style FastAPI app:
 - Routes render Jinja2 templates and handle form submissions
 - Business logic is delegated to the API container via `api_client.py`
-- Auth uses PyJWT HS256 `shared/wbs_jwt.py` (`ISS=wbs AUD=waterbillingsystem`) — 8h `session` cookie storing the staff payload from `POST /api/staff/login` (customer `billing_session` is 12h); one-deploy `shared/auth.py` itsdangerous fallback, no server-side session store
+- Auth uses PyJWT HS256 `shared/wbs_jwt.py` (`ISS=wbs AUD=waterbillingsystem`), 8h `session` cookie storing the staff payload from `POST /api/staff/login` (customer `billing_session` is 12h); one-deploy `shared/auth.py` itsdangerous fallback, no server-side session store
 
 ## Authentication
 
 ### Login
 
-**`GET /staff/login`** — Login page
-**`POST /staff/login`** — Submit credentials
+**`GET /staff/login`**: Login page
+**`POST /staff/login`**: Submit credentials
 
 On successful login, the portal calls `POST /api/staff/login` on the API container and stores staff data (including permissions) in the signed `session` cookie.
 
@@ -24,11 +24,11 @@ Default superuser: `superuser` / `superuser` (seeded on first API container star
 
 ### Logout
 
-**`GET /staff/logout`** — Clears session cookie, redirects to login.
+**`GET /staff/logout`**: Clears session cookie, redirects to login.
 
 ### Permission Dependency
 
-`require_perms(*perms)` (FastAPI dependency, OR-semantics — any of the listed perms passes) — checks the signed session payload for required boolean permissions. Returns 403 if missing; redirects to `/staff/login` when not authenticated. API `require_staff(*perms)` mirrors this (OR) and when called via `X-Internal-API-Key` re-derives staff from `X-Staff-ID` so the internal key does not bypass RBAC. Debug routes (`/api/debug/*`) require `can_enroll_staff`.
+`require_perms(*perms)` (FastAPI dependency, OR-semantics, any of the listed perms passes), checks the signed session payload for required boolean permissions. Returns 403 if missing; redirects to `/staff/login` when not authenticated. API `require_staff(*perms)` mirrors this (OR) and when called via `X-Internal-API-Key` re-derives staff from `X-Staff-ID` so the internal key does not bypass RBAC. Debug routes (`/api/debug/*`) require `can_enroll_staff`.
 
 ## Routes
 
@@ -36,7 +36,7 @@ Default superuser: `superuser` / `superuser` (seeded on first API container star
 
 | Route | Method | Permission | Description |
 |-------|--------|------------|-------------|
-| `/staff/` | GET | — | Redirect to dashboard or login |
+| `/staff/` | GET | n/a | Redirect to dashboard or login |
 | `/staff/dashboard` | GET | login_required | Dashboard with customer/staff counts |
 
 ### Customer Management
@@ -118,7 +118,7 @@ Default superuser: `superuser` / `superuser` (seeded on first API container star
 ## API Client
 
 `api_client.py` provides internal HTTP functions:
-- `_get(path, params)` / `_post(path, data)` / `_put(path, data)` / `_delete(path)` — every call includes `X-Internal-API-Key` header
+- `_get(path, params)` / `_post(path, data)` / `_put(path, data)` / `_delete(path)`, every call includes `X-Internal-API-Key` header
 - Timeout: 15 seconds
 - All calls go to `API_BASE_URL` (default: `http://api:8008`)
 
@@ -140,7 +140,7 @@ CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8003", "-
 
 ## Environment Variables
 
-All from `.env` — every one required (`${VAR:?}` in compose):
+All from `.env`, every one required (`${VAR:?}` in compose):
 
 | Variable | Description |
 |----------|-------------|
