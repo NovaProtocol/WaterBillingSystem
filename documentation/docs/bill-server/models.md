@@ -268,7 +268,7 @@ Relationships: `customer` → Customer, `token` → ApiKey, `billings` → Billi
 | `date_created` | DateTime | default utcnow |
 | `date_modified` | DateTime | default utcnow, onupdate utcnow |
 
-Relationships: `customer` → Customer, `reading` → MeterReading, `cashier` → Staff.
+Relationships: `customer` → Customer, `reading` → MeterReading (`lazy="selectin"`, loaded eagerly with every Billing query so async callers never trigger a lazy load outside the greenlet), `cashier` → Staff.
 
 ### ApiKey (`api_keys`)
 
