@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from shared.config import shared_static_dir
 from shared.errors import install_error_handlers
 from shared.logger import attach_sqlite_logging
-from shared.middleware import RequestIDMiddleware
+from shared.middleware import CacheControlMiddleware, RequestIDMiddleware
 
 _TITLES = {
     400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
@@ -45,6 +45,7 @@ for route in routes.router.routes:
         route.name = "landing_blueprint." + route.name
 
 app.add_middleware(RequestIDMiddleware)
+app.add_middleware(CacheControlMiddleware, is_debug=DEBUG)
 install_error_handlers(app)
 
 

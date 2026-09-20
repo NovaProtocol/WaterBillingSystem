@@ -12,7 +12,7 @@ from jinja2 import ChoiceLoader, Environment, FileSystemLoader, select_autoescap
 from shared.config import shared_static_dir, shared_templates_dir
 from shared.errors import install_error_handlers
 from shared.logger import attach_sqlite_logging
-from shared.middleware import RequestIDMiddleware
+from shared.middleware import CacheControlMiddleware, RequestIDMiddleware
 
 _TITLES = {
     400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
@@ -33,7 +33,7 @@ def require_env(*names):
 
 require_env("SECRET_KEY", "INTERNAL_API_KEY", "API_BASE_URL", "DEPLOYMENT_TYPE")
 
-app = FastAPI(title="Cotta Customer Portal")
+app = FastAPI(title="Water Billing Customer Portal")
 
 app.mount("/static", StaticFiles(directory=shared_static_dir()), name="static")
 
@@ -55,6 +55,7 @@ import pages
 app.include_router(pages.pages_bp)
 app.include_router(api_routes.api_bp)
 app.add_middleware(RequestIDMiddleware)
+app.add_middleware(CacheControlMiddleware, is_debug=DEBUG)
 install_error_handlers(app)
 
 

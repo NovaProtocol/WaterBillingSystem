@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 
 from shared.errors import install_error_handlers
 from shared.logger import attach_sqlite_logging
-from shared.middleware import RequestIDMiddleware
+from shared.middleware import CacheControlMiddleware, RequestIDMiddleware
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("webhook")
@@ -22,8 +22,9 @@ def require_env(*names):
 
 require_env("SECRET_KEY", "INTERNAL_API_KEY", "API_BASE_URL", "DEPLOYMENT_TYPE")
 
-app = FastAPI(title="Cotta Webhook")
+app = FastAPI(title="Water Billing Webhook")
 app.add_middleware(RequestIDMiddleware)
+app.add_middleware(CacheControlMiddleware, is_debug=DEBUG)
 
 import routes
 

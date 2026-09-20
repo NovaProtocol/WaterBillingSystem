@@ -252,7 +252,7 @@ async def lifespan(app: FastAPI):
     await asyncio.gather(loop_task, return_exceptions=True)
 
 
-app = FastAPI(title="Cotta Water Billing Worker", lifespan=lifespan)
+app = FastAPI(title="Water Billing Worker", lifespan=lifespan)
 
 
 @app.get("/health")

@@ -88,7 +88,7 @@ def create_app() -> FastAPI:
     if not os.environ.get("SQLALCHEMY_DATABASE_URI"):
         require_env("DB_ENGINE", "DB_HOST", "DB_PORT", "DB_NAME", "DB_USERNAME", "DB_PASS")
 
-    app = FastAPI(title="Cotta Water Billing API", lifespan=lifespan)
+    app = FastAPI(title="Water Billing API", lifespan=lifespan)
     app.add_middleware(RequestIDMiddleware)
     install_error_handlers(app)
 

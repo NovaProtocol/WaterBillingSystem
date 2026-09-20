@@ -1,4 +1,4 @@
-# Cotta Realty Water Billing System
+# Water Billing System
 
 <div align="center">
 
