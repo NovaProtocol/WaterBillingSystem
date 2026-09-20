@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![WaterBillingSystem](https://github.projectnova.download/public/projects/water-billing-system.svg)
+![WaterBillingSystem](https://github.projectnova.download/public/project/water-billing-system.svg)
 
 </div>
 
