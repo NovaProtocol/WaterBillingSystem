@@ -54,8 +54,9 @@ import pages
 
 app.include_router(pages.pages_bp)
 app.include_router(api_routes.api_bp)
+_DEBUG_DEPLOY = os.environ.get("DEPLOYMENT_TYPE", "").lower() in ("debug", "development")
 app.add_middleware(RequestIDMiddleware)
-app.add_middleware(CacheControlMiddleware, is_debug=DEBUG)
+app.add_middleware(CacheControlMiddleware, is_debug=_DEBUG_DEPLOY)
 install_error_handlers(app)
 
 

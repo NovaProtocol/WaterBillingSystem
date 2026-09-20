@@ -35,7 +35,7 @@ app = FastAPI(title="Water Billing Staff Portal")
 
 app.mount("/static", StaticFiles(directory=shared_static_dir()), name="static")
 
-DEBUG_ENABLED = os.environ["DEBUG"].lower() in ("true", "1", "yes")
+_DEBUG_DEPLOY = os.environ.get("DEPLOYMENT_TYPE", "").lower() in ("debug", "development")
 
 
 def _datetimeformat(ts):
@@ -60,7 +60,7 @@ for route in routes.router.routes:
         route.name = "staff_blueprint." + route.name
 
 app.add_middleware(RequestIDMiddleware)
-app.add_middleware(CacheControlMiddleware, is_debug=DEBUG)
+app.add_middleware(CacheControlMiddleware, is_debug=_DEBUG_DEPLOY)
 install_error_handlers(app)
 
 
