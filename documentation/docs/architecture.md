@@ -230,6 +230,28 @@ Progressive tier calculation: consumption is applied to each tier bracket sequen
 
 ---
 
+## Cache Headers
+
+One middleware sets `Cache-Control` for every service: `shared/middleware.py::CacheControlMiddleware`, installed in `api/app.py`, `staff-portal/app.py`, `landing-page/app.py` and `documentation/app.py`. Doing it in the app rather than in `caddy-gateway/Caddyfile` is deliberate, because a single middleware covers mounted `StaticFiles`, HTML routes, `/health` and error pages, and because the edge cannot tell which visitor a response belongs to.
+
+The rule is **an existing header is kept, a gap is filled**:
+
+- a response that already carries `Cache-Control` is returned untouched, which is what `DEPLOYMENT_TYPE=DEBUG` no longer defeats; and
+- only a response carrying none is given a value, `no-store` in debug and the path class's lifespan otherwise.
+
+| Class | Paths | Debug | Production |
+|-------|-------|-------|------------|
+| API | `/api/`, `/customer/api/`, `/staff/api/`, `/developer/api/`, `/webhook/` | `no-store` | `private, no-store` |
+| Static | `/static/` | `no-store` | `public, max-age=86400` |
+| Health | `/health` | `no-store` | `public, max-age=3600` |
+| HTML | anything unmatched | `no-store` | `private, max-age=300` |
+
+The API prefix is tested before the health list, so `/api/health` is `private, no-store` and the `"/api/health"` entry in `_MISC_PATHS` never reaches its own branch. Point a monitor at `/health`. `_API_MAX_AGE` sits with the other lifespans but does not produce the API class's value, which is the literal `private, no-store`.
+
+Three routes set `no-store` themselves and keep it in both modes: `staff-portal/staff_auth.py::logout_response`, `customer-portal/pages.py` `/customer/logout`, and `customer-portal/api_routes.py::_no_cache`. These are logout redirects and per-visitor billing JSON, where a shared copy would be a real leak. [Caching](caching.md) covers the policy, the safety net that makes keeping an upstream header safe, and how to verify a change.
+
+---
+
 ## Internal gRPC vs Public HTTP
 
 Public traffic enters via Caddy (`handle /api/* -> api:8008`), internal traffic prefers gRPC (`api:50051`).
