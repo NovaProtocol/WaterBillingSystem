@@ -1,5 +1,11 @@
 # Cotta Realty Water Billing System
 
+<div align="center">
+
+![WaterBillingSystem](https://github.projectnova.download/public/projects/water-billing-system.svg)
+
+</div>
+
 A complete billing system for a small water utility, from the meter to the receipt.
 
 A reader walks up to a meter with a phone, taps it against an NFC tag, and the reading is recorded.
