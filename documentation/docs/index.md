@@ -1,6 +1,6 @@
-# Cotta Water Billing System
+# Water Billing System
 
-Water billing platform for **Cotta Realty**: meter reading collection, billing computation, payment processing, customer management. 11 Docker services behind a Caddy reverse proxy.
+A water billing platform built for a small utility: meter reading collection, billing computation, payment processing, customer management. 11 Docker services behind a Caddy reverse proxy.
 
 ## Services Overview
 

@@ -21,7 +21,7 @@ require_env("SECRET_KEY", "DEPLOYMENT_TYPE")
 
 SITE_DIR = Path(__file__).resolve().parent / "site"
 
-app = FastAPI(title="Cotta Water Billing Docs")
+app = FastAPI(title="Water Billing Docs")
 
 
 @app.get("/health")
