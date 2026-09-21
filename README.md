@@ -58,3 +58,8 @@ Full documentation is served by the stack at `/documentation/`, and the sources 
 
 It covers the API contract, the tariff and penalty rules, the payment waterfall, the NFC
 provisioning model, and the database schema.
+
+
+## License
+
+BSD 3-Clause. See [LICENSE](LICENSE).
