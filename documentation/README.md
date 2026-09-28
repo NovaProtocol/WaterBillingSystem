@@ -1,6 +1,6 @@
 # Documentation
 
-MkDocs Material site for the WaterBillingSystem, served as its own FastAPI container on `8005` behind the Caddy gateway (`/documentation/*` on `:7020` via wildcard gate `gatekeeper_dynamic`).
+MkDocs Material site for the WaterBillingSystem, served as its own FastAPI container on `8005` behind the Caddy gateway (`/documentation/*` on `:7020`, gated at the GateKeeper wildcard on the `gatekeeper` network).
 
 ## Contents
 

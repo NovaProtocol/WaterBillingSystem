@@ -43,8 +43,8 @@ have to explain the numbers to a board or a cooperative meeting.
 ## Running it
 
 ```bash
-cp .env.example .env
-# .env.example documents every variable the stack reads; fill it in, then start
+# env comes from the shell — there is no .env file (see .env.example for the full list)
+export DEPLOYMENT_TYPE=debug
 docker compose up -d
 ```
 
