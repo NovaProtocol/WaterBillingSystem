@@ -31,7 +31,7 @@ def require_env(*names):
 
 require_env("SECRET_KEY", "DEPLOYMENT_TYPE")
 
-app = FastAPI(title="Cotta Realty Landing")
+app = FastAPI(title="Water Billing System")
 
 app.mount("/static", StaticFiles(directory=shared_static_dir()), name="static")
 

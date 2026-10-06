@@ -10,8 +10,8 @@ function loadCustomers() {
     } else {
       customers.forEach(function(c) {
         var active = c.is_active !== false;
-        var badge = active ? '<span class="badge badge-success badge-pill-cotta">Active</span>'
-          : '<span class="badge badge-secondary badge-pill-cotta">Inactive</span>';
+        var badge = active ? '<span class="badge badge-success badge-pill-app">Active</span>'
+          : '<span class="badge badge-secondary badge-pill-app">Inactive</span>';
         var totalDue = (c.total_due || 0) > 0
           ? '<span class="total-due">&#x20B1;' + (c.total_due || 0).toFixed(2) + '</span>'
           : '<span class="text-muted">&#x20B1;0.00</span>';

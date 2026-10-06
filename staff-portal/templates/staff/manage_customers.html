@@ -4,17 +4,17 @@
 {% block content %}
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="page-title mb-0"><i class="fas fa-users mr-2 text-cotta"></i>Manage Customers</h4>
+    <h4 class="page-title mb-0"><i class="fas fa-users mr-2 text-app"></i>Manage Customers</h4>
   </div>
 
-  <div class="card card-cotta mb-4">
+  <div class="card card-app mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <span><i class="fas fa-list mr-2 text-cotta"></i>All Customers <span class="badge badge-light ml-2" id="totalCount">0</span></span>
+      <span><i class="fas fa-list mr-2 text-app"></i>All Customers <span class="badge badge-light ml-2" id="totalCount">0</span></span>
       <div class="d-flex align-items-center flex-gap-sm">
         <div class="position-relative">
-          <input type="text" id="searchInput" class="form-control form-control-sm form-control-sm-cotta mw-200px" placeholder="Search customer...">
+          <input type="text" id="searchInput" class="form-control form-control-sm form-control-sm-app mw-200px" placeholder="Search customer...">
         </div>
-        <select id="sortSelect" class="form-control form-control-sm form-control-sm-cotta w-auto">
+        <select id="sortSelect" class="form-control form-control-sm form-control-sm-app w-auto">
           <option value="customer_number" selected>Customer #</option>
           <option value="name">Name</option>
           <option value="total_due">Total Due</option>
@@ -22,10 +22,10 @@
           <option value="phase">Phase</option>
           <option value="block">Block</option>
         </select>
-        <button id="sortDirBtn" class="btn btn-outline-cotta btn-sm form-control-sm-cotta" title="Toggle order">
+        <button id="sortDirBtn" class="btn btn-outline-app btn-sm form-control-sm-app" title="Toggle order">
           <i class="fas fa-sort-amount-up-alt"></i>
         </button>
-        <a href="{{ url_for('staff_blueprint.customers') }}" class="btn btn-sm-cotta"><i class="fas fa-user-plus mr-1"></i>Enroll New</a>
+        <a href="{{ url_for('staff_blueprint.customers') }}" class="btn btn-sm-app"><i class="fas fa-user-plus mr-1"></i>Enroll New</a>
       </div>
     </div>
     <div class="card-body p-0">
@@ -49,7 +49,7 @@
     <div class="card-footer init-hidden" id="paginationFooter">
       <div class="d-flex justify-content-between align-items-center">
         <span class="text-muted" id="pageInfo"></span>
-        <nav><ul class="pagination pagination-sm mb-0 pagination-cotta" id="paginationUl"></ul></nav>
+        <nav><ul class="pagination pagination-sm mb-0 pagination-app" id="paginationUl"></ul></nav>
       </div>
     </div>
   </div>
@@ -57,9 +57,9 @@
 
 <div class="modal fade" id="editCustomerModal" tabindex="-1" role="dialog">
   <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content modal-cotta">
+    <div class="modal-content modal-app">
       <div class="modal-header">
-        <h5 class="modal-title font-weight-bold"><i class="fas fa-user-edit mr-2 text-cotta"></i>Edit Customer</h5>
+        <h5 class="modal-title font-weight-bold"><i class="fas fa-user-edit mr-2 text-app"></i>Edit Customer</h5>
         <button type="button" class="close" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
@@ -133,7 +133,7 @@
               </div>
             </div>
           </div>
-          <button type="submit" class="btn btn-cotta btn-block mt-4"><i class="fas fa-save mr-2"></i>Save Changes</button>
+          <button type="submit" class="btn btn-app btn-block mt-4"><i class="fas fa-save mr-2"></i>Save Changes</button>
         </form>
         <hr class="my-4">
         <div>

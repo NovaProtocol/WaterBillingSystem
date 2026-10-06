@@ -3,14 +3,14 @@
 {% block content %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="page-title mb-0"><i class="fas fa-seedling mr-2 text-cotta"></i>Seed Data</h4>
+    <h4 class="page-title mb-0"><i class="fas fa-seedling mr-2 text-app"></i>Seed Data</h4>
 </div>
 
 <div class="row">
   <div class="col-lg-7 mb-4">
-    <div class="card card-cotta">
+    <div class="card card-app">
       <div class="card-header">
-        <i class="fas fa-seedling mr-1 text-cotta"></i>Seed Test Data
+        <i class="fas fa-seedling mr-1 text-app"></i>Seed Test Data
       </div>
       <div class="card-body">
         <p class="text-muted text-sm">Configure and generate random customers with readings and billing history. Max <strong>10 million</strong> total billing entries (customers × months).</p>
@@ -79,7 +79,7 @@
           </div>
         </div>
 
-        <button class="btn btn-outline-cotta mt-3" onclick="execSeed()">
+        <button class="btn btn-outline-app mt-3" onclick="execSeed()">
           <i class="fas fa-seedling mr-1"></i>Seed Data
         </button>
       </div>
@@ -87,22 +87,22 @@
   </div>
 
   <div class="col-lg-5 mb-4">
-    <div class="card card-cotta h-100">
+    <div class="card card-app h-100">
       <div class="card-header">
-        <i class="fas fa-calendar-check mr-1 text-cotta"></i>Monthly Actions
+        <i class="fas fa-calendar-check mr-1 text-app"></i>Monthly Actions
       </div>
       <div class="card-body">
         <p class="text-muted text-sm mb-3">Batch operations on all customers for the current month.</p>
-        <button class="btn btn-outline-cotta btn-sm btn-block mb-2" onclick="confirmAndExec('read-this-month', {}, 'Create readings and bills for ALL customers.')">
+        <button class="btn btn-outline-app btn-sm btn-block mb-2" onclick="confirmAndExec('read-this-month', {}, 'Create readings and bills for ALL customers.')">
           <i class="fas fa-tachometer-alt mr-1"></i>Read This Month
         </button>
-        <button class="btn btn-outline-cotta btn-sm btn-block mb-2" onclick="confirmAndExec('unread-this-month', {}, 'Remove current month readings (only if unpaid).')">
+        <button class="btn btn-outline-app btn-sm btn-block mb-2" onclick="confirmAndExec('unread-this-month', {}, 'Remove current month readings (only if unpaid).')">
           <i class="fas fa-undo mr-1"></i>Unread This Month
         </button>
-        <button class="btn btn-outline-cotta btn-sm btn-block mb-2" onclick="confirmAndExec('pay-this-month', {}, 'Mark all unpaid current-month bills as paid.')">
+        <button class="btn btn-outline-app btn-sm btn-block mb-2" onclick="confirmAndExec('pay-this-month', {}, 'Mark all unpaid current-month bills as paid.')">
           <i class="fas fa-check-circle mr-1"></i>Pay This Month
         </button>
-        <button class="btn btn-outline-cotta btn-sm btn-block" onclick="confirmAndExec('remove-payment-this-month', {}, 'Undo payments for current-month bills.')">
+        <button class="btn btn-outline-app btn-sm btn-block" onclick="confirmAndExec('remove-payment-this-month', {}, 'Undo payments for current-month bills.')">
           <i class="fas fa-times-circle mr-1"></i>Remove Payment
         </button>
       </div>

@@ -4,11 +4,11 @@
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="page-title mb-0"><i class="fas fa-file-invoice mr-2 text-cotta"></i>Manage Billing</h4>
+        <h4 class="page-title mb-0"><i class="fas fa-file-invoice mr-2 text-app"></i>Manage Billing</h4>
     </div>
 
-    <div class="card card-cotta mb-4">
-        <div class="card-header"><i class="fas fa-search mr-2 text-cotta"></i>Find Customer</div>
+    <div class="card card-app mb-4">
+        <div class="card-header"><i class="fas fa-search mr-2 text-app"></i>Find Customer</div>
         <div class="card-body">
             <div class="form-group autocomplete-wrap mb-0">
                 <label>Search Customer</label>
@@ -20,9 +20,9 @@
 
     <div id="billingInfo" class="init-hidden">
 
-        <div class="card card-cotta mb-4">
+        <div class="card card-app mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-user mr-2 text-cotta"></i>Customer Information</span>
+                <span><i class="fas fa-user mr-2 text-app"></i>Customer Information</span>
                 <small class="text-muted" id="custNumLabel"></small>
             </div>
             <div class="card-body">
@@ -38,7 +38,7 @@
 
         <div class="row">
             <div class="col-md-6 mb-4">
-                <div class="card card-cotta h-100">
+                <div class="card card-app h-100">
                     <div class="card-header">Current Reading</div>
                     <div class="card-body text-center">
                         <div class="stat-value text-dark" id="currentReading"> - </div>
@@ -48,7 +48,7 @@
                 </div>
             </div>
             <div class="col-md-6 mb-4">
-                <div class="card card-cotta h-100">
+                <div class="card card-app h-100">
                     <div class="card-header">Previous Reading</div>
                     <div class="card-body text-center">
                         <div class="stat-value text-dark" id="prevReading"> - </div>
@@ -59,7 +59,7 @@
             </div>
         </div>
 
-        <div class="card card-cotta mb-4">
+        <div class="card card-app mb-4">
             <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#pricingCollapse">
                 <div class="d-flex justify-content-between align-items-center">
                     How We Calculate Your Bill
@@ -81,9 +81,9 @@
 
         <div class="row">
             <div class="col-lg-8 col-xl-9">
-                <div class="card card-cotta mb-4">
+                <div class="card card-app mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-file-invoice mr-2 text-cotta"></i>Billing History</span>
+                        <span><i class="fas fa-file-invoice mr-2 text-app"></i>Billing History</span>
                         <span class="text-muted text-sm" id="billingPageInfo"></span>
                     </div>
                     <div class="card-body">
@@ -99,14 +99,14 @@
                             </table>
                         </div>
                         <nav class="init-hidden">
-                            <ul class="pagination pagination-sm justify-content-center mt-3 mb-0 pagination-cotta" id="billingPagination"></ul>
+                            <ul class="pagination pagination-sm justify-content-center mt-3 mb-0 pagination-app" id="billingPagination"></ul>
                         </nav>
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-4 col-xl-3">
-                <div class="card card-cotta mb-4">
+                <div class="card card-app mb-4">
                     <div class="card-header">Bill Summary</div>
                     <div class="card-body">
                         <div id="unpaidBillsList"></div>
@@ -123,7 +123,7 @@
                     </div>
                 </div>
 
-                <div class="card card-cotta mb-4">
+                <div class="card card-app mb-4">
                     <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#paymentHistoryCollapse">
                         <div class="d-flex justify-content-between align-items-center">
                             Payment History
@@ -148,7 +148,7 @@
 
 <div class="modal fade" id="undoPaymentModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
-        <div class="modal-content modal-cotta">
+        <div class="modal-content modal-app">
             <div class="modal-header">
                 <h5 class="modal-title font-weight-bold text-warning">Undo Payment</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>

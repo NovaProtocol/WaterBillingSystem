@@ -16,8 +16,8 @@
         <div class="offerings-filter d-flex flex-wrap align-items-center justify-content-center mb-4">
             <span class="offerings-filter-label mr-3">Available in:</span>
             <button type="button" class="btn btn-sm offerings-filter-btn active" data-filter="all">All</button>
-            <button type="button" class="btn btn-sm offerings-filter-btn" data-filter="lucena">Lucena City</button>
-            <button type="button" class="btn btn-sm offerings-filter-btn" data-filter="sariaya">Sariaya</button>
+            <button type="button" class="btn btn-sm offerings-filter-btn" data-filter="north">North Village</button>
+            <button type="button" class="btn btn-sm offerings-filter-btn" data-filter="south">South Village</button>
             <button type="button" class="btn btn-sm offerings-filter-btn" data-filter="both">Both Villages</button>
         </div>
     </div>
@@ -58,7 +58,7 @@
                 if (filter === 'all') {
                     show = true;
                 } else if (filter === 'both') {
-                    show = locs.indexOf('lucena') !== -1 && locs.indexOf('sariaya') !== -1;
+                    show = locs.indexOf('north') !== -1 && locs.indexOf('south') !== -1;
                 } else {
                     show = locs.indexOf(filter) !== -1;
                 }

@@ -12,7 +12,7 @@ class TestLanding:
         assert r.status_code == 200
 
     def test_model_detail(self, client):
-        r = client.get("/offerings/catherine-4")
+        r = client.get("/offerings/aspen")
         assert r.status_code == 200
 
     def test_model_404(self, client):

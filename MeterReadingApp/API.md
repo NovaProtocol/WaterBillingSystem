@@ -20,7 +20,7 @@ Authorization: Bearer <api_key>
 /api/endpoint?api_key=<api_key>
 ```
 
-API keys are generated and revoked from the staff dashboard (`/staff/meter-reading`). Format: `CRDC-` + 32 uppercase hex characters. A deactivated (`is_active=false`) key is rejected.
+API keys are generated and revoked from the staff dashboard (`/staff/meter-reading`). Format: `WBS-` + 32 uppercase hex characters. A deactivated (`is_active=false`) key is rejected.
 
 ---
 

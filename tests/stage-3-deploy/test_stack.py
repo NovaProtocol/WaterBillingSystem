@@ -6,7 +6,7 @@ class TestPublicEndpoints:
         r = urllib.request.urlopen(f"{public}/")
         assert r.status == 200
         body = r.read().decode()
-        assert "COTTA" in body or "Cotta" in body
+        assert "Water Billing" in body
 
     def test_customer_portal(self, public):
         r = urllib.request.urlopen(f"{public}/customer/")

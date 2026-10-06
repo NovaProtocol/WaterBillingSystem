@@ -3,21 +3,21 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Cotta Realty, {% block title %}{% endblock %}</title>
+    <title>Water Billing System, {% block title %}{% endblock %}</title>
     <link rel="stylesheet" href="/static/common/vendor/bootstrap/4.6.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="/static/common/vendor/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/common/css/cotta.css?v=3">
+    <link rel="stylesheet" href="/static/common/css/app.css?v=3">
     <link rel="icon" type="image/png" href="/static/common/img/favicon.png">
     {% block stylesheets %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
 
-<nav class="navbar navbar-expand-lg navbar-dark navbar-cotta fixed-top">
+<nav class="navbar navbar-expand-lg navbar-dark navbar-app fixed-top">
     <div class="container">
         <button type="button" class="navbar-toggler sidebar-toggle d-lg-none mr-2" aria-label="Menu">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <a class="navbar-brand" href="{% block brand_url %}/{% endblock %}">COTTA <span>REALTY</span> <small class="text-white-50 ml-1" style="font-size:0.8rem;font-weight:400;letter-spacing:0.3px;">{% block portal_label %}{% endblock %}</small></a>
+        <a class="navbar-brand" href="{% block brand_url %}/{% endblock %}">Water Billing <span>System</span> <small class="text-white-50 ml-1" style="font-size:0.8rem;font-weight:400;letter-spacing:0.3px;">{% block portal_label %}{% endblock %}</small></a>
         <div class="ml-auto d-flex align-items-center">
             {% block nav_right %}{% endblock %}
         </div>

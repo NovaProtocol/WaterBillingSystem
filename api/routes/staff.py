@@ -408,7 +408,7 @@ async def staff_api_key_generate(
     staff = await session().get(Staff, staff_id)
     if not staff:
         return JSONResponse({"error": "Staff not found"}, status_code=404)
-    key = "CRDC-" + secrets.token_hex(16).upper()
+    key = "WBS-" + secrets.token_hex(16).upper()
     new_key = ApiKey(key=key, label=label, staff_id=staff_id)
     session().add(new_key)
     await session().commit()

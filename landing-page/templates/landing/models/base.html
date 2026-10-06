@@ -137,7 +137,7 @@
         <div class="model-video-wrapper">
             {% block model_video %}
             <video controls playsinline class="w-100 d-block" poster="/static/landing/img/bg.jpg">
-                <source src="/static/landing/video/cotta-drone.mp4" type="video/mp4">
+                <source src="/static/landing/video/drone.mp4" type="video/mp4">
             </video>
             {% endblock %}
         </div>
@@ -197,23 +197,23 @@
                 {% endif %}
                 <div class="model-disclaimer">
                     <p>
-                        <i class="fas fa-info-circle mr-2 text-cotta"></i>
+                        <i class="fas fa-info-circle mr-2 text-app"></i>
                         Specifications and features may vary. Contact us for the most up-to-date information.
                     </p>
                 </div>
             </div>
             <div class="col-lg-5">
-                <div class="card card-cotta">
+                <div class="card card-app">
                     <div class="card-header">
                         {% block interest_title %}Interested in This Model?{% endblock %}
                     </div>
                     <div class="card-body">
                         <p class="model-interest-text">Contact us to learn more about pricing, financing options, and availability.</p>
-                        <a href="tel:+639123963436" class="btn btn-bill btn-block mb-2">
-                            <i class="fas fa-phone mr-2"></i>+639123963436
+                        <a href="tel:+639000000000" class="btn btn-bill btn-block mb-2">
+                            <i class="fas fa-phone mr-2"></i>+639000000000
                         </a>
-                        <a href="mailto:inquiries.crdc@gmail.com" class="btn btn-outline btn-block">
-                            <i class="fas fa-envelope mr-2"></i>inquiries.crdc@gmail.com
+                        <a href="mailto:info@example.com" class="btn btn-outline btn-block">
+                            <i class="fas fa-envelope mr-2"></i>info@example.com
                         </a>
                     </div>
                 </div>
@@ -234,7 +234,7 @@
             <div class="col-lg-4 col-md-6 mb-4">
                 <a href="{{ url_for('landing_blueprint.model_detail', slug=slug) }}" class="card-link">
                     <div class="model-card">
-                        <img src="/static/landing/img/{{ m.image }}" alt="{{ m.name }}">
+                        <div class="model-card-placeholder"><i class="fas fa-image"></i></div>
                         <div class="body">
                             <span class="badge">{{ m.type }}</span>
                             <h5>{{ m.name }}</h5>

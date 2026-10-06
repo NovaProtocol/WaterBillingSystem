@@ -89,7 +89,7 @@ graph LR
  end
 
  MN -->|"NFC Scan / Manual"| MOB
- MOB -->|"Bearer Auth<br/>CRDC-API Key"| API
+ MOB -->|"Bearer Auth<br/>WBS-API Key"| API
  SP_USER --> SP
  CUST_USER --> CP
  PUBLIC["Public Visitor"] --> LAND

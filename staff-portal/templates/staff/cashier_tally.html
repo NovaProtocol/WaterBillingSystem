@@ -6,18 +6,18 @@
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="page-title mb-0"><i class="fas fa-cash-register mr-2 text-cotta"></i>Cashier Tally</h4>
+        <h4 class="page-title mb-0"><i class="fas fa-cash-register mr-2 text-app"></i>Cashier Tally</h4>
     </div>
 
-    <div class="card card-cotta mb-4">
+    <div class="card card-app mb-4">
         <div class="card-body">
             <div class="d-flex flex-wrap align-items-center mb-3 flex-gap-sm">
                 <div class="btn-group btn-group-sm" role="group">
-                    <a href="?period=daily{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-cotta' if period == 'daily' else 'btn-outline-cotta' }}">Daily</a>
-                    <a href="?period=weekly{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-cotta' if period == 'weekly' else 'btn-outline-cotta' }}">Weekly</a>
-                    <a href="?period=monthly{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-cotta' if period == 'monthly' else 'btn-outline-cotta' }}">Monthly</a>
-                    <a href="?period=yearly{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-cotta' if period == 'yearly' else 'btn-outline-cotta' }}">Yearly</a>
-                    <a href="?period=custom" class="btn {{ 'btn-cotta' if period == 'custom' else 'btn-outline-cotta' }}">Custom</a>
+                    <a href="?period=daily{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-app' if period == 'daily' else 'btn-outline-app' }}">Daily</a>
+                    <a href="?period=weekly{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-app' if period == 'weekly' else 'btn-outline-app' }}">Weekly</a>
+                    <a href="?period=monthly{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-app' if period == 'monthly' else 'btn-outline-app' }}">Monthly</a>
+                    <a href="?period=yearly{% if nav_date %}&date={{ nav_date }}{% endif %}&group_days={{ group_days }}" class="btn {{ 'btn-app' if period == 'yearly' else 'btn-outline-app' }}">Yearly</a>
+                    <a href="?period=custom" class="btn {{ 'btn-app' if period == 'custom' else 'btn-outline-app' }}">Custom</a>
                 </div>
 
                 {% if period == 'custom' %}
@@ -46,7 +46,7 @@
                             <option value="30" {% if group_days == 30 %}selected{% endif %}>30 days</option>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-sm-cotta">Apply</button>
+                    <button type="submit" class="btn btn-sm-app">Apply</button>
                 </form>
                 {% endif %}
             </div>
@@ -54,7 +54,7 @@
             {% if period != 'custom' %}
             <div class="d-flex justify-content-between align-items-center mb-3">
                 {% if prev_date %}
-                <a href="?period={{ period }}&date={{ prev_date }}&group_days={{ group_days }}" class="btn btn-outline-cotta btn-sm">
+                <a href="?period={{ period }}&date={{ prev_date }}&group_days={{ group_days }}" class="btn btn-outline-app btn-sm">
                     <i class="fas fa-chevron-left"></i>
                 </a>
                 {% else %}
@@ -66,7 +66,7 @@
                     <small class="text-muted">Today</small>
                     {% endif %}
                 </div>
-                <a href="?period={{ period }}&date={{ next_date }}&group_days={{ group_days }}" class="btn btn-outline-cotta btn-sm">
+                <a href="?period={{ period }}&date={{ next_date }}&group_days={{ group_days }}" class="btn btn-outline-app btn-sm">
                     <i class="fas fa-chevron-right"></i>
                 </a>
             </div>

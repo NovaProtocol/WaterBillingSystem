@@ -22,7 +22,7 @@ $(function() {
         var dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + 'T' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
         var row = '<tr>' +
           '<td><div class="input-group input-group-sm input-group-sm-nofold mw-260px">' +
-          '<input type="password" class="form-control form-control-sm-cotta key-input form-control-monospace" value="' + resp.key + '" readonly data-full="' + resp.key + '">' +
+          '<input type="password" class="form-control form-control-sm-app key-input form-control-monospace" value="' + resp.key + '" readonly data-full="' + resp.key + '">' +
           '<div class="input-group-append">' +
           '<button class="btn btn-outline-sm toggle-key" type="button" title="Toggle visibility"><i class="fas fa-eye"></i></button>' +
           '<button class="btn btn-outline-sm qr-key" type="button" data-key="' + resp.key + '" title="Show QR"><i class="fas fa-qrcode"></i></button>' +

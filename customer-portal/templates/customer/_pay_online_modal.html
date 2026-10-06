@@ -1,17 +1,17 @@
 <div class="modal fade" id="payOnlineModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
     <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content modal-cotta">
+        <div class="modal-content modal-app">
             <div class="modal-header">
-                <h5 class="modal-title modal-cotta-title">
+                <h5 class="modal-title modal-app-title">
                     <i class="fas fa-credit-card"></i> Pay Online
                 </h5>
-                <button type="button" class="close modal-cotta-close" data-dismiss="modal">
+                <button type="button" class="close modal-app-close" data-dismiss="modal">
                     <span>&times;</span>
                 </button>
             </div>
 
             <div id="pay-online-form">
-                <div class="modal-body modal-cotta-body">
+                <div class="modal-body modal-app-body">
                     <p class="modal-description">
                         Select your preferred payment method to pay your bill online.
                     </p>
@@ -36,7 +36,7 @@
 
                     <div id="payment-groups"></div>
                 </div>
-                <div class="modal-footer modal-cotta-footer">
+                <div class="modal-footer modal-app-footer">
                     <button type="button" class="btn btn-bill w-100" id="pay-now-btn" disabled>
                         <i class="fas fa-lock mr-2"></i>Pay &#x20B1;<span id="pay-amount-btn">0.00</span>
                     </button>
@@ -65,7 +65,7 @@
                     <p class="font-weight-bold modal-status-title">Payment Failed</p>
                     <p class="text-muted mb-0 modal-status-text" id="pay-online-error-msg">An unexpected error occurred.</p>
                 </div>
-                <div class="modal-footer modal-cotta-footer-flex">
+                <div class="modal-footer modal-app-footer-flex">
                     <button type="button" class="btn btn-outline btn-flex" onclick="retryPayment()">
                         <i class="fas fa-redo mr-2"></i>Try Again
                     </button>
@@ -86,7 +86,7 @@
                         <span id="pay-success-method-text">GCash</span> &middot; &#x20B1;<span id="pay-success-amount">0.00</span>
                     </p>
                 </div>
-                <div class="modal-footer modal-cotta-footer">
+                <div class="modal-footer modal-app-footer">
                     <button type="button" class="btn btn-bill w-100" data-dismiss="modal">
                         <i class="fas fa-check mr-2"></i>Done
                     </button>

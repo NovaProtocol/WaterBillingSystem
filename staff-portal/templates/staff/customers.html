@@ -6,10 +6,10 @@
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="page-title mb-0"><i class="fas fa-user-plus mr-2 text-cotta"></i>Enroll Customer</h4>
+        <h4 class="page-title mb-0"><i class="fas fa-user-plus mr-2 text-app"></i>Enroll Customer</h4>
     </div>
 
-    <div class="card card-cotta mb-4">
+    <div class="card card-app mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>Enroll Customer</span>
     </div>
@@ -89,7 +89,7 @@
                     </div>
                 </div>
             </div>
-            <button type="submit" class="btn btn-cotta">
+            <button type="submit" class="btn btn-app">
                 <i class="fas fa-user-plus mr-2"></i>Enroll Customer
             </button>
         </form>
@@ -97,7 +97,7 @@
     </div>
 </div>
 
-<div class="card card-cotta">
+<div class="card card-app">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>Current Customers</span>
         {% if total > per_page %}
@@ -142,7 +142,7 @@
     <div class="card-footer d-flex justify-content-between align-items-center">
         <span class="text-muted">Page {{ page }} of {{ pages }} ({{ total }} total)</span>
         <nav>
-            <ul class="pagination pagination-sm mb-0 pagination-cotta">
+            <ul class="pagination pagination-sm mb-0 pagination-app">
                 <li class="page-item {{ 'disabled' if page <= 1 }}">
                     <a class="page-link" href="{{ url_for('staff_blueprint.customers', page=page-1, per_page=per_page) if page > 1 else '#' }}">&laquo;</a>
                 </li>

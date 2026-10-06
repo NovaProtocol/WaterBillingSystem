@@ -1,59 +1,26 @@
 from __future__ import annotations
 
-import os
-
 from data import MODELS
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from templating import templates
 
-from shared.config import shared_static_dir
-
 router = APIRouter()
 
 MODEL_TEMPLATES: dict[str, str] = {
-    "catherine-4": "landing/models/catherine-4.html",
-    "bernice-4": "landing/models/bernice-4.html",
-    "tristen": "landing/models/tristen.html",
-    "sophia": "landing/models/sophia.html",
-    "margarette-2": "landing/models/margarette-2.html",
-    "claire-2": "landing/models/claire-2.html",
-    "amelia-3": "landing/models/amelia-3.html",
-    "scarlet": "landing/models/scarlet.html",
-    "lucia": "landing/models/lucia.html",
+    "aspen": "landing/models/aspen.html",
+    "birch": "landing/models/birch.html",
+    "cedar": "landing/models/cedar.html",
+    "dogwood": "landing/models/dogwood.html",
+    "elm": "landing/models/elm.html",
+    "fern": "landing/models/fern.html",
+    "hazel": "landing/models/hazel.html",
+    "iris": "landing/models/iris.html",
+    "juniper": "landing/models/juniper.html",
 }
-
-_IMAGE_DIR = os.path.join(shared_static_dir(), "landing", "img")
-
-_FOLDERS = {
-    "catherine-4": "catherine",
-    "bernice-4": "bernice",
-    "tristen": "tristen",
-    "sophia": "sophia",
-    "margarette-2": "margarette",
-    "claire-2": "claire",
-    "amelia-3": "amelia",
-    "scarlet": "scarlet",
-    "lucia": "lucia",
-}
-
-
-def _scan_photos(slug: str) -> list[str]:
-    """List photos for a model folder; 1.jpg first, then the rest sorted."""
-    folder = os.path.join(_IMAGE_DIR, _FOLDERS.get(slug, slug))
-    if not os.path.isdir(folder):
-        return []
-    photos = sorted(
-        f
-        for f in os.listdir(folder)
-        if f.lower().endswith((".jpg", ".jpeg", ".png")) and not f.startswith(".")
-    )
-    photos.sort(key=lambda f: (f != "1.jpg", f))
-    return [f"{_FOLDERS.get(slug, slug)}/{f}" for f in photos]
-
 
 for _slug in MODELS:
-    MODELS[_slug]["photos"] = _scan_photos(_slug)
+    MODELS[_slug]["photos"] = []
 
 
 @router.get("/offerings")

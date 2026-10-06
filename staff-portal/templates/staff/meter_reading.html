@@ -6,18 +6,18 @@
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="page-title mb-0"><i class="fas fa-tachometer-alt mr-2 text-cotta"></i>Meter Reading</h4>
+        <h4 class="page-title mb-0"><i class="fas fa-tachometer-alt mr-2 text-app"></i>Meter Reading</h4>
     </div>
 
-    <div class="card card-cotta mb-4">
+    <div class="card card-app mb-4">
         <div class="card-header">
-            <i class="fas fa-key mr-2 text-cotta"></i>API Keys
+            <i class="fas fa-key mr-2 text-app"></i>API Keys
             <div class="float-right d-flex align-items-center flex-gap-sm">
                 <div class="custom-control custom-checkbox table-font-sm">
                     <input type="checkbox" class="custom-control-input" id="hideRevoked" checked>
                     <label class="custom-control-label" for="hideRevoked">Hide revoked</label>
                 </div>
-                <button class="btn btn-sm-cotta" data-toggle="modal" data-target="#generateKeyModal">
+                <button class="btn btn-sm-app" data-toggle="modal" data-target="#generateKeyModal">
                     <i class="fas fa-plus mr-1"></i>Generate Key
                 </button>
             </div>
@@ -40,7 +40,7 @@
                         <tr class="{% if not k.is_active %}revoked-row{% endif %}">
                             <td>
                                 <div class="input-group input-group-sm input-group-sm-nofold mw-260px">
-                                    <input type="password" class="form-control form-control-sm-cotta key-input" value="{{ k.key }}" readonly data-full="{{ k.key }}">
+                                    <input type="password" class="form-control form-control-sm-app key-input" value="{{ k.key }}" readonly data-full="{{ k.key }}">
                                     <div class="input-group-append">
                                         <button class="btn btn-outline-sm toggle-key" type="button" title="Toggle visibility">
                                             <i class="fas fa-eye"></i>
@@ -81,7 +81,7 @@
 
 <div class="modal fade" id="generateKeyModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
-        <div class="modal-content modal-cotta">
+        <div class="modal-content modal-app">
             <div class="modal-header">
                 <h5 class="modal-title font-weight-bold">Generate API Key</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
@@ -92,7 +92,7 @@
                         <label>Label (optional)</label>
                         <input type="text" id="keyLabel" class="form-control" placeholder="e.g. Terminal 1">
                     </div>
-                    <button type="submit" class="btn btn-cotta btn-block">Generate</button>
+                    <button type="submit" class="btn btn-app btn-block">Generate</button>
                 </form>
             </div>
         </div>
@@ -101,9 +101,9 @@
 
 <div class="modal fade" id="keyResultModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
-        <div class="modal-content modal-cotta">
+        <div class="modal-content modal-app">
             <div class="modal-header">
-                <h5 class="modal-title font-weight-bold"><i class="fas fa-key mr-2 text-cotta"></i>API Key Generated</h5>
+                <h5 class="modal-title font-weight-bold"><i class="fas fa-key mr-2 text-app"></i>API Key Generated</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body text-center">
@@ -112,12 +112,12 @@
                 <div class="input-group mb-3">
                     <input type="text" id="generatedKey" class="form-control text-center font-weight-bold form-control-monospace" readonly>
                     <div class="input-group-append">
-                        <button class="btn btn-cotta" id="copyKeyBtn" type="button">
+                        <button class="btn btn-app" id="copyKeyBtn" type="button">
                             <i class="fas fa-copy"></i>
                         </button>
                     </div>
                 </div>
-                <button class="btn btn-outline-cotta" data-dismiss="modal">Done</button>
+                <button class="btn btn-outline-app" data-dismiss="modal">Done</button>
             </div>
         </div>
     </div>

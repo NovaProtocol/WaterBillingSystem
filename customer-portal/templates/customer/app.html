@@ -4,7 +4,7 @@
 
 {% block stylesheets %}
 <link rel="stylesheet" href="/static/common/vendor/leaflet/1.9.4/leaflet.css" />
-<link rel="stylesheet" href="/static/common/css/cotta-mobile.css?v=2" media="(max-width: 768px)">
+<link rel="stylesheet" href="/static/common/css/app-mobile.css?v=2" media="(max-width: 768px)">
 {% endblock %}
 
 {% block content %}
@@ -19,7 +19,7 @@
     </div>
     <div class="row">
         <div class="col-lg-8 col-xl-9">
-            <div class="card card-cotta mb-4">
+            <div class="card card-app mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     Customer Information
                     <a href="/customer/logout" class="btn btn-outline-bill btn-sm">
@@ -39,7 +39,7 @@
 
             <div class="row">
                 <div class="col-md-6 mb-4">
-                    <div class="card card-cotta h-100">
+                    <div class="card card-app h-100">
                         <div class="card-header">Current Reading</div>
                         <div class="card-body text-center">
                             <div class="stat-value text-dark" id="current-reading-value"></div>
@@ -49,7 +49,7 @@
                     </div>
                 </div>
                 <div class="col-md-6 mb-4">
-                    <div class="card card-cotta h-100">
+                    <div class="card card-app h-100">
                         <div class="card-header">Previous Reading</div>
                         <div class="card-body text-center">
                             <div class="stat-value text-dark" id="previous-reading-value"></div>
@@ -60,7 +60,7 @@
                 </div>
             </div>
 
-            <div class="card card-cotta mb-4">
+            <div class="card card-app mb-4">
                 <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#pricingCollapse">
                     <div class="d-flex justify-content-between align-items-center">
                         How We Calculate Your Bill
@@ -87,7 +87,7 @@
         </div>
 
         <div class="col-lg-4 col-xl-3">
-            <div class="card card-cotta mb-4">
+            <div class="card card-app mb-4">
                 <div class="card-header">
                     Bill Summary
                 </div>
@@ -114,13 +114,13 @@
                     <div class="mt-2 p-2 pending-notice d-none" id="pending-notice">
                         <i class="fas fa-clock mr-1"></i> Online payment pending, awaiting confirmation
                     </div>
-                    <button type="button" class="btn btn-cotta btn-block mt-3" data-toggle="modal" data-target="#payOnlineModal" id="pay-online-btn">
+                    <button type="button" class="btn btn-app btn-block mt-3" data-toggle="modal" data-target="#payOnlineModal" id="pay-online-btn">
                         <i class="fas fa-credit-card mr-2"></i>Pay Online
                     </button>
                 </div>
             </div>
 
-            <div class="card card-cotta mb-4">
+            <div class="card card-app mb-4">
                 <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#paymentCollapse">
                     <div class="d-flex justify-content-between align-items-center">
                         Payment History
@@ -136,13 +136,13 @@
                             </table>
                         </div>
                         <div class="text-center py-2">
-                            <ul class="pagination justify-content-center mb-0 pagination-cotta" id="payment-pagination"></ul>
+                            <ul class="pagination justify-content-center mb-0 pagination-app" id="payment-pagination"></ul>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="card card-cotta mb-4">
+            <div class="card card-app mb-4">
                 <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#readingCollapse">
                     <div class="d-flex justify-content-between align-items-center">
                         Meter Reading History
@@ -158,7 +158,7 @@
                             </table>
                         </div>
                         <div class="text-center py-2">
-                            <ul class="pagination justify-content-center mb-0 pagination-cotta" id="reading-pagination"></ul>
+                            <ul class="pagination justify-content-center mb-0 pagination-app" id="reading-pagination"></ul>
                         </div>
                     </div>
                 </div>
@@ -166,7 +166,7 @@
         </div>
     </div>
 
-    <div class="card card-cotta mb-4">
+    <div class="card card-app mb-4">
         <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#billingHistoryCollapse">
             <div class="d-flex justify-content-between align-items-center">
                 Billing History
@@ -190,7 +190,7 @@
                     </table>
                 </div>
                 <div class="text-center py-2">
-                    <ul class="pagination justify-content-center mb-0 pagination-cotta" id="billing-history-pagination"></ul>
+                    <ul class="pagination justify-content-center mb-0 pagination-app" id="billing-history-pagination"></ul>
                 </div>
             </div>
         </div>

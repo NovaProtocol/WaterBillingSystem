@@ -132,7 +132,7 @@ export default function HomeScreen() {
       <View style={styles.headerSection}>
         <View style={styles.headerAccent} />
         <Text style={styles.title}>Meter Reader</Text>
-        <Text style={styles.subtitle}>Cotta Realty Water Utility</Text>
+        <Text style={styles.subtitle}>Water Utility</Text>
       </View>
 
       <ScrollView

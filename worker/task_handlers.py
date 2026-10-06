@@ -260,53 +260,53 @@ LAST_NAMES = [
 ]
 PHASE_DATA = (
     [
-        {"phase": "Phase L-1 (St. Jude Village)", "block": f"Block {i}", "street": s}
+        {"phase": "Phase A-1", "block": f"Block {i}", "street": s}
         for s in [
-            "St. Peregrine St",
-            "St. Peter Lane",
-            "St. Jude Ave",
-            "San Lorenzo Ruiz St",
+            "Acacia Street",
+            "Narra Street",
+            "Molave Street",
+            "Talisay Street",
         ]
         for i in range(1, 15)
     ]
     + [
-        {"phase": "Phase L-2A (St. Jude Village)", "block": f"Block {i}", "street": s}
+        {"phase": "Phase A-2", "block": f"Block {i}", "street": s}
         for s in [
-            "St. Paul St",
-            "St. John St",
-            "St. Matthew St",
-            "Immaculate Conception Drive",
+            "Bamboo Lane",
+            "Palm Street",
+            "Mango Street",
+            "Cedar Drive",
         ]
         for i in range(1, 15)
     ]
     + [
-        {"phase": "Phase L-2C (St. Jude East)", "block": f"Block {i}", "street": s}
+        {"phase": "Phase B-1", "block": f"Block {i}", "street": s}
         for s in [
-            "St. Thomas St",
-            "St. Luke St",
-            "St. Mark St",
-            "San Pedro Calungsod St",
+            "Pine Street",
+            "Mahogany Street",
+            "Camia Street",
+            "Sampaguita Drive",
         ]
         for i in range(1, 35)
     ]
     + [
-        {"phase": "Phase L-3D (St. Jude East)", "block": f"Block {i}", "street": s}
-        for s in ["St. Joseph St", "St. Mary St", "St. Anne St", "St. Therese St"]
+        {"phase": "Phase B-2", "block": f"Block {i}", "street": s}
+        for s in ["Ilang-Ilang Street", "Dahlia Street", "Rose Street", "Orchid Street"]
         for i in range(1, 25)
     ]
     + [
-        {"phase": "Phase P-1 (Pagbilao)", "block": f"Block {i}", "street": s}
-        for s in ["San Vicente Ferrer St", "San Isidro Labrador St", "San Roque St"]
+        {"phase": "Phase C-1", "block": f"Block {i}", "street": s}
+        for s in ["Rizal Street", "Mabini Street", "Bonifacio Street"]
         for i in range(1, 10)
     ]
     + [
-        {"phase": "Phase S-1 (Sariaya)", "block": f"Block {i}", "street": s}
-        for s in ["San Francisco de Asis St", "Santa Clara St", "Santo Domingo St"]
+        {"phase": "Phase D-1", "block": f"Block {i}", "street": s}
+        for s in ["Del Pilar Street", "Luna Street", "Aguinaldo Street"]
         for i in range(1, 8)
     ]
     + [
-        {"phase": "Phase C-1 (Candelaria)", "block": f"Block {i}", "street": s}
-        for s in ["San Miguel St", "San Gabriel St", "San Rafael St"]
+        {"phase": "Phase E-1", "block": f"Block {i}", "street": s}
+        for s in ["Emerald Street", "Ruby Street", "Pearl Street"]
         for i in range(1, 5)
     ]
 )
@@ -434,7 +434,7 @@ async def _seed_data(
     print("  > Creating API keys for reader mobile access...", flush=True)
     reader_token_ids: list[int] = []
     for sid in reader_staff_ids:
-        raw = "CRDC-" + secrets.token_hex(16).upper()
+        raw = "WBS-" + secrets.token_hex(16).upper()
         ak = ApiKey(key=raw, label=f"reader token {sid}", staff_id=sid, is_active=True)
         s.add(ak)
         await s.flush()
@@ -443,7 +443,7 @@ async def _seed_data(
         await s.execute(select(Staff).where(Staff.username == "superuser"))
     ).scalar_one_or_none()
     if su_staff:
-        raw = "CRDC-" + secrets.token_hex(16).upper()
+        raw = "WBS-" + secrets.token_hex(16).upper()
         ak = ApiKey(key=raw, label="superuser token", staff_id=su_staff.id, is_active=True)
         s.add(ak)
         await s.flush()

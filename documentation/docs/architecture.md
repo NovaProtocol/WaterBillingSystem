@@ -221,8 +221,8 @@ Progressive tier calculation: consumption is applied to each tier bracket sequen
 
 | Method | Header / Parameter | Used By |
 |---|---|---|
-| **API Key (Bearer)** | `Authorization: Bearer CRDC-<32hex>` | MeterReadingApp sync, mobile API calls |
-| **API Key (query)** | `?api_key=CRDC-<32hex>` | Browser fallback for API key auth |
+| **API Key (Bearer)** | `Authorization: Bearer WBS-<32hex>` | MeterReadingApp sync, mobile API calls |
+| **API Key (query)** | `?api_key=WBS-<32hex>` | Browser fallback for API key auth |
 | **Internal API Key** | `X-Internal-API-Key` + `X-Staff-ID` (re-derived staff, OR perm; `GET /api/debug/*` requires `can_enroll_staff`) | Container-to-container API calls |
 | **JWT Session Cookie** | `PyJWT HS256 ISS=wbs AUD=waterbillingsystem`, `billing_session` 12h `Path /customer/` `HttpOnly SameSite=Lax Secure`, `session` 8h staff+dev (`shared/wbs_jwt.py`; `shared/auth.py` one-deploy fallback) | Staff portal, customer billing, developer portal |
 | **Webhook Token** | `X-Callback-Token` value matching `XENDIT_WEBHOOK_TOKEN` or `INTERNAL_API_KEY` | Xendit webhook callback |

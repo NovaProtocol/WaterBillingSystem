@@ -129,7 +129,7 @@ export default function SettingsScreen() {
       <View style={styles.tokenRow}>
         <TextInput
           style={[styles.textInput, styles.tokenInput]}
-          placeholder="CRDC-..."
+          placeholder="WBS-..."
           placeholderTextColor="#999"
           value={apiToken}
           onChangeText={setApiToken}

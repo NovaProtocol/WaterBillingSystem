@@ -55,7 +55,7 @@ Enter an API key manually or tap the QR icon to scan one:
 
 1. Go to BillServer Staff Portal → **Meter Reading** page
 2. Click **Generate API Key**
-3. Copy the key (format: `CRDC-<32hex>`)
+3. Copy the key (format: `WBS-<32hex>`)
 4. In the app Settings, paste the key or tap the QR icon to scan
 
 ### History Count

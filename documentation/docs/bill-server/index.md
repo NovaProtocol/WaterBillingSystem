@@ -51,7 +51,7 @@ All in `api/routes/`:
 
 ### API Key Auth
 
-Format: `CRDC-<32 uppercase hex chars>`. Resolved via:
+Format: `WBS-<32 uppercase hex chars>`. Resolved via:
 1. `Authorization: Bearer <key>` header
 2. `?api_key=<key>` query parameter
 

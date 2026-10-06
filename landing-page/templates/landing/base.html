@@ -3,13 +3,13 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Cotta Realty & Development Corporation</title>
+    <title>Water Billing System</title>
     <link rel="icon" type="image/png" href="/static/common/img/favicon.png">
     <link rel="stylesheet" href="/static/common/vendor/bootstrap/4.6.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="/static/common/vendor/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="/static/common/vendor/leaflet/1.9.4/leaflet.css" />
-    <link rel="stylesheet" href="/static/common/css/cotta.css?v=3">
-    <link rel="stylesheet" href="/static/common/css/cotta-mobile.css" media="(max-width: 768px)">
+    <link rel="stylesheet" href="/static/common/css/app.css?v=3">
+    <link rel="stylesheet" href="/static/common/css/app-mobile.css" media="(max-width: 768px)">
     {% block head_extra %}{% endblock %}
 </head>
 <body class="landing-page">
@@ -27,12 +27,12 @@
 {% endif %}
 {% endwith %}
 
-<nav class="navbar navbar-expand-lg navbar-dark navbar-cotta fixed-top">
+<nav class="navbar navbar-expand-lg navbar-dark navbar-app fixed-top">
     <div class="container">
         <button type="button" class="navbar-toggler sidebar-toggle d-lg-none mr-2" data-toggle="collapse" data-target="#navbarNav" aria-label="Menu">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <a class="navbar-brand" href="{{ url_for('landing_blueprint.index') }}">COTTA <span>REALTY</span></a>
+        <a class="navbar-brand" href="{{ url_for('landing_blueprint.index') }}">Water Billing <span>System</span></a>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto align-items-lg-center">
                 <li class="nav-item"><a class="nav-link" href="/#about">About</a></li>
@@ -67,8 +67,8 @@ $(function () {
     <div class="container">
         <div class="row">
             <div class="col-lg-4 mb-4 mb-lg-0">
-                <h6>COTTA REALTY & DEVELOPMENT CORPORATION</h6>
-                <p>Building communities, creating homes since 1995. Trusted by thousands of Filipino families across Quezon and South Luzon.</p>
+                <h6>WATER BILLING SYSTEM</h6>
+                <p>A complete billing system for a small water utility, from the meter to the receipt.</p>
             </div>
             <div class="col-lg-2 col-6 mb-4 mb-lg-0">
                 <h6>Quick Links</h6>
@@ -81,19 +81,19 @@ $(function () {
             </div>
             <div class="col-lg-3 col-6 mb-4 mb-lg-0">
                 <h6>Contact</h6>
-                <div><a href="tel:+639123963436">+639123963436</a></div>
-                <div><a href="tel:+639107006661">+639107006661</a></div>
-                <div><a href="mailto:inquiries.crdc@gmail.com">inquiries.crdc@gmail.com</a></div>
+                <div><a href="tel:+639000000000">+639000000000</a></div>
+                <div><a href="tel:+639000000001">+639000000001</a></div>
+                <div><a href="mailto:info@example.com">info@example.com</a></div>
             </div>
             <div class="col-lg-3">
                 <h6>Follow Us</h6>
                 <div class="social">
-                    <a href="https://facebook.com/CottaRealty" target="_blank"><i class="fab fa-facebook"></i></a>
+                    <a href="https://facebook.com" target="_blank"><i class="fab fa-facebook"></i></a>
                 </div>
             </div>
         </div>
         <div class="footer-bottom">
-            &copy; 2026 Cotta Realty & Development Corporation. All rights reserved.
+            &copy; 2026 Water Billing System. All rights reserved.
         </div>
     </div>
 </footer>

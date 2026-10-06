@@ -1,13 +1,21 @@
 {% extends "landing/models/base.html" %}
 
-{% block model_type %}Socialized Housing{% endblock %}
-{% block model_name %}Model Margarette 2{% endblock %}
-{% block model_description %}Affordable two-bedroom socialized housing with a porch, perfect for starting families.{% endblock %}
-{% block interest_title %}Interested in Model Margarette 2?{% endblock %}
+{% block model_type %}Bungalow{% endblock %}
+{% block model_name %}Model Cedar{% endblock %}
+{% block model_description %}A bungalow with three bedrooms and a laundry area, single-level living at its finest.{% endblock %}
+{% block interest_title %}Interested in Model Cedar?{% endblock %}
 
 {% block model_specs %}{% endblock %}
 
 {% block model_features %}
+<div class="col-sm-6 mb-3">
+    <div class="model-feature-item">
+        <div class="model-feature-icon">
+            <i class="fas fa-check"></i>
+        </div>
+        <span class="model-feature-label">Kitchen Area</span>
+    </div>
+</div>
 <div class="col-sm-6 mb-3">
     <div class="model-feature-item">
         <div class="model-feature-icon">
@@ -29,15 +37,7 @@
         <div class="model-feature-icon">
             <i class="fas fa-check"></i>
         </div>
-        <span class="model-feature-label">Kitchen Area</span>
-    </div>
-</div>
-<div class="col-sm-6 mb-3">
-    <div class="model-feature-item">
-        <div class="model-feature-icon">
-            <i class="fas fa-check"></i>
-        </div>
-        <span class="model-feature-label">Porch Area</span>
+        <span class="model-feature-label">Laundry Area</span>
     </div>
 </div>
 {% endblock %}
