@@ -386,7 +386,7 @@ section{padding:5rem 0}
 .model-section-heading i{color:#e94560}
 .model-video-wrapper{border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,0.1)}
 .model-video-wrapper video{width:100%;display:block}
-.model-pano-container{height:450px;border-radius:16px;overflow:hidden;background:#1a1a2e;cursor:grab}
+.model-pano-container{position:relative;height:450px;border-radius:16px;overflow:hidden;background:#1a1a2e;cursor:grab}
 .model-pano-hint{text-align:center;color:#6c757d;font-size:.85rem;margin-top:.75rem}
 .model-specs-card{background:#fff;border-radius:16px;padding:2rem;border:1px solid #f0f0f0}
 .model-specs-placeholder{color:#adb5bd;font-size:.9rem;text-align:center;margin:0}
