@@ -10,7 +10,7 @@
 <section class="model-hero">
     <div class="container">
         <a href="{{ url_for('landing_blueprint.offerings') }}" class="btn btn-outline btn-sm mb-3">
-            <i class="fas fa-arrow-left mr-2"></i>Back to Offerings
+            <i class="fas fa-arrow-left me-2"></i>Back to Offerings
         </a>
         <p class="model-header-type">
             {% block model_type %}Model Type{% endblock %}
@@ -22,7 +22,7 @@
         </p>
         <div class="model-header-locs">
             {% for loc in model.locations %}
-            <span class="badge badge-loc badge-loc-hero"><i class="fas fa-map-marker-alt mr-1"></i>{{ loc }}</span>
+            <span class="badge badge-loc badge-loc-hero"><i class="fas fa-map-marker-alt me-1"></i>{{ loc }}</span>
             {% endfor %}
         </div>
     </div>
@@ -31,7 +31,7 @@
 <section class="model-section">
     <div class="container">
         <h2 class="model-section-heading">
-            <i class="fas fa-camera mr-2"></i>Photos
+            <i class="fas fa-camera me-2"></i>Photos
         </h2>
         <div class="row">
             {% block model_photos %}
@@ -66,10 +66,10 @@
             </div>
             {% if photos|length > 5 %}
             <div class="col-lg-6 col-md-6 mb-4">
-                <div class="model-photo-more" data-toggle="modal" data-target="#galleryModal">
+                <div class="model-photo-more" data-bs-toggle="modal" data-bs-target="#galleryModal">
                     <img src="/static/landing/img/{{ photos[4] }}" alt="{{ model.name }}" class="model-photo-more-bg">
                     <div class="model-photo-more-overlay">
-                        <i class="fas fa-images mr-2"></i>+{{ photos|length - 5 }} More
+                        <i class="fas fa-images me-2"></i>+{{ photos|length - 5 }} More
                     </div>
                 </div>
             </div>
@@ -88,8 +88,8 @@
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title">{{ model.name }}, Photos</h5>
-                            <button type="button" class="close" data-dismiss="modal">
-                                <span>&times;</span>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
+                                
                             </button>
                         </div>
                         <div class="modal-body">
@@ -109,8 +109,8 @@
                 <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
                     <div class="modal-content bg-dark border-0">
                         <div class="modal-body p-0 text-center position-relative">
-                            <button type="button" class="btn btn-light lightbox-close" data-dismiss="modal">
-                                <span>&times;</span>
+                            <button type="button" class="btn btn-light lightbox-close" data-bs-dismiss="modal">
+                                
                             </button>
                             <img id="lightbox-img" alt="{{ model.name }}" class="lightbox-img">
                             <button type="button" class="lightbox-nav lightbox-prev" aria-label="Previous">
@@ -132,7 +132,7 @@
 <section class="model-section-alt">
     <div class="container">
         <h2 class="model-section-heading">
-            <i class="fas fa-video mr-2"></i>Video Tour
+            <i class="fas fa-video me-2"></i>Video Tour
         </h2>
         <div class="model-video-wrapper">
             {% block model_video %}
@@ -147,18 +147,18 @@
 <section class="model-section">
     <div class="container">
         <h2 class="model-section-heading">
-            <i class="fas fa-street-view mr-2"></i>360° Panoramic View
+            <i class="fas fa-street-view me-2"></i>360° Panoramic View
         </h2>
         <div id="pano-container"
              class="model-pano-container"
              data-pano="{% block model_360_image %}https://threejs.org/examples/textures/2294472375_24a3b8ef46_o.jpg{% endblock %}">
         </div>
         <p class="model-pano-hint">
-            <i class="fas fa-arrows-alt mr-1"></i> Drag to look around
+            <i class="fas fa-arrows-alt me-1"></i> Drag to look around
         </p>
         <div class="text-center mt-3">
             <button type="button" class="btn btn-bill" id="pano-fullscreen-btn" disabled>
-                <i class="fas fa-expand mr-1"></i>Fullscreen
+                <i class="fas fa-expand me-1"></i>Fullscreen
             </button>
         </div>
     </div>
@@ -167,14 +167,14 @@
 <section class="model-section-alt">
     <div class="container">
         <h2 class="model-section-heading">
-            <i class="fas fa-clipboard-list mr-2"></i>Technical Specifications
+            <i class="fas fa-clipboard-list me-2"></i>Technical Specifications
         </h2>
         <div class="row justify-content-center">
             <div class="col-lg-8">
                 <div class="model-specs-card">
                     {% block model_specs %}
                     <p class="model-specs-placeholder">
-                        <i class="fas fa-pencil-alt mr-2"></i>Specifications coming soon
+                        <i class="fas fa-pencil-alt me-2"></i>Specifications coming soon
                     </p>
                     {% endblock %}
                 </div>
@@ -189,7 +189,7 @@
             <div class="col-lg-7">
                 {% if self.model_features() | trim %}
                 <h2 class="model-section-heading">
-                    <i class="fas fa-check-circle mr-2"></i>Features & Amenities
+                    <i class="fas fa-check-circle me-2"></i>Features & Amenities
                 </h2>
                 <div class="row">
                     {% block model_features %}{% endblock %}
@@ -197,7 +197,7 @@
                 {% endif %}
                 <div class="model-disclaimer">
                     <p>
-                        <i class="fas fa-info-circle mr-2 text-app"></i>
+                        <i class="fas fa-info-circle me-2 text-app"></i>
                         Specifications and features may vary. Contact us for the most up-to-date information.
                     </p>
                 </div>
@@ -209,11 +209,11 @@
                     </div>
                     <div class="card-body">
                         <p class="model-interest-text">Contact us to learn more about pricing, financing options, and availability.</p>
-                        <a href="tel:+639000000000" class="btn btn-bill btn-block mb-2">
-                            <i class="fas fa-phone mr-2"></i>+639000000000
+                        <a href="tel:+639000000000" class="btn btn-bill w-100 mb-2">
+                            <i class="fas fa-phone me-2"></i>+639000000000
                         </a>
-                        <a href="mailto:info@example.com" class="btn btn-outline btn-block">
-                            <i class="fas fa-envelope mr-2"></i>info@example.com
+                        <a href="mailto:info@example.com" class="btn btn-outline w-100">
+                            <i class="fas fa-envelope me-2"></i>info@example.com
                         </a>
                     </div>
                 </div>
@@ -269,7 +269,7 @@ function openLightbox(index) {
     if (!GALLERY_PHOTOS.length) return;
     lightboxIndex = index;
     updateLightbox();
-    $('#photoLightbox').modal('show');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('photoLightbox')).show();
 }
 
 function lightboxStep(dir) {
@@ -278,24 +278,33 @@ function lightboxStep(dir) {
     updateLightbox();
 }
 
-$(document).on('click', '.gallery-click', function () {
-    openLightbox(parseInt($(this).data('index'), 10));
+document.addEventListener('click', function (e) {
+    var galleryItem = e.target.closest('.gallery-click');
+    if (galleryItem) {
+        openLightbox(parseInt(galleryItem.dataset.index, 10));
+        return;
+    }
+    var modalImg = e.target.closest('#galleryModal .gallery-modal-img');
+    if (modalImg) {
+        var idx = parseInt(modalImg.dataset.index, 10);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('galleryModal')).hide();
+        setTimeout(function () { openLightbox(idx); }, 400);
+    }
 });
 
-$(document).on('click', '#galleryModal .gallery-modal-img', function () {
-    var idx = parseInt($(this).data('index'), 10);
-    $('#galleryModal').modal('hide');
-    setTimeout(function () { openLightbox(idx); }, 400);
+document.querySelectorAll('.lightbox-prev').forEach(function (btn) {
+    btn.addEventListener('click', function () { lightboxStep(-1); });
+});
+document.querySelectorAll('.lightbox-next').forEach(function (btn) {
+    btn.addEventListener('click', function () { lightboxStep(1); });
 });
 
-$('.lightbox-prev').on('click', function () { lightboxStep(-1); });
-$('.lightbox-next').on('click', function () { lightboxStep(1); });
-
-$(document).on('keydown', function (e) {
-    if (!$('#photoLightbox').hasClass('show')) return;
+document.addEventListener('keydown', function (e) {
+    var lightbox = document.getElementById('photoLightbox');
+    if (!lightbox || !lightbox.classList.contains('show')) return;
     if (e.key === 'ArrowLeft') lightboxStep(-1);
     if (e.key === 'ArrowRight') lightboxStep(1);
-    if (e.key === 'Escape') $('#photoLightbox').modal('hide');
+    if (e.key === 'Escape') bootstrap.Modal.getOrCreateInstance(lightbox).hide();
 });
 
 document.addEventListener('DOMContentLoaded', function () {

@@ -5,8 +5,8 @@
                 <h5 class="modal-title modal-app-title">
                     <i class="fas fa-file-invoice"></i> <span id="modal-title-text">Check Your Bill</span>
                 </h5>
-                <button type="button" class="close modal-app-close" data-dismiss="modal">
-                    <span>&times;</span>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
+                    
                 </button>
             </div>
 
@@ -28,7 +28,7 @@
                 </div>
                 <div class="modal-footer lookup-modal-footer">
                     <button type="button" class="btn btn-bill w-100" id="lookup-btn">
-                        <i class="fas fa-search mr-2"></i>Look Up
+                        <i class="fas fa-search me-2"></i>Look Up
                     </button>
                 </div>
             </div>
@@ -51,10 +51,10 @@
                 </div>
                 <div class="modal-footer modal-app-footer-flex justify-content-between">
                     <button type="button" class="btn btn-outline" id="back-btn">
-                        <i class="fas fa-arrow-left mr-2"></i>No, go back
+                        <i class="fas fa-arrow-left me-2"></i>No, go back
                     </button>
                     <button type="button" class="btn btn-bill" id="confirm-btn">
-                        <i class="fas fa-check mr-2"></i>Yes, this is my account
+                        <i class="fas fa-check me-2"></i>Yes, this is my account
                     </button>
                 </div>
             </div>
@@ -65,29 +65,44 @@
 <script>
     var customerData = null;
     var lastReceipt = '';
+    var DEBUG = {% if config.get('DEBUG_ENABLED') %}true{% else %}false{% endif %};
+
+    function showLookup(show) {
+        document.getElementById('modal-lookup').style.display = show ? '' : 'none';
+        document.getElementById('modal-confirm').style.display = show ? 'none' : '';
+    }
+
+    function postJSON(url, body) {
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        }).then(function (r) {
+            return r.json().catch(function () { return {}; }).then(function (data) {
+                if (!r.ok) {
+                    var inner = data && data.error;
+                    throw new Error((inner && (inner.message || inner)) || 'Request failed.');
+                }
+                return data;
+            });
+        });
+    }
 
     function doLookup() {
-        var num = $('#lookup-customer-number').val().trim();
-        var receipt = $('#lookup-receipt-number').val().trim();
+        var num = document.getElementById('lookup-customer-number').value.trim();
+        var receipt = document.getElementById('lookup-receipt-number').value.trim();
         lastReceipt = receipt;
         if (!num) { alert('Please enter a customer number.'); return; }
-        {% if not config.get('DEBUG_ENABLED') %}
-        if (!receipt) { alert('Please enter your last receipt number for verification.'); return; }
-        {% endif %}
-        $.ajax({
-            url: '{{ "/customer/api/verify" }}',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ account_number: num, last_receipt: receipt }),
-            success: function(data) {
+        if (!DEBUG && !receipt) { alert('Please enter your last receipt number for verification.'); return; }
+        postJSON('{{ "/customer/api/verify" }}', { account_number: num, last_receipt: receipt })
+            .then(function (data) {
                 customerData = data.customer;
-                $('#confirm-customer-number').text(data.customer.customer_number);
-                $('#confirm-name').text(data.customer.name || '-');
-                $('#confirm-address').text(data.customer.address || '-');
-                $('#modal-lookup').hide();
-                $('#modal-confirm').show();
+                document.getElementById('confirm-customer-number').textContent = data.customer.customer_number;
+                document.getElementById('confirm-name').textContent = data.customer.name || '-';
+                document.getElementById('confirm-address').textContent = data.customer.address || '-';
+                showLookup(false);
                 if (data.customer.x_coordinate && data.customer.y_coordinate) {
-                    setTimeout(function() {
+                    setTimeout(function () {
                         var el = document.getElementById('confirm-map');
                         if (el) {
                             var map = L.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, keyboard: false }).setView([data.customer.x_coordinate, data.customer.y_coordinate], 15);
@@ -96,39 +111,30 @@
                         }
                     }, 400);
                 }
-            },
-            error: function(xhr) {
-                var msg = 'Verification failed. Check your customer number and receipt number.';
-                try { var r = JSON.parse(xhr.responseText); msg = r.error; } catch(e) {}
-                alert(msg);
-            }
-        });
+            })
+            .catch(function (err) {
+                alert(err && err.message ? err.message : 'Verification failed. Check your customer number and receipt number.');
+            });
     }
 
-    $('#lookup-btn').on('click', doLookup);
-    $('#lookup-customer-number, #lookup-receipt-number').on('keypress', function(e) {
-        if (e.which === 13) doLookup();
-    });
-
-    $('#back-btn').on('click', function() {
-        $('#modal-confirm').hide();
-        $('#modal-lookup').show();
-    });
-
-    $('#confirm-btn').on('click', function() {
-        if (!customerData) return;
-        $.ajax({
-            url: '{{ "/customer/api/login" }}',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ account_number: customerData.customer_number, last_receipt: lastReceipt }),
-            success: function(data) {
-                $('#customerModal').modal('hide');
-                window.location.href = data.redirect || '/customer/';
-            },
-            error: function() {
-                alert('Failed to confirm. Please try again.');
-            }
+    document.getElementById('lookup-btn').addEventListener('click', doLookup);
+    ['lookup-customer-number', 'lookup-receipt-number'].forEach(function (id) {
+        document.getElementById(id).addEventListener('keypress', function (e) {
+            if (e.which === 13) doLookup();
         });
+    });
+
+    document.getElementById('back-btn').addEventListener('click', function () {
+        showLookup(true);
+    });
+
+    document.getElementById('confirm-btn').addEventListener('click', function () {
+        if (!customerData) return;
+        postJSON('{{ "/customer/api/login" }}', { account_number: customerData.customer_number, last_receipt: lastReceipt })
+            .then(function (data) {
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('customerModal')).hide();
+                window.location.href = data.redirect || '/customer/';
+            })
+            .catch(function () { alert('Failed to confirm. Please try again.'); });
     });
 </script>

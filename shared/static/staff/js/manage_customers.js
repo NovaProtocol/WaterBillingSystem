@@ -1,86 +1,101 @@
-$(function() {
-    var currentClearNfcId = null;
+(function () {
+  'use strict';
 
-    $(document).on('click', '.edit-customer', function() {
-        var $btn = $(this);
-        $('#editCustId').val($btn.data('id'));
-        $('#editCustNumber').val($btn.data('number'));
-        $('#editCustName').val($btn.data('name'));
-        $('#editCustContact').val($btn.data('contact'));
-        $('#editCustAddress').val($btn.data('address'));
-        $('#editCustEmail').val($btn.data('email'));
-        $('#editCustPhase').val($btn.data('phase'));
-        $('#editCustBlock').val($btn.data('block'));
-        $('#editCustStreet').val($btn.data('street'));
-        $('#editCustX').val($btn.data('x'));
-        $('#editCustY').val($btn.data('y'));
-        $('#editCustMeterSn').val($btn.data('meter-sn') || '');
+  var currentClearNfcId = null;
 
-        var nfcTagId = $btn.data('nfc-tag-id') || '';
-        var hasNfc = nfcTagId.length > 0;
-        var $clearBtn = $('#clearNfcBtn');
-        var $label = $('#clearNfcLabel');
-        if (hasNfc) {
-            $clearBtn.prop('disabled', false).css({opacity:1,background:'#dc3545',color:'#fff',border:'1px solid #dc3545',cursor:'pointer'});
-            $label.text('Clear NFC Mapping (' + nfcTagId.substring(0, 12) + '...)');
-        } else {
-            $clearBtn.prop('disabled', true).css({opacity:0.4,background:'#e9ecef',color:'#6c757d',border:'1px solid #dee2e6',cursor:'not-allowed'});
-            $label.text('No NFC Mapping');
-        }
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.edit-customer');
+    if (!btn) return;
+    var ds = btn.dataset;
 
-        currentClearNfcId = $btn.data('id');
-        $('#editCustomerModal').modal('show');
-    });
+    var set = function (id, value) {
+      var el = document.getElementById(id);
+      if (el) el.value = value == null ? '' : value;
+    };
+    set('editCustId', ds.id);
+    set('editCustNumber', ds.number);
+    set('editCustName', ds.name);
+    set('editCustContact', ds.contact);
+    set('editCustAddress', ds.address);
+    set('editCustEmail', ds.email);
+    set('editCustPhase', ds.phase);
+    set('editCustBlock', ds.block);
+    set('editCustStreet', ds.street);
+    set('editCustX', ds.x);
+    set('editCustY', ds.y);
+    set('editCustMeterSn', ds.meterSn || '');
 
-    $('#editCustomerForm').on('submit', function(e) {
-        e.preventDefault();
-        var id = $('#editCustId').val();
-        $.ajax({
-            url: EDIT_CUSTOMER_URL_BASE.replace('0', id),
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                name: $('#editCustName').val().trim(),
-                address: $('#editCustAddress').val().trim(),
-                contact_number: $('#editCustContact').val().trim(),
-                email: $('#editCustEmail').val().trim(),
-                phase: $('#editCustPhase').val().trim(),
-                block: $('#editCustBlock').val().trim(),
-                street: $('#editCustStreet').val().trim(),
-                x_coordinate: parseFloat($('#editCustX').val()) || null,
-                y_coordinate: parseFloat($('#editCustY').val()) || null,
-                meter_serial_number: $('#editCustMeterSn').val().trim(),
-            }),
-            success: function() { $('#editCustomerModal').modal('hide'); location.reload(); },
-            error: handleAjaxError
-        });
-    });
+    var nfcTagId = ds.nfcTagId || '';
+    var hasNfc = nfcTagId.length > 0;
+    var clearBtn = document.getElementById('clearNfcBtn');
+    var label = document.getElementById('clearNfcLabel');
+    if (hasNfc) {
+      clearBtn.disabled = false;
+      clearBtn.style.opacity = '1';
+      clearBtn.style.background = '#dc3545';
+      clearBtn.style.color = '#fff';
+      clearBtn.style.border = '1px solid #dc3545';
+      clearBtn.style.cursor = 'pointer';
+      label.textContent = 'Clear NFC Mapping (' + nfcTagId.substring(0, 12) + '...)';
+    } else {
+      clearBtn.disabled = true;
+      clearBtn.style.opacity = '0.4';
+      clearBtn.style.background = '#e9ecef';
+      clearBtn.style.color = '#6c757d';
+      clearBtn.style.border = '1px solid #dee2e6';
+      clearBtn.style.cursor = 'not-allowed';
+      label.textContent = 'No NFC Mapping';
+    }
 
-    $(document).on('click', '.toggle-active', function() {
-        var id = $(this).data('id');
-        var active = $(this).data('active') === 'true';
-        var action = active ? 'deactivate' : 'reactivate';
-        if (!confirm('Are you sure you want to ' + action + ' this customer? This may affect billing.')) return;
-        $.ajax({
-            url: TOGGLE_ACTIVE_URL_BASE.replace('0', id),
-            method: 'POST',
-            success: function() { location.reload(); },
-            error: handleAjaxError
-        });
-    });
+    currentClearNfcId = ds.id;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('editCustomerModal')).show();
+  });
 
-    $('#clearNfcBtn').on('click', function() {
-        if (!currentClearNfcId || $(this).prop('disabled')) return;
-        if (!confirm('Clear NFC mapping for this customer? The mobile app will detect this change and remove the tag from its local cache on next sync.')) return;
-        $.ajax({
-            url: CLEAR_NFC_URL_BASE.replace('0', currentClearNfcId),
-            method: 'POST',
-            success: function(data) {
-                alert(data.message);
-                $('#editCustomerModal').modal('hide');
-                location.reload();
-            },
-            error: handleAjaxError
-        });
-    });
-});
+  document.getElementById('editCustomerForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var id = document.getElementById('editCustId').value;
+    var val = function (fid) { return document.getElementById(fid).value.trim(); };
+    var num = function (fid) { var v = parseFloat(document.getElementById(fid).value); return isNaN(v) ? null : v; };
+    postJSON(EDIT_CUSTOMER_URL_BASE.replace('0', id), {
+      name: val('editCustName'),
+      address: val('editCustAddress'),
+      contact_number: val('editCustContact'),
+      email: val('editCustEmail'),
+      phase: val('editCustPhase'),
+      block: val('editCustBlock'),
+      street: val('editCustStreet'),
+      x_coordinate: num('editCustX'),
+      y_coordinate: num('editCustY'),
+      meter_serial_number: val('editCustMeterSn'),
+    })
+      .then(function () {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('editCustomerModal')).hide();
+        location.reload();
+      })
+      .catch(handleError);
+  });
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.toggle-active');
+    if (!btn) return;
+    var id = btn.dataset.id;
+    var active = btn.dataset.active === 'true';
+    var action = active ? 'deactivate' : 'reactivate';
+    if (!confirm('Are you sure you want to ' + action + ' this customer? This may affect billing.')) return;
+    postJSON(TOGGLE_ACTIVE_URL_BASE.replace('0', id), {})
+      .then(function () { location.reload(); })
+      .catch(handleError);
+  });
+
+  document.getElementById('clearNfcBtn').addEventListener('click', function () {
+    if (!currentClearNfcId || this.disabled) return;
+    if (!confirm('Clear NFC mapping for this customer? The mobile app will detect this change and remove the tag from its local cache on next sync.')) return;
+    postJSON(CLEAR_NFC_URL_BASE.replace('0', currentClearNfcId), {})
+      .then(function (data) {
+        alert(data.message);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('editCustomerModal')).hide();
+        location.reload();
+      })
+      .catch(handleError);
+  });
+})();

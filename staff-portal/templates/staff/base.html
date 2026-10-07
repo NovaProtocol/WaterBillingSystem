@@ -10,8 +10,8 @@
 
 {% block nav_right %}
 {% if current_user.is_authenticated %}
-<span class="navbar-user-name text-white-50 mr-2">{{ current_user.name or current_user.username }}</span>
-<a href="{{ url_for('staff_blueprint.logout') }}" class="btn btn-app btn-sm"><i class="fas fa-sign-out-alt mr-1"></i>Logout</a>
+<span class="navbar-user-name text-white-50 me-2">{{ current_user.name or current_user.username }}</span>
+<a href="{{ url_for('staff_blueprint.logout') }}" class="btn btn-app btn-sm"><i class="fas fa-sign-out-alt me-1"></i>Logout</a>
 {% endif %}
 {% endblock %}
 

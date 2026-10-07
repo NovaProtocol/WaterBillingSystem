@@ -4,12 +4,12 @@
 {% block content %}
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="page-title mb-0"><i class="fas fa-users mr-2 text-app"></i>Manage Customers</h4>
+    <h4 class="page-title mb-0"><i class="fas fa-users me-2 text-app"></i>Manage Customers</h4>
   </div>
 
   <div class="card card-app mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <span><i class="fas fa-list mr-2 text-app"></i>All Customers <span class="badge badge-light ml-2" id="totalCount">0</span></span>
+      <span><i class="fas fa-list me-2 text-app"></i>All Customers <span class="badge badge-light ms-2" id="totalCount">0</span></span>
       <div class="d-flex align-items-center flex-gap-sm">
         <div class="position-relative">
           <input type="text" id="searchInput" class="form-control form-control-sm form-control-sm-app mw-200px" placeholder="Search customer...">
@@ -25,7 +25,7 @@
         <button id="sortDirBtn" class="btn btn-outline-app btn-sm form-control-sm-app" title="Toggle order">
           <i class="fas fa-sort-amount-up-alt"></i>
         </button>
-        <a href="{{ url_for('staff_blueprint.customers') }}" class="btn btn-sm-app"><i class="fas fa-user-plus mr-1"></i>Enroll New</a>
+        <a href="{{ url_for('staff_blueprint.customers') }}" class="btn btn-sm-app"><i class="fas fa-user-plus me-1"></i>Enroll New</a>
       </div>
     </div>
     <div class="card-body p-0">
@@ -37,7 +37,7 @@
               <th>Name</th>
               <th>Phase/Block/Street</th>
               <th>Contact</th>
-              <th class="text-right">Total Due</th>
+              <th class="text-end">Total Due</th>
               <th class="text-center">Status</th>
               <th class="text-center">Actions</th>
             </tr>
@@ -59,8 +59,8 @@
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content modal-app">
       <div class="modal-header">
-        <h5 class="modal-title font-weight-bold"><i class="fas fa-user-edit mr-2 text-app"></i>Edit Customer</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h5 class="modal-title font-weight-bold"><i class="fas fa-user-edit me-2 text-app"></i>Edit Customer</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <form id="editCustomerForm">
@@ -133,13 +133,13 @@
               </div>
             </div>
           </div>
-          <button type="submit" class="btn btn-app btn-block mt-4"><i class="fas fa-save mr-2"></i>Save Changes</button>
+          <button type="submit" class="btn btn-app w-100 mt-4"><i class="fas fa-save me-2"></i>Save Changes</button>
         </form>
         <hr class="my-4">
         <div>
           <p class="form-label-sm">NFC Tag</p>
-          <button id="clearNfcBtn" class="btn btn-block btn-nfc-clear">
-            <i class="fas fa-microchip mr-2"></i><span id="clearNfcLabel">Clear NFC Mapping</span>
+          <button id="clearNfcBtn" class="btn w-100 btn-nfc-clear">
+            <i class="fas fa-microchip me-2"></i><span id="clearNfcLabel">Clear NFC Mapping</span>
           </button>
         </div>
       </div>

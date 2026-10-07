@@ -4,8 +4,8 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Water Billing System, {% block title %}{% endblock %}</title>
-    <link rel="stylesheet" href="/static/common/vendor/bootstrap/4.6.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/common/vendor/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/common/vendor/bootstrap/5.3.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/common/vendor/font-awesome/6.7.2/css/all.min.css">
     <link rel="stylesheet" href="/static/common/css/app.css?v=3">
     <link rel="icon" type="image/png" href="/static/common/img/favicon.png">
     {% block stylesheets %}{% endblock %}
@@ -14,11 +14,11 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark navbar-app fixed-top">
     <div class="container">
-        <button type="button" class="navbar-toggler sidebar-toggle d-lg-none mr-2" aria-label="Menu">
+        <button type="button" class="navbar-toggler sidebar-toggle d-lg-none me-2" aria-label="Menu">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <a class="navbar-brand" href="{% block brand_url %}/{% endblock %}">Water Billing <span>System</span> <small class="text-white-50 ml-1" style="font-size:0.8rem;font-weight:400;letter-spacing:0.3px;">{% block portal_label %}{% endblock %}</small></a>
-        <div class="ml-auto d-flex align-items-center">
+        <a class="navbar-brand" href="{% block brand_url %}/{% endblock %}">Water Billing <span>System</span> <small class="text-white-50 ms-1" style="font-size:0.8rem;font-weight:400;letter-spacing:0.3px;">{% block portal_label %}{% endblock %}</small></a>
+        <div class="ms-auto d-flex align-items-center">
             {% block nav_right %}{% endblock %}
         </div>
     </div>
@@ -38,8 +38,7 @@
 
 {% block footer %}{% endblock %}
 
-<script src="/static/common/vendor/jquery/3.5.1/jquery.min.js"></script>
-<script src="/static/common/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js"></script>
+<script src="/static/common/vendor/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
 <script src="/static/common/js/error.js"></script>
 <script>
 (function () {

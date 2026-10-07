@@ -1,43 +1,10 @@
 function buildPerms(prefix) {
     var perms = {};
-    $(prefix + ' .custom-control-input:checked').each(function() {
-        perms[$(this).val()] = true;
+    Array.prototype.forEach.call(document.querySelectorAll(prefix + ' .form-check-input:checked'), function (el) {
+        perms[el.value] = true;
     });
     return perms;
 }
-
-$('#create-staff-form').on('submit', function(e) {
-    e.preventDefault();
-    var perms = buildPerms('#create-staff-form');
-    $.ajax({
-        url: STAFF_CREATE_URL,
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            name: $('#staff-name').val().trim(),
-            username: $('#staff-username').val().trim(),
-            password: $('#staff-password').val(),
-            email: $('#staff-email').val().trim(),
-            contact_number: $('#staff-contact').val().trim(),
-            can_read_meters: perms.can_read_meters || false,
-            can_accept_payment: perms.can_accept_payment || false,
-            can_enroll_customer: perms.can_enroll_customer || false,
-            can_drop_reading: perms.can_drop_reading || false,
-            can_drop_payment: perms.can_drop_payment || false,
-            can_enroll_staff: perms.can_enroll_staff || false,
-            can_manage_billing: perms.can_manage_billing || false,
-        }),
-        success: function(data) {
-            $('#staff-result').html('<div class="alert alert-success py-2 alert-rounded">Staff <strong>' + data.name + '</strong> created.</div>');
-            setTimeout(function() { location.reload(); }, 1000);
-        },
-        error: function(xhr) {
-            var msg = 'Failed to create staff.';
-            try { var r = JSON.parse(xhr.responseText); msg = r.error; } catch(e) {}
-            $('#staff-result').html('<div class="alert alert-danger py-2 alert-rounded">' + msg + '</div>');
-        }
-    });
-});
 
 var permIdMap = {
     can_read_meters: 'edit-perm-read',
@@ -49,56 +16,79 @@ var permIdMap = {
     can_enroll_staff: 'edit-perm-staff',
 };
 
-$('.edit-staff').on('click', function() {
-    var id = $(this).data('id');
-    $.get(STAFF_EDIT_URL_BASE.replace('0', id), function(data) {
-        $('#edit-staff-id').val(data.id);
-        $('#edit-staff-name').val(data.name);
-        $('#edit-staff-username').val(data.username);
-        $('#edit-staff-password').val('');
-        $('#edit-staff-email').val(data.email || '');
-        $('#edit-staff-contact').val(data.contact_number || '');
-        $('.edit-perm').prop('checked', false);
-        $.each(permIdMap, function(perm, id) {
-            if (data[perm]) $('#' + id).prop('checked', true);
+function permFields(perms) {
+    return {
+        can_read_meters: perms.can_read_meters || false,
+        can_accept_payment: perms.can_accept_payment || false,
+        can_enroll_customer: perms.can_enroll_customer || false,
+        can_drop_reading: perms.can_drop_reading || false,
+        can_drop_payment: perms.can_drop_payment || false,
+        can_enroll_staff: perms.can_enroll_staff || false,
+        can_manage_billing: perms.can_manage_billing || false,
+    };
+}
+
+document.getElementById('create-staff-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var perms = buildPerms('#create-staff-form');
+    var val = function (id) { return document.getElementById(id).value.trim(); };
+    postJSON(STAFF_CREATE_URL, Object.assign({
+        name: val('staff-name'),
+        username: val('staff-username'),
+        password: document.getElementById('staff-password').value,
+        email: val('staff-email'),
+        contact_number: val('staff-contact'),
+    }, permFields(perms)))
+        .then(function (data) {
+            document.getElementById('staff-result').innerHTML = '<div class="alert alert-success py-2 alert-rounded">Staff <strong>' + data.name + '</strong> created.</div>';
+            setTimeout(function () { location.reload(); }, 1000);
+        })
+        .catch(function (err) {
+            document.getElementById('staff-result').innerHTML = '<div class="alert alert-danger py-2 alert-rounded">' + (err && err.message ? err.message : 'Failed to create staff.') + '</div>';
         });
-        $('#edit-perm-active').prop('checked', data.is_active);
-        $('#edit-staff-result').empty();
-        $('#editStaffModal').modal('show');
-    });
 });
 
-$('#edit-staff-form').on('submit', function(e) {
+document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.edit-staff');
+    if (!btn) return;
+    fetch(STAFF_EDIT_URL_BASE.replace('0', btn.dataset.id))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            document.getElementById('edit-staff-id').value = data.id;
+            document.getElementById('edit-staff-name').value = data.name;
+            document.getElementById('edit-staff-username').value = data.username;
+            document.getElementById('edit-staff-password').value = '';
+            document.getElementById('edit-staff-email').value = data.email || '';
+            document.getElementById('edit-staff-contact').value = data.contact_number || '';
+            Array.prototype.forEach.call(document.querySelectorAll('.edit-perm'), function (el) { el.checked = false; });
+            Object.keys(permIdMap).forEach(function (perm) {
+                var el = document.getElementById(permIdMap[perm]);
+                if (el && data[perm]) el.checked = true;
+            });
+            document.getElementById('edit-perm-active').checked = data.is_active;
+            document.getElementById('edit-staff-result').innerHTML = '';
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('editStaffModal')).show();
+        });
+});
+
+document.getElementById('edit-staff-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var perms = buildPerms('#editStaffModal');
-    var id = $('#edit-staff-id').val();
-    $.ajax({
-        url: STAFF_EDIT_URL_BASE.replace('0', id),
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            name: $('#edit-staff-name').val().trim(),
-            username: $('#edit-staff-username').val().trim(),
-            password: $('#edit-staff-password').val(),
-            email: $('#edit-staff-email').val().trim(),
-            contact_number: $('#edit-staff-contact').val().trim(),
-            can_read_meters: perms.can_read_meters || false,
-            can_accept_payment: perms.can_accept_payment || false,
-            can_enroll_customer: perms.can_enroll_customer || false,
-            can_drop_reading: perms.can_drop_reading || false,
-            can_drop_payment: perms.can_drop_payment || false,
-            can_enroll_staff: perms.can_enroll_staff || false,
-            can_manage_billing: perms.can_manage_billing || false,
-            is_active: perms.is_active || false,
-        }),
-        success: function(data) {
-            $('#edit-staff-result').html('<div class="alert alert-success py-2 alert-rounded">Staff <strong>' + data.name + '</strong> updated.</div>');
-            setTimeout(function() { location.reload(); }, 1000);
-        },
-        error: function(xhr) {
-            var msg = 'Failed to update staff.';
-            try { var r = JSON.parse(xhr.responseText); msg = r.error; } catch(e) {}
-            $('#edit-staff-result').html('<div class="alert alert-danger py-2 alert-rounded">' + msg + '</div>');
-        }
-    });
+    var id = document.getElementById('edit-staff-id').value;
+    var val = function (fid) { return document.getElementById(fid).value.trim(); };
+    postJSON(STAFF_EDIT_URL_BASE.replace('0', id), Object.assign({
+        name: val('edit-staff-name'),
+        username: val('edit-staff-username'),
+        password: document.getElementById('edit-staff-password').value,
+        email: val('edit-staff-email'),
+        contact_number: val('edit-staff-contact'),
+        is_active: perms.is_active || false,
+    }, permFields(perms)))
+        .then(function (data) {
+            document.getElementById('edit-staff-result').innerHTML = '<div class="alert alert-success py-2 alert-rounded">Staff <strong>' + data.name + '</strong> updated.</div>';
+            setTimeout(function () { location.reload(); }, 1000);
+        })
+        .catch(function (err) {
+            document.getElementById('edit-staff-result').innerHTML = '<div class="alert alert-danger py-2 alert-rounded">' + (err && err.message ? err.message : 'Failed to update staff.') + '</div>';
+        });
 });

@@ -6,7 +6,7 @@
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="page-title mb-0"><i class="fas fa-users-cog mr-2 text-app"></i>Staff Management</h4>
+        <h4 class="page-title mb-0"><i class="fas fa-users-cog me-2 text-app"></i>Staff Management</h4>
     </div>
 
     <div class="card card-app mb-4">
@@ -53,43 +53,43 @@
                 <label class="d-block mb-2">Permissions</label>
                 <div class="row">
                     <div class="col-md-4">
-                        <div class="custom-control custom-checkbox mb-2">
-                            <input type="checkbox" class="custom-control-input" id="perm-read" value="can_read_meters">
-                            <label class="custom-control-label" for="perm-read">Read Meters</label>
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="perm-read" value="can_read_meters">
+                            <label class="form-check-label" for="perm-read">Read Meters</label>
                         </div>
-                        <div class="custom-control custom-checkbox mb-2">
-                            <input type="checkbox" class="custom-control-input" id="perm-payment" value="can_accept_payment">
-                            <label class="custom-control-label" for="perm-payment">Accept Payment</label>
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="perm-payment" value="can_accept_payment">
+                            <label class="form-check-label" for="perm-payment">Accept Payment</label>
                         </div>
-                        <div class="custom-control custom-checkbox mb-2">
-                            <input type="checkbox" class="custom-control-input" id="perm-enroll" value="can_enroll_customer">
-                            <label class="custom-control-label" for="perm-enroll">Enroll Customer</label>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="custom-control custom-checkbox mb-2">
-                            <input type="checkbox" class="custom-control-input" id="perm-drop-read" value="can_drop_reading">
-                            <label class="custom-control-label" for="perm-drop-read">Drop Reading</label>
-                        </div>
-                        <div class="custom-control custom-checkbox mb-2">
-                            <input type="checkbox" class="custom-control-input" id="perm-drop-pay" value="can_drop_payment">
-                            <label class="custom-control-label" for="perm-drop-pay">Drop Payment</label>
-                        </div>
-                        <div class="custom-control custom-checkbox mb-2">
-                            <input type="checkbox" class="custom-control-input" id="perm-billing" value="can_manage_billing">
-                            <label class="custom-control-label" for="perm-billing">Manage Billing</label>
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="perm-enroll" value="can_enroll_customer">
+                            <label class="form-check-label" for="perm-enroll">Enroll Customer</label>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="custom-control custom-checkbox mb-2">
-                            <input type="checkbox" class="custom-control-input" id="perm-staff" value="can_enroll_staff">
-                            <label class="custom-control-label" for="perm-staff">Manage Staff</label>
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="perm-drop-read" value="can_drop_reading">
+                            <label class="form-check-label" for="perm-drop-read">Drop Reading</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="perm-drop-pay" value="can_drop_payment">
+                            <label class="form-check-label" for="perm-drop-pay">Drop Payment</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="perm-billing" value="can_manage_billing">
+                            <label class="form-check-label" for="perm-billing">Manage Billing</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="perm-staff" value="can_enroll_staff">
+                            <label class="form-check-label" for="perm-staff">Manage Staff</label>
                         </div>
                     </div>
                 </div>
             </div>
             <button type="submit" class="btn btn-app">
-                <i class="fas fa-plus mr-2"></i>Create Staff
+                <i class="fas fa-plus me-2"></i>Create Staff
             </button>
         </form>
         <div id="staff-result" class="mt-3"></div>
@@ -157,7 +157,7 @@
         <div class="modal-content modal-app">
             <div class="modal-header">
                 <h5 class="modal-title font-weight-bold">Edit Staff</h5>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="edit-staff-form">
@@ -202,47 +202,47 @@
                         <label class="d-block mb-2">Permissions</label>
                         <div class="row">
                             <div class="col-md-4">
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-read" value="can_read_meters">
-                                    <label class="custom-control-label" for="edit-perm-read">Read Meters</label>
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" class="form-check-input edit-perm" id="edit-perm-read" value="can_read_meters">
+                                    <label class="form-check-label" for="edit-perm-read">Read Meters</label>
                                 </div>
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-payment" value="can_accept_payment">
-                                    <label class="custom-control-label" for="edit-perm-payment">Accept Payment</label>
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" class="form-check-input edit-perm" id="edit-perm-payment" value="can_accept_payment">
+                                    <label class="form-check-label" for="edit-perm-payment">Accept Payment</label>
                                 </div>
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-enroll" value="can_enroll_customer">
-                                    <label class="custom-control-label" for="edit-perm-enroll">Enroll Customer</label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-drop-read" value="can_drop_reading">
-                                    <label class="custom-control-label" for="edit-perm-drop-read">Drop Reading</label>
-                                </div>
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-drop-pay" value="can_drop_payment">
-                                    <label class="custom-control-label" for="edit-perm-drop-pay">Drop Payment</label>
-                                </div>
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-billing" value="can_manage_billing">
-                                    <label class="custom-control-label" for="edit-perm-billing">Manage Billing</label>
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" class="form-check-input edit-perm" id="edit-perm-enroll" value="can_enroll_customer">
+                                    <label class="form-check-label" for="edit-perm-enroll">Enroll Customer</label>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input edit-perm" id="edit-perm-staff" value="can_enroll_staff">
-                                    <label class="custom-control-label" for="edit-perm-staff">Manage Staff</label>
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" class="form-check-input edit-perm" id="edit-perm-drop-read" value="can_drop_reading">
+                                    <label class="form-check-label" for="edit-perm-drop-read">Drop Reading</label>
                                 </div>
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input" id="edit-perm-active" value="is_active" checked>
-                                    <label class="custom-control-label" for="edit-perm-active">Active</label>
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" class="form-check-input edit-perm" id="edit-perm-drop-pay" value="can_drop_payment">
+                                    <label class="form-check-label" for="edit-perm-drop-pay">Drop Payment</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" class="form-check-input edit-perm" id="edit-perm-billing" value="can_manage_billing">
+                                    <label class="form-check-label" for="edit-perm-billing">Manage Billing</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" class="form-check-input edit-perm" id="edit-perm-staff" value="can_enroll_staff">
+                                    <label class="form-check-label" for="edit-perm-staff">Manage Staff</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" class="form-check-input" id="edit-perm-active" value="is_active" checked>
+                                    <label class="form-check-label" for="edit-perm-active">Active</label>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-app btn-block">
-                        <i class="fas fa-save mr-2"></i>Save Changes
+                    <button type="submit" class="btn btn-app w-100">
+                        <i class="fas fa-save me-2"></i>Save Changes
                     </button>
                 </form>
                 <div id="edit-staff-result" class="mt-3"></div>

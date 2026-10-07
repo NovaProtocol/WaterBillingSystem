@@ -1,114 +1,126 @@
-$(function() {
-  $('#generateKeyForm').on('submit', function(e) {
+(function () {
+  'use strict';
+
+  function openModal(id) { bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).show(); }
+  function closeModal(id) { bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).hide(); }
+
+  document.getElementById('generateKeyForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    var btn = $(this).find('button[type=submit]');
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Generating...');
-    var label = $('#keyLabel').val().trim();
-    $.ajax({
-      url: GENERATE_KEY_URL,
-      method: 'POST',
-      contentType: 'application/json',
-      data: JSON.stringify({label: label || ''}),
-      success: function(resp) {
-        $('#generateKeyModal').modal('hide');
-        $('#generatedKey').val(resp.key);
-        $('#qrcode').empty();
-        new QRCode(document.getElementById('qrcode'), { text: resp.key, width: 180, height: 180 });
-        $('#keyResultModal').modal('show');
-        $('#generateKeyForm')[0].reset();
-        btn.prop('disabled', false).text('Generate');
+    var form = this;
+    var btn = form.querySelector('button[type=submit]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating...';
+    var labelEl = document.getElementById('keyLabel');
+    postJSON(GENERATE_KEY_URL, { label: labelEl ? labelEl.value.trim() : '' })
+      .then(function (resp) {
+        closeModal('generateKeyModal');
+        document.getElementById('generatedKey').value = resp.key;
+        var qr = document.getElementById('qrcode');
+        qr.innerHTML = '';
+        new QRCode(qr, { text: resp.key, width: 180, height: 180 });
+        openModal('keyResultModal');
+        form.reset();
+        btn.disabled = false;
+        btn.textContent = 'Generate';
 
         var now = new Date();
-        var dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + 'T' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+        var dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
         var row = '<tr>' +
           '<td><div class="input-group input-group-sm input-group-sm-nofold mw-260px">' +
           '<input type="password" class="form-control form-control-sm-app key-input form-control-monospace" value="' + resp.key + '" readonly data-full="' + resp.key + '">' +
-          '<div class="input-group-append">' +
           '<button class="btn btn-outline-sm toggle-key" type="button" title="Toggle visibility"><i class="fas fa-eye"></i></button>' +
           '<button class="btn btn-outline-sm qr-key" type="button" data-key="' + resp.key + '" title="Show QR"><i class="fas fa-qrcode"></i></button>' +
-          '</div></div></td>' +
+          '</div></td>' +
           '<td>' + (resp.label || '\u2014') + '</td>' +
           '<td><span class="badge badge-success">Active</span></td>' +
           '<td>' + dateStr + '</td>' +
           '<td><button class="btn btn-outline-sm revoke-key" data-id="' + resp.id + '" title="Revoke"><i class="fas fa-trash"></i></button></td>' +
           '</tr>';
-        if ($('#keysTable tbody tr').length === 0) {
-          $('#keysTable tbody').append(row);
-          $('#noKeysMessage').hide();
-          $('#keysTable').show();
+        var tbody = document.querySelector('#keysTable tbody');
+        if (tbody.querySelectorAll('tr').length === 0) {
+          tbody.insertAdjacentHTML('beforeend', row);
+          var noKeys = document.getElementById('noKeysMessage');
+          if (noKeys) noKeys.style.display = 'none';
+          document.getElementById('keysTable').style.display = '';
         } else {
-          $('#keysTable tbody').prepend(row);
+          tbody.insertAdjacentHTML('afterbegin', row);
         }
-      },
-      error: function(xhr) {
-        btn.prop('disabled', false).text('Generate');
-        var errMsg = xhr.responseJSON?.error || xhr.statusText || 'unknown';
-        console.error('Generate key failed:', xhr.responseText, xhr.status);
-        alert('Failed to generate key: ' + errMsg);
-      }
-    });
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Generate';
+        alert('Failed to generate key: ' + (err && err.message ? err.message : 'unknown'));
+      });
   });
 
-  $(document).on('click', '.toggle-key', function() {
-    var input = $(this).closest('.input-group').find('.key-input');
-    var icon = $(this).find('i');
-    if (input.attr('type') === 'password') {
-      input.attr('type', 'text');
-      icon.removeClass('fa-eye').addClass('fa-eye-slash');
-    } else {
-      input.attr('type', 'password');
-      icon.removeClass('fa-eye-slash').addClass('fa-eye');
+  document.addEventListener('click', function (e) {
+    var toggleBtn = e.target.closest('.toggle-key');
+    if (toggleBtn) {
+      var input = toggleBtn.closest('.input-group').querySelector('.key-input');
+      var icon = toggleBtn.querySelector('i');
+      if (input.getAttribute('type') === 'password') {
+        input.setAttribute('type', 'text');
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      } else {
+        input.setAttribute('type', 'password');
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+      return;
+    }
+
+    var copyBtn = e.target.closest('#copyKeyBtn');
+    if (copyBtn) {
+      var key = document.getElementById('generatedKey').value;
+      navigator.clipboard.writeText(key).then(function () {
+        var icon = copyBtn.querySelector('i');
+        icon.classList.remove('fa-copy');
+        icon.classList.add('fa-check');
+        setTimeout(function () { icon.classList.remove('fa-check'); icon.classList.add('fa-copy'); }, 2000);
+      });
+      return;
+    }
+
+    var qrBtn = e.target.closest('.qr-key');
+    if (qrBtn) {
+      document.getElementById('generatedKey').value = qrBtn.dataset.key;
+      var qr = document.getElementById('qrcode');
+      qr.innerHTML = '';
+      new QRCode(qr, { text: qrBtn.dataset.key, width: 180, height: 180 });
+      openModal('keyResultModal');
+      return;
+    }
+
+    var revokeBtn = e.target.closest('.revoke-key');
+    if (revokeBtn) {
+      if (!confirm('Revoke this API key? This cannot be undone.')) return;
+      var id = revokeBtn.dataset.id;
+      var row = revokeBtn.closest('tr');
+      postJSON(REVOKE_KEY_URL_BASE.replace('0', id), {})
+        .then(function () {
+          var badge = row.querySelector('.badge');
+          badge.classList.remove('badge-success');
+          badge.classList.add('badge-secondary');
+          badge.textContent = 'Revoked';
+          revokeBtn.remove();
+          row.classList.add('revoked-row');
+          var hideRevoked = document.getElementById('hideRevoked');
+          if (hideRevoked && hideRevoked.checked) row.style.display = 'none';
+        })
+        .catch(function (err) { alert('Failed to revoke key: ' + (err && err.message ? err.message : 'unknown')); });
     }
   });
 
-  $(document).on('click', '#copyKeyBtn', function() {
-    var key = $('#generatedKey').val();
-    navigator.clipboard.writeText(key).then(function() {
-      var icon = $('#copyKeyBtn').find('i');
-      icon.removeClass('fa-copy').addClass('fa-check');
-      setTimeout(function() { icon.removeClass('fa-check').addClass('fa-copy'); }, 2000);
+  var hideRevoked = document.getElementById('hideRevoked');
+  if (hideRevoked) {
+    hideRevoked.addEventListener('change', function () {
+      Array.prototype.forEach.call(document.querySelectorAll('.revoked-row'), function (r) {
+        r.style.display = hideRevoked.checked ? 'none' : '';
+      });
     });
-  });
-
-  $(document).on('click', '.qr-key', function() {
-    var key = $(this).data('key');
-    $('#generatedKey').val(key);
-    $('#qrcode').empty();
-    new QRCode(document.getElementById('qrcode'), { text: key, width: 180, height: 180 });
-    $('#keyResultModal').modal('show');
-  });
-
-  $(document).on('click', '.revoke-key', function() {
-    var id = $(this).data('id');
-    if (!confirm('Revoke this API key? This cannot be undone.')) return;
-    var btn = $(this);
-    var row = btn.closest('tr');
-    $.ajax({
-      url: REVOKE_KEY_URL_BASE.replace('0', id),
-      method: 'POST',
-      success: function() {
-        row.find('.badge').removeClass('badge-success').addClass('badge-secondary').text('Revoked');
-        row.find('.revoke-key').remove();
-        row.addClass('revoked-row');
-        if ($('#hideRevoked').is(':checked')) {
-          row.hide();
-        }
-      },
-      error: function(xhr) {
-        alert('Failed to revoke key: ' + (xhr.responseJSON?.error || xhr.statusText));
-      }
-    });
-  });
-
-  $('#hideRevoked').on('change', function() {
-    if ($(this).is(':checked')) {
-      $('.revoked-row').hide();
-    } else {
-      $('.revoked-row').show();
+    if (hideRevoked.checked) {
+      Array.prototype.forEach.call(document.querySelectorAll('.revoked-row'), function (r) { r.style.display = 'none'; });
     }
-  });
-
-  if ($('#hideRevoked').is(':checked')) {
-    $('.revoked-row').hide();
   }
-});
+})();

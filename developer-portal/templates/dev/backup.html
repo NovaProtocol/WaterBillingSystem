@@ -3,19 +3,19 @@
 {% block content %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="page-title mb-0"><i class="fas fa-download mr-2 text-app"></i>Backup &amp; Restore</h4>
+    <h4 class="page-title mb-0"><i class="fas fa-download me-2 text-app"></i>Backup &amp; Restore</h4>
 </div>
 
 <div class="row">
   <div class="col-lg-6 mb-4">
     <div class="card card-app h-100">
       <div class="card-header">
-        <i class="fas fa-database mr-1 text-app"></i>Backup Database
+        <i class="fas fa-database me-1 text-app"></i>Backup Database
       </div>
       <div class="card-body">
         <p class="text-muted">Full database snapshot via <code>mysqldump</code>. Saved to <code>db_backups</code> volume.</p>
         <button class="btn btn-outline-app" onclick="confirmAndExec('backup', {}, 'This will create a full database backup.')">
-          <i class="fas fa-download mr-1"></i>Create Backup
+          <i class="fas fa-download me-1"></i>Create Backup
         </button>
       </div>
     </div>
@@ -24,7 +24,7 @@
   <div class="col-lg-6 mb-4">
     <div class="card card-app h-100">
       <div class="card-header">
-        <i class="fas fa-undo mr-1 text-app"></i>Restore from Backup
+        <i class="fas fa-undo me-1 text-app"></i>Restore from Backup
       </div>
       <div class="card-body">
         <p class="text-muted">Restore from a previous backup file. This will overwrite all current data.</p>
@@ -37,11 +37,11 @@
             {% endfor %}
           </select>
         </div>
-        <button class="btn btn-outline-app mr-2" onclick="confirmAndExec('restore', {filename: document.getElementById('restore-file').value}, 'This will DELETE all current data and restore from the selected backup.')">
-          <i class="fas fa-undo mr-1"></i>Restore
+        <button class="btn btn-outline-app me-2" onclick="confirmAndExec('restore', {filename: document.getElementById('restore-file').value}, 'This will DELETE all current data and restore from the selected backup.')">
+          <i class="fas fa-undo me-1"></i>Restore
         </button>
         <button class="btn btn-outline-app btn-sm" onclick="refreshBackups()">
-          <i class="fas fa-sync mr-1"></i>Refresh list
+          <i class="fas fa-sync me-1"></i>Refresh list
         </button>
       </div>
     </div>

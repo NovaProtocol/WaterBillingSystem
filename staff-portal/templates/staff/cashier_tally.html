@@ -6,7 +6,7 @@
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="page-title mb-0"><i class="fas fa-cash-register mr-2 text-app"></i>Cashier Tally</h4>
+        <h4 class="page-title mb-0"><i class="fas fa-cash-register me-2 text-app"></i>Cashier Tally</h4>
     </div>
 
     <div class="card card-app mb-4">
@@ -21,7 +21,7 @@
                 </div>
 
                 {% if period == 'custom' %}
-                <form id="customRangeForm" class="form-inline ml-2 flex-gap-sm" method="get">
+                <form id="customRangeForm" class="form-inline ms-2 flex-gap-sm" method="get">
                     <input type="hidden" name="period" value="custom">
                     <div class="input-group input-group-sm">
                         <div class="input-group-prepend">
@@ -84,10 +84,10 @@
                             <th>Cashier</th>
                             {% if use_matrix and tally[0].interval_list %}
                             {% for interval in tally[0].interval_list %}
-                            <th class="text-right">{{ interval }}</th>
+                            <th class="text-end">{{ interval }}</th>
                             {% endfor %}
                             {% endif %}
-                            <th class="text-right">Total</th>
+                            <th class="text-end">Total</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -96,10 +96,10 @@
                             <td>{{ row.username }}</td>
                             {% if use_matrix and row.interval_list %}
                             {% for interval in row.interval_list %}
-                            <td class="text-right">&#x20B1;{{ "%.2f" | format(row.intervals[interval]) }}</td>
+                            <td class="text-end">&#x20B1;{{ "%.2f" | format(row.intervals[interval]) }}</td>
                             {% endfor %}
                             {% endif %}
-                            <td class="text-right font-weight-bold">&#x20B1;{{ "%.2f" | format(row.total) }}</td>
+                            <td class="text-end font-weight-bold">&#x20B1;{{ "%.2f" | format(row.total) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -109,10 +109,10 @@
                             {% if use_matrix and tally[0].interval_list %}
                             {% for interval in tally[0].interval_list %}
                             {% set col_total = tally | map(attribute='intervals') | map(attribute=interval) | sum %}
-                            <td class="text-right">&#x20B1;{{ "%.2f" | format(col_total) }}</td>
+                            <td class="text-end">&#x20B1;{{ "%.2f" | format(col_total) }}</td>
                             {% endfor %}
                             {% endif %}
-                            <td class="text-right">&#x20B1;{{ "%.2f" | format(tally | map(attribute='total') | sum) }}</td>
+                            <td class="text-end">&#x20B1;{{ "%.2f" | format(tally | map(attribute='total') | sum) }}</td>
                         </tr>
                     </tfoot>
                 </table>

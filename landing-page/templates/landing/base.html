@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Water Billing System</title>
     <link rel="icon" type="image/png" href="/static/common/img/favicon.png">
-    <link rel="stylesheet" href="/static/common/vendor/bootstrap/4.6.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/common/vendor/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/common/vendor/bootstrap/5.3.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/common/vendor/font-awesome/6.7.2/css/all.min.css">
     <link rel="stylesheet" href="/static/common/vendor/leaflet/1.9.4/leaflet.css" />
     <link rel="stylesheet" href="/static/common/css/app.css?v=3">
     <link rel="stylesheet" href="/static/common/css/app-mobile.css" media="(max-width: 768px)">
@@ -20,7 +20,7 @@
   {% for category, message in messages %}
   <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
     {{ message }}
-    <button type="button" class="close" data-dismiss="alert">&times;</button>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
   </div>
   {% endfor %}
 </div>
@@ -29,20 +29,20 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark navbar-app fixed-top">
     <div class="container">
-        <button type="button" class="navbar-toggler sidebar-toggle d-lg-none mr-2" data-toggle="collapse" data-target="#navbarNav" aria-label="Menu">
+        <button type="button" class="navbar-toggler sidebar-toggle d-lg-none me-2" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-label="Menu">
             <span class="navbar-toggler-icon"></span>
         </button>
         <a class="navbar-brand" href="{{ url_for('landing_blueprint.index') }}">Water Billing <span>System</span></a>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ml-auto align-items-lg-center">
+            <ul class="navbar-nav ms-auto align-items-lg-center">
                 <li class="nav-item"><a class="nav-link" href="/#about">About</a></li>
                 <li class="nav-item"><a class="nav-link" href="/#offerings">Offerings</a></li>
                 <li class="nav-item"><a class="nav-link" href="/#why-us">Why Us</a></li>
                 <li class="nav-item"><a class="nav-link" href="/#testimonials">Testimonials</a></li>
                 <li class="nav-item"><a class="nav-link" href="/#contact">Contact</a></li>
-                <li class="nav-item ml-lg-2">
+                <li class="nav-item ms-lg-2">
                     <a class="btn btn-bill" href="/customer/login">
-                        <i class="fas fa-file-invoice mr-1"></i>Check My Bill
+                        <i class="fas fa-file-invoice me-1"></i>Check My Bill
                     </a>
                 </li>
             </ul>
@@ -50,13 +50,15 @@
     </div>
 </nav>
 
-<script src="/static/common/vendor/jquery/3.5.1/jquery.min.js"></script>
-<script src="/static/common/vendor/bootstrap/4.6.2/js/bootstrap.bundle.min.js"></script>
+<script src="/static/common/vendor/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
 <script src="/static/common/vendor/leaflet/1.9.4/leaflet.js"></script>
 <script>
-$(function () {
-    $('#navbarNav .nav-link').on('click', function () {
-        if ($('#navbarNav').hasClass('show')) $('#navbarNav').collapse('hide');
+document.querySelectorAll('#navbarNav .nav-link').forEach(function (link) {
+    link.addEventListener('click', function () {
+        var nav = document.getElementById('navbarNav');
+        if (nav.classList.contains('show')) {
+            bootstrap.Collapse.getOrCreateInstance(nav).hide();
+        }
     });
 });
 </script>

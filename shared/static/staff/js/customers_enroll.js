@@ -1,30 +1,46 @@
-$('#create-customer-form').on('submit', function(e) {
+document.getElementById('create-customer-form').addEventListener('submit', function (e) {
     e.preventDefault();
-    $.ajax({
-        url: ENROLL_CUSTOMER_URL,
+    var val = function (id) {
+        var el = document.getElementById(id);
+        return el ? el.value.trim() : '';
+    };
+    var num = function (id) {
+        var v = parseFloat(val(id));
+        return isNaN(v) ? null : v;
+    };
+    fetch(ENROLL_CUSTOMER_URL, {
         method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            customer_number: $('#cust-number').val().trim(),
-            name: $('#cust-name').val().trim(),
-            address: $('#cust-address').val().trim(),
-            contact_number: $('#cust-contact').val().trim(),
-            email: $('#cust-email').val().trim(),
-            meter_serial_number: $('#cust-meter-sn').val().trim(),
-            x_coordinate: parseFloat($('#cust-x').val()) || null,
-            y_coordinate: parseFloat($('#cust-y').val()) || null,
-            phase: $('#cust-phase').val().trim() || null,
-            block: $('#cust-block').val().trim() || null,
-            street: $('#cust-street').val().trim() || null,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            customer_number: val('cust-number'),
+            name: val('cust-name'),
+            address: val('cust-address'),
+            contact_number: val('cust-contact'),
+            email: val('cust-email'),
+            meter_serial_number: val('cust-meter-sn'),
+            x_coordinate: num('cust-x'),
+            y_coordinate: num('cust-y'),
+            phase: val('cust-phase') || null,
+            block: val('cust-block') || null,
+            street: val('cust-street') || null,
         }),
-        success: function(data) {
-            $('#customer-result').html('<div class="alert alert-success py-2 alert-rounded">Customer <strong>' + data.customer_number + '</strong> enrolled.</div>');
-            setTimeout(function() { location.reload(); }, 1000);
-        },
-        error: function(xhr) {
-            var msg = 'Failed to enroll customer.';
-            try { var r = JSON.parse(xhr.responseText); msg = r.error; } catch(e) {}
-            $('#customer-result').html('<div class="alert alert-danger py-2 alert-rounded">' + msg + '</div>');
-        }
-    });
+    })
+        .then(function (resp) {
+            return resp.json().catch(function () { return {}; }).then(function (data) {
+                return { ok: resp.ok, data: data };
+            });
+        })
+        .then(function (result) {
+            var box = document.getElementById('customer-result');
+            if (result.ok) {
+                box.innerHTML = '<div class="alert alert-success py-2 alert-rounded">Customer <strong>' + result.data.customer_number + '</strong> enrolled.</div>';
+                setTimeout(function () { location.reload(); }, 1000);
+            } else {
+                var msg = (result.data && (result.data.error && (result.data.error.message || result.data.error))) || 'Failed to enroll customer.';
+                box.innerHTML = '<div class="alert alert-danger py-2 alert-rounded">' + msg + '</div>';
+            }
+        })
+        .catch(function () {
+            document.getElementById('customer-result').innerHTML = '<div class="alert alert-danger py-2 alert-rounded">Failed to enroll customer.</div>';
+        });
 });

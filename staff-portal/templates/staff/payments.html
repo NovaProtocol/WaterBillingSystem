@@ -6,11 +6,11 @@
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="page-title mb-0"><i class="fas fa-credit-card mr-2 text-app"></i>Payments</h4>
+        <h4 class="page-title mb-0"><i class="fas fa-credit-card me-2 text-app"></i>Payments</h4>
     </div>
 
     <div class="card card-app mb-4">
-        <div class="card-header"><i class="fas fa-search mr-2 text-app"></i>Customer Lookup</div>
+        <div class="card-header"><i class="fas fa-search me-2 text-app"></i>Customer Lookup</div>
         <div class="card-body">
             <div class="form-group autocomplete-wrap mb-0">
                 <label>Search Customer</label>
@@ -24,7 +24,7 @@
 
         <div class="card card-app mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-user mr-2 text-app"></i>Customer Information</span>
+                <span><i class="fas fa-user me-2 text-app"></i>Customer Information</span>
                 <small class="text-muted" id="custNumLabel"></small>
             </div>
             <div class="card-body">
@@ -62,7 +62,7 @@
         </div>
 
         <div class="card card-app mb-4">
-            <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#pricingCollapse">
+            <div class="card-header collapse-trigger" data-bs-toggle="collapse" data-bs-target="#pricingCollapse">
                 <div class="d-flex justify-content-between align-items-center">
                     How We Calculate Your Bill
                     <i class="fas fa-chevron-down chevron-icon"></i>
@@ -74,7 +74,7 @@
                         <strong id="consumptionLabel">0.00 m&sup3;</strong> consumed this period
                     </div>
                     <table class="table table-sm mb-0" id="tierTable">
-                        <thead><tr><th>Tier</th><th>Usage</th><th>Rate</th><th class="text-right">Charge</th></tr></thead>
+                        <thead><tr><th>Tier</th><th>Usage</th><th>Rate</th><th class="text-end">Charge</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -85,7 +85,7 @@
             <div class="col-lg-8 col-xl-9">
 
                 <div class="card card-app mb-4">
-                    <div class="card-header"><i class="fas fa-file-invoice mr-2 text-app"></i>Billing History</div>
+                    <div class="card-header"><i class="fas fa-file-invoice me-2 text-app"></i>Billing History</div>
                     <div class="card-body">
                         <div class="table-responsive">
                             <table class="table table-hover table-font-sm2">
@@ -125,12 +125,12 @@
                             <span class="font-weight-bold">Total Due</span>
                             <span class="font-weight-bold total-due" id="summaryTotalDue">&#x20B1;0.00</span>
                         </div>
-                        <div id="dueDateRow" class="init-hidden text-right mt-2 text-xs"></div>
+                        <div id="dueDateRow" class="init-hidden text-end mt-2 text-xs"></div>
                     </div>
                 </div>
 
                 <div class="card card-app mb-4">
-                    <div class="card-header"><i class="fas fa-money-bill mr-2 text-app"></i>Record Payment</div>
+                    <div class="card-header"><i class="fas fa-money-bill me-2 text-app"></i>Record Payment</div>
                     <div class="card-body">
                         <form id="paymentForm">
                             <input type="hidden" id="payCustNum">
@@ -142,15 +142,15 @@
                                 <label>Payment Amount</label>
                                 <input type="number" step="0.01" min="0.01" id="payAmount" class="form-control" placeholder="0.00" required>
                             </div>
-                            <button type="submit" class="btn btn-app btn-block">
-                                <i class="fas fa-check mr-1"></i>Submit Payment
+                            <button type="submit" class="btn btn-app w-100">
+                                <i class="fas fa-check me-1"></i>Submit Payment
                             </button>
                         </form>
                     </div>
                 </div>
 
                 <div class="card card-app mb-4">
-                    <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#paymentHistoryCollapse">
+                    <div class="card-header collapse-trigger" data-bs-toggle="collapse" data-bs-target="#paymentHistoryCollapse">
                         <div class="d-flex justify-content-between align-items-center">
                             Payment History
                     <i class="fas fa-chevron-down chevron-icon"></i>
@@ -179,7 +179,7 @@
         <div class="modal-content modal-app">
             <div class="modal-header">
                 <h5 class="modal-title font-weight-bold">Payment Confirmed</h5>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center py-4">
                 <i class="fas fa-check-circle text-app icon-3x"></i>
@@ -188,7 +188,7 @@
                 <p class="text-muted mb-0">Amount: <span id="receiptAmount" class="font-weight-bold"></span></p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-app btn-block" data-dismiss="modal">Done</button>
+                <button type="button" class="btn btn-app w-100" data-bs-dismiss="modal">Done</button>
             </div>
         </div>
     </div>

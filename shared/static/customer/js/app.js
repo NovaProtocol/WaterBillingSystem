@@ -42,6 +42,20 @@
     return document.getElementById(id);
   }
 
+  function show(el, visible) {
+    if (!el) return;
+    el.classList.toggle('d-none', !visible);
+  }
+
+  function shown(id) {
+    var el = text(id);
+    return !!(el && !el.classList.contains('d-none'));
+  }
+
+  function getJSON(url) {
+    return fetch(url, { credentials: 'same-origin' }).then(function (r) { return r.json(); });
+  }
+
   // ---------------------------------------------------------------------
   // Rendering
   // ---------------------------------------------------------------------
@@ -94,57 +108,49 @@
     text('consumption-notice-text').textContent = money(billing.consumption) + ' m\u00B3';
 
     var tbody = text('pricing-tbody');
-    tbody.innerHTML = '';
+    var html = '';
     var tiers = billing.pricing_tiers || [];
 
     billing.bill_breakdown.forEach(function (item, i) {
-      var tr = document.createElement('tr');
-      if (item.units === 0) tr.className = 'breakdown-row-muted';
-      else tr.className = 'breakdown-row';
-
+      var rowClass = item.units === 0 ? 'breakdown-row-muted' : 'breakdown-row';
       var tier = tiers[i] || {};
       var rate;
       if (tier.unit === 'flat') rate = '&#x20B1;' + money(tier.rate) + ' flat';
       else rate = '&#x20B1;' + money(tier.rate) + '/m\u00B3';
 
-      tr.innerHTML =
+      html += '<tr class="' + rowClass + '">' +
         '<td>' + esc(item.label) + '</td>' +
         '<td>' + money(item.units) + ' m\u00B3</td>' +
         '<td>' + rate + '</td>' +
-        '<td class="text-right font-weight-bold">&#x20B1;' + money(item.charge) + '</td>';
-      tbody.appendChild(tr);
+        '<td class="text-end font-weight-bold">&#x20B1;' + money(item.charge) + '</td>' +
+        '</tr>';
     });
 
-    var totalTr = document.createElement('tr');
-    totalTr.className = 'font-weight-bold breakdown-total';
-    totalTr.innerHTML =
+    html += '<tr class="font-weight-bold breakdown-total">' +
       '<td colspan="3">Total Water Bill</td>' +
-      '<td class="text-right">&#x20B1;' + money(billing.original_water_bill) + '</td>';
-    tbody.appendChild(totalTr);
+      '<td class="text-end">&#x20B1;' + money(billing.original_water_bill) + '</td>' +
+      '</tr>';
+    tbody.innerHTML = html;
 
     table.classList.remove('d-none');
   }
 
   function renderBillSummary(billing) {
     var unpaidWrap = text('unpaid-bills');
-    unpaidWrap.innerHTML = '';
+    var uh = '';
     var showPaidRow = false;
     var showPaidCheck = false;
     var showNoBills = false;
 
     if (billing.unpaid_bills && billing.unpaid_bills.length) {
       billing.unpaid_bills.forEach(function (bill) {
-        var row = document.createElement('div');
-        row.className = 'd-flex justify-content-between mb-1';
-        row.innerHTML = '<span class="text-muted">' + esc(bill.month) + '</span>' +
-          '<span class="font-weight-bold">&#x20B1;' + money(bill.amount) + '</span>';
-        unpaidWrap.appendChild(row);
+        uh += '<div class="d-flex justify-content-between mb-1">' +
+          '<span class="text-muted">' + esc(bill.month) + '</span>' +
+          '<span class="font-weight-bold">&#x20B1;' + money(bill.amount) + '</span></div>';
         if (bill.penalty > 0) {
-          var pen = document.createElement('div');
-          pen.className = 'd-flex justify-content-between mb-2';
-          pen.innerHTML = '<span class="text-muted penalty-label">+ Late Penalty</span>' +
-            '<span class="font-weight-bold penalty-amount">+ &#x20B1;' + money(bill.penalty) + '</span>';
-          unpaidWrap.appendChild(pen);
+          uh += '<div class="d-flex justify-content-between mb-2">' +
+            '<span class="text-muted penalty-label">+ Late Penalty</span>' +
+            '<span class="font-weight-bold penalty-amount">+ &#x20B1;' + money(bill.penalty) + '</span></div>';
         }
       });
     } else if (billing.original_water_bill > 0) {
@@ -154,10 +160,11 @@
     } else {
       showNoBills = true;
     }
+    unpaidWrap.innerHTML = uh;
 
-    text('paid-status-row').classList.toggle('d-none', !showPaidRow);
-    text('paid-status-check').classList.toggle('d-none', !showPaidCheck);
-    text('no-bills').classList.toggle('d-none', !showNoBills);
+    show(text('paid-status-row'), showPaidRow);
+    show(text('paid-status-check'), showPaidCheck);
+    show(text('no-bills'), showNoBills);
 
     var carryoverRow = text('carryover-row');
     if (billing.cumulative_balance !== 0) {
@@ -186,7 +193,7 @@
       dueDate.classList.add('d-none');
     }
 
-    text('pending-notice').classList.toggle('d-none', !billing.pending_xendit);
+    show(text('pending-notice'), !!billing.pending_xendit);
   }
 
   function renderMap(customer) {
@@ -231,12 +238,10 @@
 
   function buildPaymentGroups(methods) {
     var byCode = {};
-    (methods || []).forEach(function (m) {
-      byCode[m.code] = m;
-    });
+    (methods || []).forEach(function (m) { byCode[m.code] = m; });
 
-    var wrap = $('#payment-groups');
-    wrap.empty();
+    var wrap = text('payment-groups');
+    var html = '';
 
     PAYMENT_GROUPS.forEach(function (group) {
       var options = [];
@@ -259,7 +264,7 @@
       if (!options.length) return;
 
       var expanded = !!group.expanded;
-      wrap.append(
+      html +=
         '<div class="payment-group mb-1">' +
         '<div class="payment-group-header' + (expanded ? ' expanded' : '') + '">' +
         '<span class="payment-group-name">' + esc(group.name) + '</span>' +
@@ -267,33 +272,51 @@
         '</div>' +
         '<div class="payment-group-body' + (expanded ? '' : ' d-none') + '">' +
         options.join('') +
-        '</div></div>'
-      );
+        '</div></div>';
     });
+
+    wrap.innerHTML = html;
+  }
+
+  function paymentGroups() {
+    return document.querySelectorAll('#payment-groups .payment-group');
   }
 
   function toggleGroup(header) {
-    var body = $(header).next('.payment-group-body');
-    var isOpening = body.hasClass('d-none');
-    $('.payment-group-body').addClass('d-none').css('display', '');
-    $('.payment-group-header').removeClass('expanded');
-    $('.payment-group-icon').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+    var body = header.nextElementSibling;
+    var isOpening = body.classList.contains('d-none');
+    Array.prototype.forEach.call(document.querySelectorAll('.payment-group-body'), function (b) {
+      b.classList.add('d-none');
+      b.style.display = '';
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.payment-group-header'), function (h) {
+      h.classList.remove('expanded');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.payment-group-icon'), function (i) {
+      i.classList.remove('fa-chevron-up');
+      i.classList.add('fa-chevron-down');
+    });
     if (isOpening) {
-      body.removeClass('d-none');
-      $(header).addClass('expanded');
-      $(header).find('.payment-group-icon').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+      body.classList.remove('d-none');
+      header.classList.add('expanded');
+      var icon = header.querySelector('.payment-group-icon');
+      icon.classList.remove('fa-chevron-down');
+      icon.classList.add('fa-chevron-up');
     }
   }
 
   function selectPaymentMethod(el) {
-    $('.payment-option').removeClass('selected');
-    $(el).addClass('selected');
-    selectedMethod = $(el).data('method');
+    Array.prototype.forEach.call(document.querySelectorAll('.payment-option'), function (o) {
+      o.classList.remove('selected');
+    });
+    el.classList.add('selected');
+    var ds = el.dataset;
+    selectedMethod = ds.method;
 
-    var feePercent = parseFloat($(el).data('fee-percent')) || 0;
-    var feeFlat = parseFloat($(el).data('fee-flat')) || 0;
-    var feeMin = parseFloat($(el).data('fee-minimum')) || 0;
-    var xenditFee = parseFloat($(el).data('xendit-fee')) || 0;
+    var feePercent = parseFloat(ds.feePercent) || 0;
+    var feeFlat = parseFloat(ds.feeFlat) || 0;
+    var feeMin = parseFloat(ds.feeMinimum) || 0;
+    var xenditFee = parseFloat(ds.xenditFee) || 0;
 
     var feeAmount = Math.round(BASE_AMOUNT * feePercent) / 100 + feeFlat;
     if (feeMin > 0 && feeAmount < feeMin) feeAmount = feeMin;
@@ -301,34 +324,37 @@
     var convenienceFee = feeAmount + xenditFee;
     var totalWithFee = BASE_AMOUNT + convenienceFee;
 
-    $('#convenience-fee-display').text(convenienceFee.toFixed(2));
-    $('#total-with-fee').text(totalWithFee.toFixed(2));
-    $('#fee-breakdown').removeClass('d-none');
-    $('#pay-amount-btn').text(totalWithFee.toFixed(2));
-    $('#pay-now-btn').prop('disabled', false);
+    text('convenience-fee-display').textContent = convenienceFee.toFixed(2);
+    text('total-with-fee').textContent = totalWithFee.toFixed(2);
+    text('fee-breakdown').classList.remove('d-none');
+    text('pay-amount-btn').textContent = totalWithFee.toFixed(2);
+    text('pay-now-btn').disabled = false;
   }
 
   function resetModal() {
     selectedMethod = null;
-    $('#pay-now-btn').prop('disabled', true);
-    $('#fee-breakdown').addClass('d-none');
-    $('.payment-option').removeClass('selected');
-    $('.payment-group-body').each(function () {
-      var name = $(this).closest('.payment-group').find('.payment-group-name').text().trim();
-      var isExpanded = name === 'Recommended';
-      $(this).toggleClass('d-none', !isExpanded).css('display', '');
+    text('pay-now-btn').disabled = true;
+    text('fee-breakdown').classList.add('d-none');
+    Array.prototype.forEach.call(document.querySelectorAll('.payment-option'), function (o) {
+      o.classList.remove('selected');
     });
-    $('.payment-group-icon').each(function () {
-      var name = $(this).closest('.payment-group').find('.payment-group-name').text().trim();
-      var isExpanded = name === 'Recommended';
-      $(this).toggleClass('fa-chevron-down', !isExpanded);
-      $(this).toggleClass('fa-chevron-up', isExpanded);
+    Array.prototype.forEach.call(paymentGroups(), function (g) {
+      var nameEl = g.querySelector('.payment-group-name');
+      var isExpanded = nameEl && nameEl.textContent.trim() === 'Recommended';
+      var body = g.querySelector('.payment-group-body');
+      body.classList.toggle('d-none', !isExpanded);
+      body.style.display = '';
+      var icon = g.querySelector('.payment-group-icon');
+      if (icon) {
+        icon.classList.toggle('fa-chevron-down', !isExpanded);
+        icon.classList.toggle('fa-chevron-up', isExpanded);
+      }
     });
-    $('#pay-online-error').addClass('d-none');
-    $('#pay-online-success').addClass('d-none');
-    $('#pay-online-loading').addClass('d-none');
-    $('#pay-online-form').removeClass('d-none');
-    $('#pay-amount-btn').text(BASE_AMOUNT.toFixed(2));
+    text('pay-online-error').classList.add('d-none');
+    text('pay-online-success').classList.add('d-none');
+    text('pay-online-loading').classList.add('d-none');
+    text('pay-online-form').classList.remove('d-none');
+    text('pay-amount-btn').textContent = BASE_AMOUNT.toFixed(2);
   }
 
   window.retryPayment = function () {
@@ -337,47 +363,55 @@
 
   function initPayModal(billing) {
     BASE_AMOUNT = Number(billing.total_due) || 0;
-    $('#pay-amount').text(BASE_AMOUNT.toFixed(2));
-    $('#pay-success-amount').text(BASE_AMOUNT.toFixed(2));
-    $('#pay-amount-btn').text(BASE_AMOUNT.toFixed(2));
+    text('pay-amount').textContent = BASE_AMOUNT.toFixed(2);
+    text('pay-success-amount').textContent = BASE_AMOUNT.toFixed(2);
+    text('pay-amount-btn').textContent = BASE_AMOUNT.toFixed(2);
     buildPaymentGroups(billing.payment_methods);
 
-    $('#payment-groups').off('click').on('click', '.payment-group-header', function () {
-      toggleGroup(this);
-    }).on('click', '.payment-option', function () {
-      selectPaymentMethod(this);
+    var wrap = text('payment-groups');
+    wrap.addEventListener('click', function (e) {
+      var header = e.target.closest('.payment-group-header');
+      if (header) { toggleGroup(header); return; }
+      var option = e.target.closest('.payment-option');
+      if (option) { selectPaymentMethod(option); }
     });
 
-    $('#payOnlineModal').off('hidden.bs.modal').on('hidden.bs.modal', resetModal);
+    var modal = text('payOnlineModal');
+    if (modal) modal.removeEventListener('hidden.bs.modal', resetModal);
+    if (modal) modal.addEventListener('hidden.bs.modal', resetModal);
   }
 
-  $('#pay-now-btn').on('click', function () {
+  text('pay-now-btn').addEventListener('click', function () {
     if (!selectedMethod) return;
 
-    $('#pay-online-form').addClass('d-none');
-    $('#pay-online-loading').removeClass('d-none');
+    text('pay-online-form').classList.add('d-none');
+    text('pay-online-loading').classList.remove('d-none');
 
-    $.ajax({
-      url: '/customer/api/invoice',
+    fetch('/customer/api/invoice', {
       method: 'POST',
-      contentType: 'application/json',
-      data: JSON.stringify({
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
         amount: BASE_AMOUNT,
         payment_method: selectedMethod,
         success_url: window.location.href,
         cancel_url: window.location.href,
       }),
-      success: function (data) {
+    })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (data) {
+          if (!r.ok) { throw new Error((data && data.error) || 'Payment failed.'); }
+          return data;
+        });
+      })
+      .then(function (data) {
         if (data.redirect_url) window.location.href = data.redirect_url;
-      },
-      error: function (xhr) {
-        $('#pay-online-loading').addClass('d-none');
-        var msg = 'Payment failed. Please try again.';
-        try { var r = JSON.parse(xhr.responseText); msg = r.error; } catch (e) {}
-        $('#pay-online-error-msg').text(msg);
-        $('#pay-online-error').removeClass('d-none');
-      },
-    });
+      })
+      .catch(function (err) {
+        text('pay-online-loading').classList.add('d-none');
+        text('pay-online-error-msg').textContent = (err && err.message) || 'Payment failed. Please try again.';
+        text('pay-online-error').classList.remove('d-none');
+      });
   });
 
   // ---------------------------------------------------------------------
@@ -385,85 +419,94 @@
   // ---------------------------------------------------------------------
 
   function renderPagination(container, current, total, cb) {
-    var ul = $(container).empty();
+    var ul = typeof container === 'string' ? document.querySelector(container) : container;
+    if (!ul) return;
+    ul.innerHTML = '';
     if (total <= 1) {
-      ul.hide();
+      ul.style.display = 'none';
       return;
     }
-    ul.show();
-    var prev = $('<li class="page-item"><a class="page-link" href="#">&laquo;</a></li>');
-    prev.find('a').on('click', function (e) { e.preventDefault(); if (current > 1) cb(current - 1); });
-    if (current === 1) prev.addClass('disabled');
-    ul.append(prev);
-    for (var i = Math.max(1, current - 2); i <= Math.min(total, current + 2); i++) {
-      var li = $('<li class="page-item"><a class="page-link" href="#">' + i + '</a></li>');
-      if (i === current) li.addClass('active');
-      li.find('a').on('click', (function (p) {
-        return function (e) { e.preventDefault(); cb(p); };
-      })(i));
-      ul.append(li);
+    ul.style.display = '';
+
+    function item(label, page, opts) {
+      opts = opts || {};
+      var li = document.createElement('li');
+      li.className = 'page-item' + (opts.disabled ? ' disabled' : '') + (opts.active ? ' active' : '');
+      var a = document.createElement('a');
+      a.className = 'page-link';
+      a.href = '#';
+      a.innerHTML = label;
+      if (!opts.disabled && page != null) {
+        a.addEventListener('click', function (e) { e.preventDefault(); cb(page); });
+      }
+      li.appendChild(a);
+      return li;
     }
-    var next = $('<li class="page-item"><a class="page-link" href="#">&raquo;</a></li>');
-    next.find('a').on('click', function (e) { e.preventDefault(); if (current < total) cb(current + 1); });
-    if (current === total) next.addClass('disabled');
-    ul.append(next);
+
+    ul.appendChild(item('&laquo;', current > 1 ? current - 1 : null, { disabled: current === 1 }));
+    for (var i = Math.max(1, current - 2); i <= Math.min(total, current + 2); i++) {
+      ul.appendChild(item(String(i), i, { active: i === current }));
+    }
+    ul.appendChild(item('&raquo;', current < total ? current + 1 : null, { disabled: current === total }));
   }
 
   function loadPayments(page) {
-    $.getJSON('/customer/api/payments?page=' + page, function (data) {
-      var tbody = $('#payment-history-table tbody');
-      tbody.empty();
+    getJSON('/customer/api/payments?page=' + page).then(function (data) {
+      var tbody = document.querySelector('#payment-history-table tbody');
+      var h = '';
       if (!data.items.length) {
-        tbody.append('<tr><td colspan="3" class="text-muted text-center">No payments</td></tr>');
+        h = '<tr><td colspan="3" class="text-muted text-center">No payments</td></tr>';
       } else {
         data.items.forEach(function (item) {
-          tbody.append('<tr><td>' + esc(item.receipt_number) + '</td><td>&#x20B1;' +
-            money(item.paid_amount) + '</td><td>' + esc(fmtDate(item.timestamp)) + '</td></tr>');
+          h += '<tr><td>' + esc(item.receipt_number) + '</td><td>&#x20B1;' +
+            money(item.paid_amount) + '</td><td>' + esc(fmtDate(item.timestamp)) + '</td></tr>';
         });
       }
+      tbody.innerHTML = h;
       renderPagination('#payment-pagination', data.page, data.pages, loadPayments);
     });
   }
 
   function loadReadings(page) {
-    $.getJSON('/customer/api/readings?page=' + page, function (data) {
-      var tbody = $('#reading-history-table tbody');
-      tbody.empty();
+    getJSON('/customer/api/readings?page=' + page).then(function (data) {
+      var tbody = document.querySelector('#reading-history-table tbody');
+      var h = '';
       if (!data.items.length) {
-        tbody.append('<tr><td colspan="3" class="text-muted text-center">No readings</td></tr>');
+        h = '<tr><td colspan="3" class="text-muted text-center">No readings</td></tr>';
       } else {
         data.items.forEach(function (item) {
-          tbody.append('<tr><td>' + esc(item.reading_value) + '</td><td>' + esc(item.reader || '\u2014') +
-            '</td><td>' + esc(fmtDate(item.timestamp)) + '</td></tr>');
+          h += '<tr><td>' + esc(item.reading_value) + '</td><td>' + esc(item.reader || '\u2014') +
+            '</td><td>' + esc(fmtDate(item.timestamp)) + '</td></tr>';
         });
       }
+      tbody.innerHTML = h;
       renderPagination('#reading-pagination', data.page, data.pages, loadReadings);
     });
   }
 
   function loadBillingHistory(page) {
-    $.getJSON('/customer/api/history?page=' + page, function (data) {
-      var tbody = $('#billing-history-table tbody');
-      tbody.empty();
+    getJSON('/customer/api/history?page=' + page).then(function (data) {
+      var tbody = document.querySelector('#billing-history-table tbody');
+      var h = '';
       if (!data.items.length) {
-        tbody.append('<tr><td colspan="5" class="text-muted text-center">No billing history</td></tr>');
+        h = '<tr><td colspan="5" class="text-muted text-center">No billing history</td></tr>';
       } else {
         data.items.forEach(function (item) {
           var paid = item.paid_amount !== null && item.paid_amount !== undefined
             ? '&#x20B1;' + money(item.paid_amount)
             : '<span style="color:#dc3545;">Unpaid</span>';
           var penaltyDisplay = item.penalty > 0 ? '&#x20B1;' + money(item.penalty) : '';
-          tbody.append(
+          h +=
             '<tr>' +
             '<td>' + esc(item.month) + '</td>' +
             '<td>' + money(item.usage) + ' m&sup3;</td>' +
             '<td>&#x20B1;' + money(item.billed_amount) + '</td>' +
             '<td>' + penaltyDisplay + '</td>' +
             '<td>' + paid + '</td>' +
-            '</tr>'
-          );
+            '</tr>';
         });
       }
+      tbody.innerHTML = h;
       renderPagination('#billing-history-pagination', data.page, data.pages, loadBillingHistory);
     });
   }
@@ -501,9 +544,9 @@
           window.location.href = '/customer/login';
           return null;
         }
-        return resp.text().then(function (text) {
+        return resp.text().then(function (body) {
           var data;
-          try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+          try { data = body ? JSON.parse(body) : null; } catch (e) { data = null; }
           if (!resp.ok) throw new Error(readEnvelopeError(data, resp.status));
           return data;
         });

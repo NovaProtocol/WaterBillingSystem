@@ -23,7 +23,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     Customer Information
                     <a href="/customer/logout" class="btn btn-outline-bill btn-sm">
-                        <i class="fas fa-search mr-2"></i>New Search
+                        <i class="fas fa-search me-2"></i>New Search
                     </a>
                 </div>
                 <div class="card-body">
@@ -61,7 +61,7 @@
             </div>
 
             <div class="card card-app mb-4">
-                <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#pricingCollapse">
+                <div class="card-header collapse-trigger" data-bs-toggle="collapse" data-bs-target="#pricingCollapse">
                     <div class="d-flex justify-content-between align-items-center">
                         How We Calculate Your Bill
                         <i class="fas fa-chevron-down chevron-icon"></i>
@@ -74,7 +74,7 @@
                     </div>
                     <table class="table table-sm mb-0 d-none" id="pricing-table">
                         <thead>
-                            <tr><th>Tier</th><th>Usage</th><th>Rate</th><th class="text-right">Charge</th></tr>
+                            <tr><th>Tier</th><th>Usage</th><th>Rate</th><th class="text-end">Charge</th></tr>
                         </thead>
                         <tbody id="pricing-tbody"></tbody>
                     </table>
@@ -97,7 +97,7 @@
                         <span class="text-muted">Current Bill</span>
                         <span class="font-weight-bold" id="paid-status-amount"></span>
                     </div>
-                    <div class="text-right mb-2 paid-status d-none" id="paid-status-check">
+                    <div class="text-end mb-2 paid-status d-none" id="paid-status-check">
                         <i class="fas fa-check-circle"></i> Paid
                     </div>
                     <p class="text-muted mb-0 no-bills d-none" id="no-bills">No bills due</p>
@@ -110,18 +110,18 @@
                         <span class="font-weight-bold">Total Due</span>
                         <span class="font-weight-bold total-due-amount" id="total-due">&#x20B1;0.00</span>
                     </div>
-                    <div class="text-right mt-2 due-date d-none" id="due-date"></div>
+                    <div class="text-end mt-2 due-date d-none" id="due-date"></div>
                     <div class="mt-2 p-2 pending-notice d-none" id="pending-notice">
-                        <i class="fas fa-clock mr-1"></i> Online payment pending, awaiting confirmation
+                        <i class="fas fa-clock me-1"></i> Online payment pending, awaiting confirmation
                     </div>
-                    <button type="button" class="btn btn-app btn-block mt-3" data-toggle="modal" data-target="#payOnlineModal" id="pay-online-btn">
-                        <i class="fas fa-credit-card mr-2"></i>Pay Online
+                    <button type="button" class="btn btn-app w-100 mt-3" data-bs-toggle="modal" data-bs-target="#payOnlineModal" id="pay-online-btn">
+                        <i class="fas fa-credit-card me-2"></i>Pay Online
                     </button>
                 </div>
             </div>
 
             <div class="card card-app mb-4">
-                <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#paymentCollapse">
+                <div class="card-header collapse-trigger" data-bs-toggle="collapse" data-bs-target="#paymentCollapse">
                     <div class="d-flex justify-content-between align-items-center">
                         Payment History
                         <i class="fas fa-chevron-down chevron-icon"></i>
@@ -143,7 +143,7 @@
             </div>
 
             <div class="card card-app mb-4">
-                <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#readingCollapse">
+                <div class="card-header collapse-trigger" data-bs-toggle="collapse" data-bs-target="#readingCollapse">
                     <div class="d-flex justify-content-between align-items-center">
                         Meter Reading History
                         <i class="fas fa-chevron-down chevron-icon"></i>
@@ -167,7 +167,7 @@
     </div>
 
     <div class="card card-app mb-4">
-        <div class="card-header collapse-trigger" data-toggle="collapse" data-target="#billingHistoryCollapse">
+        <div class="card-header collapse-trigger" data-bs-toggle="collapse" data-bs-target="#billingHistoryCollapse">
             <div class="d-flex justify-content-between align-items-center">
                 Billing History
                 <i class="fas fa-chevron-down chevron-icon"></i>
