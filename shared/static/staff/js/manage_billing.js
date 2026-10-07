@@ -167,7 +167,7 @@
     if (!id) { alert('No billing ID'); return; }
     document.getElementById('undoPaymentId').value = id;
     document.getElementById('undoReason').value = '';
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('undoPaymentModal')).show();
+    openModal(document.getElementById('undoPaymentModal'));
   });
 
   document.getElementById('undoPaymentForm').addEventListener('submit', function (e) {
@@ -178,7 +178,7 @@
     if (!confirm('Undo this payment? The bill will be reverted to unpaid.')) return;
     postJSON(UNDO_PAYMENT_URL_BASE.replace('0', id), { reason: reason })
       .then(function () {
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('undoPaymentModal')).hide();
+        closeModal(document.getElementById('undoPaymentModal'));
         location.reload();
       })
       .catch(handleError);

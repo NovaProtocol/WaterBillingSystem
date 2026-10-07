@@ -1,8 +1,8 @@
 (function () {
   'use strict';
 
-  function openModal(id) { bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).show(); }
-  function closeModal(id) { bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).hide(); }
+  function openModal(id) { window.openModal(document.getElementById(id)); }
+  function closeModal(id) { window.closeModal(document.getElementById(id)); }
 
   document.getElementById('generateKeyForm').addEventListener('submit', function (e) {
     e.preventDefault();

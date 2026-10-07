@@ -230,7 +230,7 @@
             .then(function (data) {
                 setText('receiptNum', data.receipt_number);
                 setHtml('receiptAmount', '&#x20B1;' + data.amount.toFixed(2));
-                bootstrap.Modal.getOrCreateInstance(document.getElementById('paymentConfirmModal')).show();
+                openModal(document.getElementById('paymentConfirmModal'));
                 loadCustomer(custNum);
                 document.getElementById('payAmount').value = '';
             })

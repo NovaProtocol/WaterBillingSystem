@@ -66,14 +66,14 @@
       document.getElementById('editReadingId').value = editBtn.dataset.id;
       document.getElementById('editOldValue').value = editBtn.dataset.value;
       document.getElementById('editNewValue').value = editBtn.dataset.value;
-      bootstrap.Modal.getOrCreateInstance(document.getElementById('editReadingModal')).show();
+      openModal(document.getElementById('editReadingModal'));
       return;
     }
     var dropBtn = e.target.closest('.drop-reading');
     if (dropBtn) {
       document.getElementById('dropReadingId').value = dropBtn.dataset.id;
       document.getElementById('dropReadingReason').value = '';
-      bootstrap.Modal.getOrCreateInstance(document.getElementById('dropReadingModal')).show();
+      openModal(document.getElementById('dropReadingModal'));
     }
   });
 
@@ -83,7 +83,7 @@
     var value = parseFloat(document.getElementById('editNewValue').value);
     postJSON(EDIT_READING_URL_BASE.replace('0', id), { reading_value: value })
       .then(function () {
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('editReadingModal')).hide();
+        closeModal(document.getElementById('editReadingModal'));
         alert('Reading updated');
         location.reload();
       })
@@ -98,7 +98,7 @@
     if (!confirm('Are you sure? This cannot be undone.')) return;
     postJSON(DROP_READING_URL_BASE.replace('0', id), { reason: reason })
       .then(function () {
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('dropReadingModal')).hide();
+        closeModal(document.getElementById('dropReadingModal'));
         alert('Reading dropped');
         location.reload();
       })

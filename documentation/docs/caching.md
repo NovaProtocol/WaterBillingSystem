@@ -83,7 +83,7 @@ precedence rule and these values.
 Read the header from the running service rather than from the source:
 
 ```bash
-curl -sI http://127.0.0.1:7020/static/app.css | grep -i cache-control
+curl -sI http://127.0.0.1:7020/static/common/css/tailwind.css | grep -i cache-control
 ```
 
 A static path should show `public, max-age=86400` once the deployment is not in

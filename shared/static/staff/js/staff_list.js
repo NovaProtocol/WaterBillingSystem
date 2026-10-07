@@ -67,7 +67,7 @@ document.addEventListener('click', function (e) {
             });
             document.getElementById('edit-perm-active').checked = data.is_active;
             document.getElementById('edit-staff-result').innerHTML = '';
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('editStaffModal')).show();
+            openModal(document.getElementById('editStaffModal'));
         });
 });
 

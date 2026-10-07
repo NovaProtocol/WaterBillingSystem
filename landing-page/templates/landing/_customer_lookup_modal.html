@@ -132,7 +132,7 @@
         if (!customerData) return;
         postJSON('{{ "/customer/api/login" }}', { account_number: customerData.customer_number, last_receipt: lastReceipt })
             .then(function (data) {
-                bootstrap.Modal.getOrCreateInstance(document.getElementById('customerModal')).hide();
+                closeModal(document.getElementById('customerModal'));
                 window.location.href = data.redirect || '/customer/';
             })
             .catch(function () { alert('Failed to confirm. Please try again.'); });

@@ -48,7 +48,7 @@
     }
 
     currentClearNfcId = ds.id;
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('editCustomerModal')).show();
+    openModal(document.getElementById('editCustomerModal'));
   });
 
   document.getElementById('editCustomerForm').addEventListener('submit', function (e) {
@@ -69,7 +69,7 @@
       meter_serial_number: val('editCustMeterSn'),
     })
       .then(function () {
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('editCustomerModal')).hide();
+        closeModal(document.getElementById('editCustomerModal'));
         location.reload();
       })
       .catch(handleError);
@@ -93,7 +93,7 @@
     postJSON(CLEAR_NFC_URL_BASE.replace('0', currentClearNfcId), {})
       .then(function (data) {
         alert(data.message);
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('editCustomerModal')).hide();
+        closeModal(document.getElementById('editCustomerModal'));
         location.reload();
       })
       .catch(handleError);

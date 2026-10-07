@@ -14,7 +14,7 @@
       .then(function (r) { return r.json(); })
       .then(function (r) {
         document.getElementById('confirm-code').textContent = r.code;
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('confirm-modal')).show();
+        openModal(document.getElementById('confirm-modal'));
       });
   };
 
@@ -31,7 +31,7 @@
     body.append('confirm_code', document.getElementById('confirm-input').value);
     Object.keys(pendingData || {}).forEach(function (k) { body.append(k, pendingData[k]); });
 
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('confirm-modal')).hide();
+    closeModal(document.getElementById('confirm-modal'));
     fetch(url, { method: 'POST', body: body })
       .then(function (r) { return r.json().catch(function () { return { error: 'Request failed' }; }); })
       .then(function (r) {
@@ -46,7 +46,7 @@
           hdr.innerHTML = '<h5 class="modal-title">Success</h5>';
           bdy.innerHTML = '<div class="alert alert-success mb-0">' + (r.message || 'Done') + '</div>';
         }
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('result-modal')).show();
+        openModal(document.getElementById('result-modal'));
         if (pendingAction === 'backup') refreshBackups();
         if (pendingAction === 'clear' || pendingAction === 'seed') setTimeout(function () { location.reload(); }, 2000);
       });
