@@ -60,7 +60,7 @@ Enter an API key manually or tap the QR icon to scan one:
 
 ### History Count
 
-How many past readings to display per customer (1–24). Default: 5.
+How many past readings to display per customer (1-24). Default: 5.
 
 ## Initial Sync
 

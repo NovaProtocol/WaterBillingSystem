@@ -329,7 +329,7 @@ def compute_cashier_tally(
                         "interval_label": (
                             i_start.strftime("%b %d")
                             if group_days <= 1 or len(intervals) <= 1
-                            else f"{i_start.strftime('%b %d')}–{(i_end - timedelta(days=1)).strftime('%b %d')}"
+                            else f"{i_start.strftime('%b %d')}-{(i_end - timedelta(days=1)).strftime('%b %d')}"
                         ),
                     }
                 )
@@ -374,7 +374,7 @@ def compute_nav_dates(period: str, start: datetime, end: datetime, today: dateti
         nav["prev_date"] = (start - timedelta(days=7)).strftime("%Y-%m-%d")
         nav["next_date"] = (start + timedelta(days=7)).strftime("%Y-%m-%d")
         nav["display"] = (
-            f"{start.strftime('%b %d')} – {(end - timedelta(days=1)).strftime('%b %d, %Y')}"
+            f"{start.strftime('%b %d')} - {(end - timedelta(days=1)).strftime('%b %d, %Y')}"
         )
         nav["is_today"] = start.date() <= today.date() < end.date()
         nav["nav_date"] = start.strftime("%Y-%m-%d")
@@ -395,7 +395,7 @@ def compute_nav_dates(period: str, start: datetime, end: datetime, today: dateti
         nav["prev_date"] = None
         nav["next_date"] = None
         nav["display"] = (
-            f"{start.strftime('%b %d, %Y')} – {(end - timedelta(days=1)).strftime('%b %d, %Y')}"
+            f"{start.strftime('%b %d, %Y')} - {(end - timedelta(days=1)).strftime('%b %d, %Y')}"
         )
         nav["is_today"] = False
         nav["nav_date"] = None

@@ -160,7 +160,7 @@ export default function SettingsScreen() {
         keyboardType="number-pad"
         maxLength={2}
       />
-      <Text style={styles.hint}>Number of past readings shown (1–24)</Text>
+      <Text style={styles.hint}>Number of past readings shown (1-24)</Text>
 
       <TouchableOpacity
         style={styles.clearButton}

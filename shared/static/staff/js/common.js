@@ -87,7 +87,7 @@ function customerAutocomplete(inputId, dropdownId, onSelect) {
           var h = '';
           data.forEach(function (c) {
             h += '<div class="item" data-number="' + esc(c.customer_number) + '" data-name="' + esc(c.name) + '">'
-              + '<strong>' + esc(c.customer_number) + '</strong> &mdash; ' + esc(c.name)
+              + '<strong>' + esc(c.customer_number) + '</strong> - ' + esc(c.name)
               + '<br><span class="sub">' + esc(c.address || '') + '</span></div>';
           });
           dropdown.innerHTML = h;

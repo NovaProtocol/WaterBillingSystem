@@ -135,7 +135,7 @@ App configuration.
 | **Server IP** | BillServer IP address |
 | **Server Port** | BillServer port (default 5005) |
 | **API Token** | API key (manual entry or QR scan) |
-| **History Per Customer** | TextInput (1–24), default 5 |
+| **History Per Customer** | TextInput (1-24), default 5 |
 | **Clear Unsynced** | Drop readings not yet synced to server |
 | **Reset All Data** | Clears DB and returns to Home (re-auth required) |
 
@@ -150,7 +150,7 @@ Invisible component running a continuous scan loop using `NfcTech.NfcA`. On tag 
 3. Looks up UID in local `nfc_cache` table
 4. Computes password via `computeTagPwd(nfcPwdSecret, uid)`
 5. Sends **PWD_AUTH**: computed password → cached password (if different) → factory FFFFFFFF → factory 00000000
-6. Reads memory pages 7–18 via `NfcManager.transceive()`, parses raw ASCII for customer number
+6. Reads memory pages 7-18 via `NfcManager.transceive()`, parses raw ASCII for customer number
 7. Verifies customer number matches `nfc_cache` entry (tampering detection)
 8. Calls `onTag(customerNumber)` or `onError(message)`
 

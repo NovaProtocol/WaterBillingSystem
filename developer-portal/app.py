@@ -69,7 +69,7 @@ def _err(request: Request, code: int, title: str, msg: str):
 
 @app.exception_handler(StarletteHTTPException)
 async def _http(request: Request, exc: StarletteHTTPException):
-    # Dev login gate uses 302 with Location header – let the redirect through
+    # Dev login gate uses 302 with Location header - let the redirect through
     if exc.status_code in (301, 302, 303, 307, 308):
         loc = ""
         if getattr(exc, "headers", None):

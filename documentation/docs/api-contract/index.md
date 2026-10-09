@@ -220,7 +220,7 @@ Paginated list of all customers with due amounts and NFC status.
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `page` | int | 1 | Page number |
-| `size` | int | 50 | Items per page (10–200) |
+| `size` | int | 50 | Items per page (10-200) |
 | `q` | string | n/a | Search (number, name, contact) |
 | `sort_by` | string | customer_number | Field to sort by |
 | `sort_dir` | string | asc | asc or desc |
@@ -949,7 +949,7 @@ Verify an API key is valid and active.
 
 ---
 
-### 37–49. Debug Endpoints
+### 37-49. Debug Endpoints
 
 All debug endpoints require superuser access (checking `/app/db_backups` directory existence). All destructive operations run via the background task queue.
 
@@ -999,7 +999,7 @@ Queue test data seed.
 ```json
 {"customers": 100, "months": 12}
 ```
-Customer count: 1–10000. Months: 1–240.
+Customer count: 1-10000. Months: 1-240.
 
 #### POST /api/debug/read-month
 Create readings + unpaid bills for all customers without a current month reading.
@@ -1065,10 +1065,10 @@ All endpoints return errors as:
 
 | Tier | Range | Rate | Unit |
 |------|-------|------|------|
-| First 10 m³ | 0–10 m³ | PHP 150.00 | flat |
-| 11 m³ to 20 m³ | 10–20 m³ | PHP 25.00 | per m³ |
-| 21 m³ to 30 m³ | 20–30 m³ | PHP 30.00 | per m³ |
-| 31 m³ to 40 m³ | 30–40 m³ | PHP 35.00 | per m³ |
+| First 10 m³ | 0-10 m³ | PHP 150.00 | flat |
+| 11 m³ to 20 m³ | 10-20 m³ | PHP 25.00 | per m³ |
+| 21 m³ to 30 m³ | 20-30 m³ | PHP 30.00 | per m³ |
+| 31 m³ to 40 m³ | 30-40 m³ | PHP 35.00 | per m³ |
 | 41 m³ and above | 40+ m³ | PHP 40.00 | per m³ |
 
 Late penalty: **PHP 15.00** if unpaid after 7 days from reading date.

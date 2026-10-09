@@ -651,10 +651,10 @@ All endpoints return errors in the same format:
 
 | Tier | Range | Rate | Unit |
 |---|---|---|---|
-| First 10 m³ | 0–10 m³ | $150.00 | flat |
-| 11 m³ to 20 m³ | 10–20 m³ | $25.00 | per m³ |
-| 21 m³ to 30 m³ | 20–30 m³ | $30.00 | per m³ |
-| 31 m³ to 40 m³ | 30–40 m³ | $35.00 | per m³ |
+| First 10 m³ | 0-10 m³ | $150.00 | flat |
+| 11 m³ to 20 m³ | 10-20 m³ | $25.00 | per m³ |
+| 21 m³ to 30 m³ | 20-30 m³ | $30.00 | per m³ |
+| 31 m³ to 40 m³ | 30-40 m³ | $35.00 | per m³ |
 | 41 m³ and above | 40+ m³ | $40.00 | per m³ |
 
 Late penalty: $15.00 if unpaid after 7 days from reading date.
