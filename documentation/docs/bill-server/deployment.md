@@ -125,7 +125,7 @@ All backup/restore operations run via the background task queue (worker containe
 # On the server
 cd WaterBillingSystem
 git pull # fetch latest code
-# env comes from the host's shell / Dockhand — no .env file (see .env.example)
+# env comes from the host's shell / Dockhand, no .env file (see .env.example)
 docker compose config > /dev/null # fails loudly on missing env vars
 docker compose up -d --build # rebuild + restart changed services
 ```

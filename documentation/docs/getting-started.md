@@ -16,7 +16,7 @@
 ```bash
 git clone <repo-url> WaterBillingSystem
 cd WaterBillingSystem
-# there is no .env file — export the vars documented in .env.example in your shell
+# there is no .env file, export the vars documented in .env.example in your shell
 ```
 
 Key variables (full list in `.env.example`, the source of truth):
