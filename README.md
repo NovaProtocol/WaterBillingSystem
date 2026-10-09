@@ -42,19 +42,19 @@ have to explain the numbers to a board or a cooperative meeting.
 
 ## Frontend
 
-**Design language:** `custom-wbs` — the app's own navy/rose palette (`#1a1a2e` chrome, `#e94560`
+**Design language:** `custom-wbs`, the app's own navy/rose palette (`#1a1a2e` chrome, `#e94560`
 accent) as a project one-off kit on the CDN
 (`https://cdn.projectnova.download/custom-wbs/theme.css`, plus `mobile.css` under
 `media="(max-width: 768px)"`). Tailwind is compiled per app into
 `shared/static/common/css/tailwind.css`; the Bootstrap vocabulary the templates and page JS were
 written against is re-supplied there with Bootstrap's own values, so no class names changed and the
-rendering is unchanged. Bootstrap itself (CSS and JS) is gone — modals, collapse and alert-dismiss
+rendering is unchanged. Bootstrap itself (CSS and JS) is gone. Modals, collapse and alert-dismiss
 are handled by `shared/static/common/js/ui-modal.js`.
 
 ## Running it
 
 ```bash
-# env comes from the shell — there is no .env file (see .env.example for the full list)
+# env comes from the shell, there is no .env file (see .env.example for the full list)
 export DEPLOYMENT_TYPE=debug
 docker compose up -d
 ```
