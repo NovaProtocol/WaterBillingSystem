@@ -29,7 +29,7 @@ CUSTOMER_FIELDS = (
     "x_coordinate",
     "y_coordinate",
 )
-READING_FIELDS = ("reading_value", "reader", "timestamp")
+READING_FIELDS = ("reading_value", "reader", "timestamp", "period", "period_key")
 PAYMENT_FIELDS = ("receipt_number", "paid_amount", "timestamp")
 UNPAID_BILL_FIELDS = ("month", "amount", "penalty", "timestamp")
 PAYMENT_METHOD_FIELDS = (
@@ -77,6 +77,13 @@ def _clean_context(billing):
         "latest_reading": _clean_reading(billing.get("latest_reading")),
         "last_reading": _clean_reading(billing.get("last_reading")),
         "consumption": billing.get("consumption", 0),
+        "current_period": billing.get("current_period"),
+        "current_period_key": billing.get("current_period_key"),
+        "latest_reading_period": billing.get("latest_reading_period"),
+        "latest_reading_period_key": billing.get("latest_reading_period_key"),
+        "has_current_reading": billing.get("has_current_reading", False),
+        "months_since_last_reading": billing.get("months_since_last_reading"),
+        "no_readings": billing.get("no_readings", False),
         "bill_breakdown": billing.get("bill_breakdown", []),
         "pricing_tiers": [_pick(t, PRICING_TIER_FIELDS) for t in billing.get("pricing_tiers", [])],
         "water_bill": billing.get("water_bill", 0),

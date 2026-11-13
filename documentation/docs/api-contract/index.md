@@ -91,6 +91,25 @@ When an internal API key is provided (matching `INTERNAL_API_KEY` env var), the 
 | 23 | POST | `/api/customer/<int:customer_number>/nfc/create` | API key (can_enroll_customer) | Assign NFC tag |
 | 24 | POST | `/api/customer/<int:customer_number>/nfc/delete` | API key (can_enroll_customer) | Remove NFC tag |
 
+> `/api/customer/all/nfc` is registered **before** `/api/customer/<int:customer_number>/nfc`.
+> FastAPI matches routes in declaration order, so the reverse order binds `all` as a
+> `customer_number` and answers 400 for the list endpoint.
+
+### Meter-reading app
+
+Paths the phone client calls that the customer/config split removed, restored as thin aliases over
+the services that already own the behaviour.
+
+| # | Method | Endpoint | Auth | Description |
+|---|--------|----------|------|-------------|
+| 51 | GET | `/api/key/info` | API key | Key validity + staff permissions |
+| 52 | GET | `/api/pricing` | API key (can_read_meters) | Alias of `/api/config/pricing` |
+| 53 | GET | `/api/nfc/config` | API key (can_read_meters) | Alias of `/api/config/nfc_secret` |
+| 54 | GET | `/api/nfc/tags` | API key (can_read_meters) | All NFC tags |
+| 55 | POST | `/api/nfc/sync` | API key (can_enroll_customer) | Assign tags enrolled on the phone |
+| 56 | POST | `/api/readings/sync` | API key (can_read_meters) | Bulk reading upload |
+| 57 | GET | `/api/readings/bulk` | API key (can_read_meters) | Customer profiles + recent readings |
+
 ### Staff
 
 | # | Method | Endpoint | Auth | Description |
@@ -281,9 +300,16 @@ Full billing profile, latest/previous readings, consumption, bill breakdown, pri
  "block": "Block A",
  "street": "Rose St",
  "max_meter_value": 999999.0,
- "latest_reading": {"id": 480, "reading_value": 250.6, "reader": "Juan Dela Cruz", "timestamp": 1778968800},
- "last_reading": {"id": 479, "reading_value": 220.3, "reader": "Juan Dela Cruz", "timestamp": 1776376800},
+ "latest_reading": {"id": 480, "reading_value": 250.6, "reader": "Juan Dela Cruz", "timestamp": 1778968800, "period": "June 2026", "period_key": "2026-06"},
+ "last_reading": {"id": 479, "reading_value": 220.3, "reader": "Juan Dela Cruz", "timestamp": 1776376800, "period": "May 2026", "period_key": "2026-05"},
  "consumption": 30.3,
+ "current_period": "June 2026",
+ "current_period_key": "2026-06",
+ "latest_reading_period": "June 2026",
+ "latest_reading_period_key": "2026-06",
+ "has_current_reading": true,
+ "months_since_last_reading": 0,
+ "no_readings": false,
  "bill_breakdown": [
  {"label": "First 10 m³", "units": 10, "charge": 150.0},
  {"label": "11 m³ to 20 m³", "units": 10, "charge": 250.0},

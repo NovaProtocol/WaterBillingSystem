@@ -17,6 +17,13 @@ class NfcCreatePayload(BaseModel):
     uid: str = ""
 
 
+@router.get("/customer/all/nfc")
+async def customer_all_nfc(api_key: ApiKey = Depends(require_staff("can_read_meters"))):
+    result = await session().execute(select(NfcTag).order_by(desc(NfcTag.date_created)))
+    tags = result.scalars().all()
+    return {"tags": [{"uid": t.uid, "customer_number": t.customer_number} for t in tags]}
+
+
 @router.get("/customer/{customer_number}/nfc")
 async def customer_nfc(
     customer_number: int, api_key: ApiKey = Depends(require_staff("can_read_meters"))
@@ -32,13 +39,6 @@ async def customer_nfc(
         "nfc_uid": tag.uid,
         "customer_number": tag.customer_number,
     }
-
-
-@router.get("/customer/all/nfc")
-async def customer_all_nfc(api_key: ApiKey = Depends(require_staff("can_read_meters"))):
-    result = await session().execute(select(NfcTag).order_by(desc(NfcTag.date_created)))
-    tags = result.scalars().all()
-    return {"tags": [{"uid": t.uid, "customer_number": t.customer_number} for t in tags]}
 
 
 @router.post("/customer/{customer_number}/nfc/create", status_code=201)

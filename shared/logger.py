@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+import sys
 import threading
 from datetime import datetime, timezone
 
@@ -43,8 +44,11 @@ class SQLiteLogHandler(logging.Handler):
     def __init__(self, name: str):
         super().__init__()
         self.name = name
+        self._disabled_reason: str | None = None
 
     def emit(self, record: logging.LogRecord) -> None:
+        if self._disabled_reason is not None:
+            return
         try:
             conn = _get_db(self.name)
             ts = (
@@ -79,8 +83,16 @@ class SQLiteLogHandler(logging.Handler):
                 f"DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY id DESC LIMIT {_PRUNE_LIMIT})"
             )
             conn.commit()
-        except Exception:
-            self.handleError(record)
+        except Exception as e:
+            # A log sink that raises must not cost a traceback per record: an
+            # unwritable /var/log/app turned every line into ~50 lines of noise
+            # and buried the real failures. Report it once, then stay quiet.
+            self._disabled_reason = f"{type(e).__name__}: {e}"
+            sys.stderr.write(
+                f"WARNING: {self.name} log sink disabled, {_LOG_DIR} is not writable "
+                f"by this process ({self._disabled_reason}). Container stdout logging "
+                f"is unaffected.\n"
+            )
 
 
 def attach_sqlite_logging(name: str) -> None:

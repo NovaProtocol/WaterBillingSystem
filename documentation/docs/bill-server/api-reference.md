@@ -77,6 +77,14 @@ Returns `{tiers, late_penalty, due_days}`.
 - Query: `?staff_id=N&token_id=N`
 - Returns: customer info, latest/last reading, consumption, bill breakdown, pricing tiers, unpaid bills, payment methods, recent payments.
 - Triggers `recalc_total_due()` and `recalc_cumulative_balance()` on access.
+- **Period fields.** The payload states which month the page is being read in and whether the meter was read in it, so a caller never has to infer that from a timestamp:
+  - `current_period` / `current_period_key` — the month being viewed (`November 2026` / `2026-11`).
+  - `latest_reading_period` / `latest_reading_period_key` — the month the newest reading belongs to; `null` when there are none.
+  - `has_current_reading` — whether a reading exists in `current_period_key`. `false` is the "no reading yet" state.
+  - `months_since_last_reading` — `0` when current, `null` when there are no readings.
+  - `no_readings` — `true` when the customer has no readings at all.
+  - Each reading object also carries its own `period` / `period_key`.
+- `water_bill` and `bill_breakdown` always describe the most recent **completed** interval. When `has_current_reading` is `false` they are history, not this month's charge: callers must label them by `latest_reading_period` rather than presenting them as current. `total_due`, `unpaid_bills`, penalties and carryover are unaffected by the period state because they are real arrears.
 
 **GET /api/customer/{customer_number}/details**: Profile + reading history. Auth: can_read_meters.
 - Query: `?history=5` (default)
@@ -148,6 +156,43 @@ Returns `{tiers, late_penalty, due_days}`.
 
 **POST /api/customer/{customer_number}/nfc/delete**: Remove tag. Auth: can_enroll_customer.
 - Increments NFC generation counter.
+
+---
+
+### Meter-reading app
+
+The phone client was written against these paths, which the customer/config route split had
+removed. They are thin aliases: each delegates to the service that already owns the logic, so
+there is one implementation of billing and one definition of each payload. Auth is the same API
+key model (Bearer header or `?api_key=`).
+
+**GET /api/key/info**: Validate the key the phone holds. Auth: API key.
+- Returns `{api_key: {id, label, is_active, date_created}, staff: {...7 permissions}}`.
+- `api_key` is `null` when the caller authenticated with the internal key; `staff` still resolves.
+
+**GET /api/pricing**: Pricing tiers. Auth: can_read_meters. Alias of `/api/config/pricing`.
+
+**GET /api/nfc/config**: `{nfc_pwd_secret, nfc_generation}` for offline tag-password derivation.
+Auth: can_read_meters. Alias of `/api/config/nfc_secret`.
+
+**GET /api/nfc/tags**: `{tags: [{uid, customer_number}]}`. Auth: can_read_meters.
+
+**POST /api/nfc/sync**: Assign tags enrolled on the phone. Auth: can_enroll_customer.
+- Body: `{enrollments: [{uid, customer_number}]}`
+- Returns `{synced, total, results, errors}`. A tag already on the same customer is accepted, so a
+  retried upload is not an error; one held by a different customer is reported per entry.
+
+**POST /api/readings/sync**: Bulk reading upload. Auth: can_read_meters.
+- Body: `{readings: [{customer_number, reading_value, timestamp?}]}`
+- Delegates to `reading_service.sync_readings`, so the monthly duplicate check, automatic billing
+  creation and the audit log behave exactly as they do for the single-upload route.
+- Returns `{synced, total, results, errors}`.
+
+**GET /api/readings/bulk**: Customer profiles plus recent readings, keyed by customer number.
+Auth: can_read_meters.
+- Query: `?customer_numbers=1,2,3&limit=5` (`limit=0` means no limit)
+- Returns `{customers: {"<number>": {customer: {...}, readings: [...]}}}`; each customer carries
+  `nfc_uid`.
 
 ---
 

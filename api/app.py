@@ -97,6 +97,7 @@ def create_app() -> FastAPI:
     from routes.config import router as config_router
     from routes.customer import router as customer_router
     from routes.debug import router as debug_router
+    from routes.mobile import router as mobile_router
     from routes.staff import router as staff_router
     from routes.system import router as system_router
     from routes.webhooks import webhook_router
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
         config_router,
         customer_router,
         debug_router,
+        mobile_router,
         staff_router,
         system_router,
         webhook_router,

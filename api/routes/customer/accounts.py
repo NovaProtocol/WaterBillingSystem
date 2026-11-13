@@ -204,6 +204,27 @@ async def customer_info(
         else 0
     )
 
+    # A reading is "current" only when it falls in the month the page is being
+    # read in. Anything older is history: showing it as the current reading
+    # invents a bill for a period the meter was never read for.
+    today = datetime.now(tz=timezone.utc).replace(tzinfo=None)
+    current_period = today.strftime("%B %Y")
+    current_period_key = today.strftime("%Y-%m")
+    has_current_reading = False
+    latest_reading_period = None
+    latest_reading_period_key = None
+    months_since_last_reading = None
+    if latest_reading:
+        latest_reading_period = latest_reading.timestamp.strftime("%B %Y")
+        latest_reading_period_key = latest_reading.timestamp.strftime("%Y-%m")
+        has_current_reading = latest_reading_period_key == current_period_key
+        months_since_last_reading = max(
+            0,
+            (today.year - latest_reading.timestamp.year) * 12
+            + today.month
+            - latest_reading.timestamp.month,
+        )
+
     bills_result = await session().execute(
         select(Billing)
         .options(
@@ -373,6 +394,8 @@ async def customer_info(
                     else None
                 ),
                 "timestamp": int(latest_reading.timestamp.timestamp()),
+                "period": latest_reading_period,
+                "period_key": latest_reading_period_key,
             }
             if latest_reading
             else None
@@ -387,11 +410,20 @@ async def customer_info(
                     else None
                 ),
                 "timestamp": int(last_reading.timestamp.timestamp()),
+                "period": last_reading.timestamp.strftime("%B %Y"),
+                "period_key": last_reading.timestamp.strftime("%Y-%m"),
             }
             if last_reading
             else None
         ),
         "consumption": consumption,
+        "current_period": current_period,
+        "current_period_key": current_period_key,
+        "latest_reading_period": latest_reading_period,
+        "latest_reading_period_key": latest_reading_period_key,
+        "has_current_reading": has_current_reading,
+        "months_since_last_reading": months_since_last_reading,
+        "no_readings": latest_reading is None,
         "bill_breakdown": bill_breakdown,
         "pricing_tiers": PRICING_TIERS,
         "water_bill": water_bill,

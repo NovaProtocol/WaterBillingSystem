@@ -879,6 +879,18 @@ async def handle_seed(params: dict[str, Any], report: Callable[[float, str], Non
         await _clear_all_tables(s)
         print("  > Existing data cleared", flush=True)
 
+    # _clear_all_tables truncates the data tables but leaves `staff`, and the
+    # seeder then inserts cashier1..N / reader1..N. A second run without this
+    # collides with the previous run's rows on staff.username.
+    ss = sync_session()
+    try:
+        await asyncio.to_thread(delete_non_prereq_staff, ss)
+        ss.commit()
+    finally:
+        ss.close()
+    print("  > Non-prerequisite staff cleared", flush=True)
+
+    async with session_factory()() as s:
         report(2, f"Seeding {n_customers} customers × {n_months} months...")
         await _seed_data(
             n_customers,

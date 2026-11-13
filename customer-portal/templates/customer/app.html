@@ -45,12 +45,13 @@
                             <div class="stat-value text-dark" id="current-reading-value"></div>
                             <p class="text-muted mb-1" id="current-reading-reader"></p>
                             <small class="text-muted" id="current-reading-date"></small>
+                            <p class="text-muted mb-1 mt-2 d-none" id="current-reading-period"></p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-6 mb-4">
                     <div class="card card-app h-100">
-                        <div class="card-header">Previous Reading</div>
+                        <div class="card-header" id="previous-reading-header">Previous Reading</div>
                         <div class="card-body text-center">
                             <div class="stat-value text-dark" id="previous-reading-value"></div>
                             <p class="text-muted mb-1" id="previous-reading-reader"></p>
@@ -72,6 +73,7 @@
                     <div class="px-3 pt-3 pb-2 text-muted consumption-notice d-none" id="consumption-notice">
                         <strong id="consumption-notice-text"></strong> consumed this period
                     </div>
+                    <div class="px-3 pt-3 pb-2 text-muted d-none" id="pricing-note"></div>
                     <table class="table table-sm mb-0 d-none" id="pricing-table">
                         <thead>
                             <tr><th>Tier</th><th>Usage</th><th>Rate</th><th class="text-end">Charge</th></tr>
@@ -101,6 +103,7 @@
                         <i class="fas fa-check-circle"></i> Paid
                     </div>
                     <p class="text-muted mb-0 no-bills d-none" id="no-bills">No bills due</p>
+                    <p class="text-muted mb-0 d-none" id="no-current-bill"></p>
                     <div class="d-flex justify-content-between mb-2 d-none" id="carryover-row">
                         <span class="text-muted carryover-label">Carryover from last bill</span>
                         <span class="font-weight-bold" id="carryover-amount"></span>

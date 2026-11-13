@@ -2,6 +2,25 @@
 
 Business logic is split between API-local services (`api/`) and shared services (`shared/services/`). All are plain Python modules exporting standalone functions. Routes are async FastAPI handlers; sync shared services are called via `asyncio.to_thread` / `run_in_threadpool` with a dedicated sync session.
 
+## Connection pooling
+
+`shared/db_async.py` builds three things: an async engine (aiomysql) for routes, and a sync engine
+plus sessionmaker for the legacy services reached through `_run_sync`. **Both engines need
+`pool_pre_ping`.** A pooled socket that MySQL has already closed raises
+`pymysql.err.OperationalError (2006, "MySQL server has gone away (Broken pipe)")` on the next
+use, and because the customer portal relays any API 5xx as `502`, it presents as a gateway error
+rather than a database one. The sync engine also sets `pool_recycle=1800` to retire a socket
+before the default `wait_timeout` can.
+
+## Log sink
+
+`shared/logger.py` writes structured logs to SQLite under `/var/log/app`, a Docker volume. That
+directory is root-owned unless the image chowns it, while the containers run as `uid=10001`. An
+unwritable directory used to raise on every log record, and `logging.Handler.handleError` printed
+a full traceback plus a call stack each time: roughly 100 lines of noise per request, enough to
+bury a real failure. The handler now disables itself on the first failure, writes one warning to
+stderr, and returns immediately thereafter. Container stdout logging is unaffected.
+
 ## API Services
 
 ### reading_service.py (`api/reading_service.py`)
@@ -153,6 +172,17 @@ Month-batch handlers (`read-this-month`, `unread-this-month`, `pay-this-month`, 
 ### Task Types
 
 `backup`, `restore`, `clear`, `seed`, `read-this-month`, `unread-this-month`, `pay-this-month`, `remove-payment-this-month`, `xendit_reconcile` (self-enqueues every 5 minutes via `enqueue_unique` on startup and after each run).
+
+### Seed is repeatable
+
+`handle_seed` truncates the data tables, which leaves `staff` intact, and then creates
+`cashier1..N` / `reader1..N`. Because `staff.username` is unique, a second seed would collide
+with the previous run's rows. The handler therefore calls `delete_non_prereq_staff` after the
+truncate and before creating staff, the same way `clear` does, so seeding twice in a row works.
+The prerequisite accounts (`superuser`, `xendit`) are preserved.
+
+Seeding with `read_current=no` leaves the current month unread for every customer. That is the
+intended state for exercising the portal's "no reading yet" display, not a defect.
 
 ## Startup Preflight (`api/preflight.py`)
 

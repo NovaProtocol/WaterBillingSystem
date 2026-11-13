@@ -36,7 +36,12 @@ def init_engine() -> None:
 
     _engine = create_async_engine(_async_url(), pool_pre_ping=True, pool_size=5)
     _sessionmaker = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
-    _sync_engine = create_engine(get_config().database_uri, pool_size=5)
+    _sync_engine = create_engine(
+        get_config().database_uri,
+        pool_size=5,
+        pool_pre_ping=True,
+        pool_recycle=1800,
+    )
     _sync_sessionmaker = sessionmaker(_sync_engine, expire_on_commit=False)
 
 

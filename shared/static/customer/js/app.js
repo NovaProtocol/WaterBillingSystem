@@ -71,41 +71,108 @@
   function renderReadings(billing) {
     var current = billing.latest_reading;
     var previous = billing.last_reading;
+    var period = billing.current_period || '';
+    var hasCurrent = !!billing.has_current_reading;
+    var periodEl = text('current-reading-period');
 
-    if (current) {
+    // A reading only belongs in "Current Reading" when it is this month's. A
+    // newer-than-nothing reading from July is history, not a current reading,
+    // and showing it there invents a bill for a month nobody read the meter.
+    if (current && hasCurrent) {
       text('current-reading-value').textContent = current.reading_value;
       text('current-reading-reader').textContent = 'Recorded by: ' + (current.reader || 'Unknown');
       text('current-reading-date').textContent = fmtTs(current.timestamp);
+      if (periodEl) { periodEl.classList.add('d-none'); periodEl.textContent = ''; }
+    } else if (current) {
+      text('current-reading-value').textContent = '';
+      text('current-reading-reader').textContent = 'No reading yet for ' + period;
+      text('current-reading-date').textContent = '';
+      if (periodEl) {
+        periodEl.textContent = 'Last reading: ' + (billing.latest_reading_period || '') +
+          ' \u00B7 ' + current.reading_value;
+        periodEl.classList.remove('d-none');
+      }
     } else {
       text('current-reading-value').textContent = '';
-      text('current-reading-reader').textContent = 'No readings available';
+      text('current-reading-reader').textContent = billing.no_readings
+        ? 'No readings yet'
+        : 'No reading yet for ' + period;
       text('current-reading-date').textContent = '';
+      if (periodEl) { periodEl.classList.add('d-none'); periodEl.textContent = ''; }
     }
 
+    // "Previous Reading" is the second-newest overall. When this month is
+    // unread that slot is one interval further back, so label the card with
+    // the period it actually shows.
+    var prevHeader = text('previous-reading-header');
     if (previous) {
       text('previous-reading-value').textContent = previous.reading_value;
       text('previous-reading-reader').textContent = 'Recorded by: ' + (previous.reader || 'Unknown');
       text('previous-reading-date').textContent = fmtTs(previous.timestamp);
+      if (prevHeader) {
+        prevHeader.textContent = hasCurrent
+          ? 'Previous Reading'
+          : 'Reading Before ' + (billing.latest_reading_period || '');
+      }
+    } else if (current && !hasCurrent) {
+      text('previous-reading-value').textContent = '';
+      text('previous-reading-reader').textContent = 'No earlier reading on file';
+      text('previous-reading-date').textContent = '';
+      if (prevHeader) { prevHeader.textContent = 'Previous Reading'; }
     } else {
       text('previous-reading-value').textContent = '';
       text('previous-reading-reader').textContent = 'No previous reading';
       text('previous-reading-date').textContent = '';
+      if (prevHeader) { prevHeader.textContent = 'Previous Reading'; }
     }
   }
 
   function renderPricing(billing) {
-    var canCompute = billing.latest_reading && billing.last_reading;
+    var period = billing.current_period || '';
+    var note = text('pricing-note');
     var table = text('pricing-table');
     var empty = text('pricing-empty');
     var notice = text('consumption-notice');
 
+    // Consumption is only this period's when the meter was read this period.
+    // Otherwise the breakdown belongs to the last completed interval and must
+    // be labelled as such, never presented as the current month's charge.
+    var hasCurrent = !!billing.has_current_reading;
+    var canCompute = billing.latest_reading && billing.last_reading;
+
+    if (note) {
+      if (!canCompute) {
+        note.textContent = billing.no_readings
+          ? 'No readings on file yet, so there is nothing to price.'
+          : 'Only one reading on file, so consumption cannot be calculated yet.';
+        note.classList.remove('d-none');
+      } else if (!hasCurrent) {
+        note.textContent = 'No reading yet for ' + period +
+          '. The breakdown below covers ' + (billing.latest_reading_period || 'the last reading') +
+          ', the most recent completed period.';
+        note.classList.remove('d-none');
+      } else {
+        note.classList.add('d-none');
+        note.textContent = '';
+      }
+    }
+
     if (!canCompute) {
       empty.classList.remove('d-none');
+      table.classList.add('d-none');
+      notice.classList.add('d-none');
       return;
     }
 
+    empty.classList.add('d-none');
     notice.classList.remove('d-none');
     text('consumption-notice-text').textContent = money(billing.consumption) + ' m\u00B3';
+    var noticeLabel = notice.lastChild;
+    if (noticeLabel && noticeLabel.nodeType === 3) {
+      noticeLabel.textContent = hasCurrent
+        ? ' consumed this period'
+        : ' consumed in ' + (billing.latest_reading_period || 'the last period');
+    }
 
     var tbody = text('pricing-tbody');
     var html = '';
@@ -127,7 +194,8 @@
     });
 
     html += '<tr class="font-weight-bold breakdown-total">' +
-      '<td colspan="3">Total Water Bill</td>' +
+      '<td colspan="3">' + (hasCurrent ? 'Total Water Bill' : 'Total for ' +
+        esc(billing.latest_reading_period || 'last period')) + '</td>' +
       '<td class="text-end">&#x20B1;' + money(billing.original_water_bill) + '</td>' +
       '</tr>';
     tbody.innerHTML = html;
@@ -141,8 +209,12 @@
     var showPaidRow = false;
     var showPaidCheck = false;
     var showNoBills = false;
+    var noCurrentBill = text('no-current-bill');
+    var period = billing.current_period || '';
+    var hasCurrent = !!billing.has_current_reading;
+    var hasUnpaid = !!(billing.unpaid_bills && billing.unpaid_bills.length);
 
-    if (billing.unpaid_bills && billing.unpaid_bills.length) {
+    if (hasUnpaid) {
       billing.unpaid_bills.forEach(function (bill) {
         uh += '<div class="d-flex justify-content-between mb-1">' +
           '<span class="text-muted">' + esc(bill.month) + '</span>' +
@@ -153,11 +225,12 @@
             '<span class="font-weight-bold penalty-amount">+ &#x20B1;' + money(bill.penalty) + '</span></div>';
         }
       });
-    } else if (billing.original_water_bill > 0) {
+    } else if (billing.original_water_bill > 0 && hasCurrent) {
+      // Only claim a current bill when the meter was actually read this month.
       showPaidRow = true;
       showPaidCheck = true;
       text('paid-status-amount').innerHTML = '&#x20B1;' + money(billing.original_water_bill);
-    } else {
+    } else if (!billing.no_readings) {
       showNoBills = true;
     }
     unpaidWrap.innerHTML = uh;
@@ -165,6 +238,20 @@
     show(text('paid-status-row'), showPaidRow);
     show(text('paid-status-check'), showPaidCheck);
     show(text('no-bills'), showNoBills);
+
+    // Distinct from "No bills due": nothing has been billed for this month at
+    // all, because it has not been read yet.
+    if (noCurrentBill) {
+      if (!hasUnpaid && !showNoBills && !hasCurrent) {
+        noCurrentBill.textContent = billing.no_readings
+          ? 'No bill yet. A bill is raised after the first reading.'
+          : 'No bill yet for ' + period + '. This month has not been read.';
+        noCurrentBill.classList.remove('d-none');
+      } else {
+        noCurrentBill.classList.add('d-none');
+        noCurrentBill.textContent = '';
+      }
+    }
 
     var carryoverRow = text('carryover-row');
     if (billing.cumulative_balance !== 0) {
