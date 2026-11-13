@@ -275,12 +275,18 @@ async def customer_info(
 
     due_date = None
     days_remaining = None
+    is_overdue = False
     if unpaid_bills:
         due_dt = datetime.fromtimestamp(unpaid_bills[0]["timestamp"], tz=timezone.utc).replace(
             tzinfo=None
         ) + timedelta(days=7)
         due_date = due_dt.strftime("%m-%d-%Y")
-        days_remaining = max(0, (due_dt - datetime.now(tz=timezone.utc).replace(tzinfo=None)).days)
+        delta_days = (due_dt - datetime.now(tz=timezone.utc).replace(tzinfo=None)).days
+        # days_remaining is clamped so a caller cannot print a negative count,
+        # but that made an old bill read "Due in 0 days" months after it was
+        # due. Flag the state so the portal can say it is overdue instead.
+        is_overdue = delta_days < 0
+        days_remaining = max(0, delta_days)
 
     reading_pairs = []
     for i in range(len(readings)):
@@ -438,6 +444,7 @@ async def customer_info(
         "total_penalties": round(total_penalties, 2),
         "due_date": due_date,
         "days_remaining": days_remaining,
+        "is_overdue": is_overdue,
         "billing_items": reading_pairs,
         "recent_payments": [
             {

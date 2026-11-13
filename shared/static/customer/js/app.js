@@ -274,7 +274,12 @@
     var dueDate = text('due-date');
     if (billing.due_date) {
       var days = billing.days_remaining;
-      dueDate.textContent = 'Due in ' + days + ' day' + (days === 1 ? '' : 's') + ' (' + billing.due_date + ')';
+      if (billing.is_overdue) {
+        dueDate.textContent = 'Overdue since ' + billing.due_date;
+      } else {
+        dueDate.textContent = 'Due in ' + days + ' day' + (days === 1 ? '' : 's') +
+          ' (' + billing.due_date + ')';
+      }
       dueDate.classList.remove('d-none');
     } else {
       dueDate.classList.add('d-none');

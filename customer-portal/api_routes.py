@@ -94,6 +94,7 @@ def _clean_context(billing):
         "unpaid_bills": [_pick(b, UNPAID_BILL_FIELDS) for b in billing.get("unpaid_bills", [])],
         "due_date": billing.get("due_date"),
         "days_remaining": billing.get("days_remaining"),
+        "is_overdue": billing.get("is_overdue", False),
         "pending_xendit": billing.get("pending_xendit"),
         "recent_payments": [_pick(p, PAYMENT_FIELDS) for p in billing.get("recent_payments", [])],
         "payment_methods": [

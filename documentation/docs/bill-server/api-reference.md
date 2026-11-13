@@ -84,6 +84,7 @@ Returns `{tiers, late_penalty, due_days}`.
   - `months_since_last_reading` — `0` when current, `null` when there are no readings.
   - `no_readings` — `true` when the customer has no readings at all.
   - Each reading object also carries its own `period` / `period_key`.
+- `is_overdue` — `true` when the oldest unpaid bill's due date has already passed. `days_remaining` is clamped at `0`, so it cannot express an overdue bill; a caller that only reads `days_remaining` prints "Due in 0 days" for a bill that is months late. Use `is_overdue` to say so instead.
 - `water_bill` and `bill_breakdown` always describe the most recent **completed** interval. When `has_current_reading` is `false` they are history, not this month's charge: callers must label them by `latest_reading_period` rather than presenting them as current. `total_due`, `unpaid_bills`, penalties and carryover are unaffected by the period state because they are real arrears.
 
 **GET /api/customer/{customer_number}/details**: Profile + reading history. Auth: can_read_meters.
