@@ -185,7 +185,9 @@ async def _execute_task(task: Any) -> None:
         success = True
         logger.info("[background_worker] Completed: %s", task_title)
     except Exception as e:
-        logger.error("[background_worker] Error: %s: %s", task_title, e)
+        # Keep the stack: a one-line message is not enough to diagnose a handler
+        # that fails on a specific row, and the task row only stores the status.
+        logger.exception("[background_worker] Error: %s: %s", task_title, e)
 
     # Persist final state (handler may have deleted the row, e.g. restore).
     async with session_factory()() as s:

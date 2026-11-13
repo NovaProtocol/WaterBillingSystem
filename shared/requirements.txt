@@ -4,7 +4,12 @@ pydantic-settings>=2,<3
 
 # DB
 sqlalchemy>=2.0,<3
-pymysql>=1.1,<2
+# PyMySQL is capped below 1.2.1: from 1.2.1 the module-level
+# escape_bytes_prefixed helper is gone (1.2.3+ replaces it with a sentinel
+# string that raises when called), while aiomysql 0.3.2 still imports and calls
+# it for every bytes parameter. Anything above 1.2.0 breaks BLOB/BINARY binds,
+# which is what the staff password hash is.
+pymysql>=1.1,<=1.2.0
 python-dateutil>=2.8.0
 
 # fastapi (phase 2+)
